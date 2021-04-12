@@ -23,10 +23,11 @@ private:
 
   double mass; // kg or solar mass
   double parent_mass; // kg
-  double diameter; // km
+  double radius; // km
 
   double orbital_time; // ks
   double mean_motion; // (n) 1/s
+  double orbital_period; // s
 
   // Orbital parameters in parent object coord. system - spherical
   // double longitude; // l
@@ -62,10 +63,9 @@ public:
   //~Celestial_object(); // Destructor
 
   // Variables
-  static double gravitational_constant = 6.67430 * pow(10,-11); // m^3 kg-1 s-2
+  static constexpr double gravitational_constant = 6.67430 * pow(10,-11); // m^3 kg-1 s-2
 
   // Functions
-  double mean_motion();
   double mean_anomaly();
   double eccentric_anomaly();
   double true_anomaly();
