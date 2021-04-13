@@ -94,7 +94,8 @@ double Celestial_object::true_anomaly(double eccentric_anomaly){
 double Celestial_object::normal_time_to_JDN(int year,
   int month, int day, int hour, int minute){
     // https://quasar.as.utexas.edu/BillInfo/JulianDatesG.html
-    // GMT date to be converted
+    // Julian date number of given day by 0 hour !!!
+    // https://www.onlineconversion.com/julian_date.htm
 
     if (month < 3) {
       year -= 1;
@@ -106,15 +107,21 @@ double Celestial_object::normal_time_to_JDN(int year,
     int c = 2-a+b;
     int e = 365.25 * (year + 4716);
     int f = 30.6001 * (month + 1);
-    double jd = c + day + e + f -1524.5;
+    double jd = c + e + f -1524.5 + day + (double)hour/24 + (double)minute/1440;
 
-    // float(hour)/24 + float(minute)/1440
-
-    // JD= C+D+E+F-1524.5
-    cout.precision(10);
-    cout << "Julian day number: " << jd << "\n";
-
+    cout.precision(17);
+    cout << "Julian date number of given Gregorian date is: " << jd << "\n";
     return jd;
+}
+
+
+double Celestial_object::normal_time_to_J2000(int year,
+  int month, int day, int hour, int minute){
+
+    double t = normal_time_to_JDN(year, month, day, hour, minute);
+     t -= 2451545.0;
+     cout << "J2000 date number of given Gregorian date is: " << t << "\n";
+     return t;
 }
 
 

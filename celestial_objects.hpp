@@ -71,6 +71,7 @@ public:
   double true_anomaly(double);
 
   double normal_time_to_JDN(int, int, int, int, int);
+  double normal_time_to_J2000(int, int, int, int, int);
 
   // https://space.stackexchange.com/questions/23988/how-to-get-true-anomaly-from-time
   vector<double> Get_position_at_time(double time);
