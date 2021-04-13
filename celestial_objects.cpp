@@ -40,33 +40,34 @@ void Celestial_object::set_orbital_params(double Eccentricity,
 
     // Calculated parameters
     mean_motion = sqrt(gravitational_constant * parent_mass / \
-      pow(semimajor_axis*1000, 3));
-    orbital_period = 2*M_PI*(1/mean_motion)/86400;
+      pow(semimajor_axis*1000, 3)); // rad/s
+    orbital_period = (2*M_PI) / mean_motion / 86400; // day
 
     cout << "Eccentricity (e): " << eccentricity << " [-]\n";
-    cout << "Mean anomaly (M0): " << mean_anomaly_at_epoch << " [rad]\n";
+    cout << "Mean anomaly at epoch (M0): " << mean_anomaly_at_epoch << " [rad]\n";
     cout << "Semimajor axis (a): " << semimajor_axis << " [km]\n";
-    cout << "Object mean motion (n): " << mean_motion << " [1/s]\n";
+    cout << "Object mean motion (n): " << mean_motion << " [rad/s]\n";
     cout << "Orbital period (T): " << orbital_period << " [day]\n";
 }
 
 
-double Celestial_object::mean_anomaly(){
-  double mean_anomaly = mean_anomaly_at_epoch + 0;
+double Celestial_object::mean_anomaly(double time){
+  // define epoch ?
+  double epoch = 0; // seconds
+  double mean_anomaly = mean_anomaly_at_epoch + mean_motion * (time - epoch);
+  cout << "\nMean anomaly for " << name << " is: " << mean_anomaly << " [rad]\n";
   return mean_anomaly;
 }
 
 
-double Celestial_object::eccentric_anomaly() {
-  cout << "\nEccentric anomaly for " << name << ":\n";
+double Celestial_object::eccentric_anomaly(double mean_anomaly) {
 
-  double m = mean_anomaly();
-  double e0 = m;
+  double e0 = mean_anomaly; // rad
   double e1;
 
   for( ; ; ) { // Iterating to infinity
-    e1 = m + eccentricity * sin(e0);
-    cout << "E0: " << e0 << " E1: " << e1 << "\n";
+    e1 = mean_anomaly + eccentricity * sin(e0);
+    //cout << "E0: " << e0 << " / E1: " << e1 << "\n";
 
     if ( abs(e1-e0) > 0.00001 ) {
       e0 = e1;
@@ -74,14 +75,57 @@ double Celestial_object::eccentric_anomaly() {
     }
 
     else {
+      cout << "Eccentric anomaly for " << name << " is: " << e1 << "\n";
       return e1;
     }
-
   }
-
 }
 
-double Celestial_object::true_anomaly(){
-  double true_anomaly = 0;
+double Celestial_object::true_anomaly(double eccentric_anomaly){
+
+  double true_anomaly = 2;
+
+  // double true_anomaly = 2 * atan( sqrt() * tan(E/2) );
+  cout << "True anomaly for " << name << " is: " << true_anomaly << "\n";
   return true_anomaly;
+}
+
+
+double Celestial_object::normal_time_to_JDN(int year,
+  int month, int day, int hour, int minute){
+    // https://quasar.as.utexas.edu/BillInfo/JulianDatesG.html
+    // GMT date to be converted
+
+    if (month < 3) {
+      year -= 1;
+      month += 12;
+    }
+
+    int a = year/100;
+    int b = a/4;
+    int c = 2-a+b;
+    int e = 365.25 * (year + 4716);
+    int f = 30.6001 * (month + 1);
+    double jd = c + day + e + f -1524.5;
+
+    // float(hour)/24 + float(minute)/1440
+
+    // JD= C+D+E+F-1524.5
+    cout.precision(10);
+    cout << "Julian day number: " << jd << "\n";
+
+    return jd;
+}
+
+
+vector<double> Celestial_object::Get_position_at_time(double time){
+
+  double ma = mean_anomaly(time);
+  double ea = eccentric_anomaly(ma);
+  double ta = true_anomaly(ea);
+
+  vector<double> position = {0,0,0};
+
+  cout << "Position of " << name << " at " << time << " is: " << ta << "\n";
+  return position;
 }
