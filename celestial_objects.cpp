@@ -110,17 +110,19 @@ double Celestial_object::normal_time_to_JDN(int year,
     double jd = c + e + f -1524.5 + day + (double)hour/24 + (double)minute/1440;
 
     cout.precision(17);
-    cout << "Julian date number of given Gregorian date is: " << jd << "\n";
+    cout << "Julian date number of given Gregorian date is: " << jd << "[day]\n";
     return jd;
 }
 
 
 double Celestial_object::normal_time_to_J2000(int year,
   int month, int day, int hour, int minute){
+    // https://nsidc.org/data/icesat/glas-date-conversion-tool/date_convert/
 
     double t = normal_time_to_JDN(year, month, day, hour, minute);
      t -= 2451545.0;
-     cout << "J2000 date number of given Gregorian date is: " << t << "\n";
+     t *= 86400; // seconds in a day
+     cout << "J2000 date number of given Gregorian date is: " << t << " [s]\n";
      return t;
 }
 

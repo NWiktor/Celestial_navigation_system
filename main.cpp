@@ -22,8 +22,8 @@ int main() {
   //Fold.eccentric_anomaly();
   //Nereid.eccentric_anomaly();
 
-  Fold.normal_time_to_JDN(2021,04,13,17,15);
-  Fold.normal_time_to_J2000(2021,04,13,17,15);
+  // Fold.normal_time_to_JDN(2021,04,13,17,15);
+  Fold.normal_time_to_J2000(2021,04,14,11,37);
 
   cout << "Program exited normally!\n";
   return 0;
