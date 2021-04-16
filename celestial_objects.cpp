@@ -83,9 +83,10 @@ double Celestial_object::eccentric_anomaly(double mean_anomaly) {
 
 double Celestial_object::true_anomaly(double eccentric_anomaly){
 
-  double true_anomaly = 2;
+  // double true_anomaly = 2;
 
-  // double true_anomaly = 2 * atan( sqrt() * tan(E/2) );
+  double true_anomaly = 2 * atan( sqrt( (1+eccentricity)/(1-eccentricity) ) * tan(eccentric_anomaly/2) );
+
   cout << "True anomaly for " << name << " is: " << true_anomaly << "\n";
   return true_anomaly;
 }
