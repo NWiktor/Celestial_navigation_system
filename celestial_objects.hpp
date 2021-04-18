@@ -66,15 +66,18 @@ public:
   static constexpr double gravitational_constant = 6.67430 * pow(10,-11); // m^3 kg-1 s-2
 
   // Functions
+  // Positions
   double mean_anomaly(double);
   double eccentric_anomaly(double);
   double true_anomaly(double);
+  double get_radius(double);
 
+  // Time
   double normal_time_to_JDN(int, int, int, int, int);
   double normal_time_to_J2000(int, int, int, int, int);
 
   // https://space.stackexchange.com/questions/23988/how-to-get-true-anomaly-from-time
-  vector<double> Get_position_at_time(double time);
+  vector<double> get_orbital_coords_at_time(double time);
 
 };
 

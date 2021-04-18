@@ -52,7 +52,6 @@ void Celestial_object::set_orbital_params(double Eccentricity,
 
 
 double Celestial_object::mean_anomaly(double time){
-  // define epoch ?
   double epoch = 0; // seconds
   double mean_anomaly = mean_anomaly_at_epoch + mean_motion * (time - epoch);
   cout << "\nMean anomaly for " << name << " is: " << mean_anomaly << " [rad]\n";
@@ -61,13 +60,11 @@ double Celestial_object::mean_anomaly(double time){
 
 
 double Celestial_object::eccentric_anomaly(double mean_anomaly) {
-
   double e0 = mean_anomaly; // rad
   double e1;
 
   for( ; ; ) { // Iterating to infinity
     e1 = mean_anomaly + eccentricity * sin(e0);
-    //cout << "E0: " << e0 << " / E1: " << e1 << "\n";
 
     if ( abs(e1-e0) > 0.00001 ) {
       e0 = e1;
@@ -75,19 +72,16 @@ double Celestial_object::eccentric_anomaly(double mean_anomaly) {
     }
 
     else {
-      cout << "Eccentric anomaly for " << name << " is: " << e1 << "\n";
+      cout << "Eccentric anomaly for " << name << " is: " << e1 << " [rad]\n";
       return e1;
     }
   }
 }
 
+
 double Celestial_object::true_anomaly(double eccentric_anomaly){
-
-  // double true_anomaly = 2;
-
   double true_anomaly = 2 * atan( sqrt( (1+eccentricity)/(1-eccentricity) ) * tan(eccentric_anomaly/2) );
-
-  cout << "True anomaly for " << name << " is: " << true_anomaly << "\n";
+  cout << "True anomaly for " << name << " is: " << true_anomaly << " [rad]\n";
   return true_anomaly;
 }
 
@@ -111,7 +105,8 @@ double Celestial_object::normal_time_to_JDN(int year,
     double jd = c + e + f -1524.5 + day + (double)hour/24 + (double)minute/1440;
 
     cout.precision(17);
-    cout << "Julian date number of given Gregorian date is: " << jd << "[day]\n";
+    cout << "Julian date number of given Gregorian date is: "
+      << jd << " [day]\n";
     return jd;
 }
 
@@ -128,14 +123,29 @@ double Celestial_object::normal_time_to_J2000(int year,
 }
 
 
-vector<double> Celestial_object::Get_position_at_time(double time){
+double Celestial_object::get_radius(double true_anomaly){
+  double radius = semimajor_axis * (1-pow(eccentricity,2))/(1 + eccentricity * cos(true_anomaly));
+  return radius;
+}
 
+
+vector<double> Celestial_object::get_orbital_coords_at_time(double time){
+
+  // get orbital parameters to describe Keplerian orbit
   double ma = mean_anomaly(time);
   double ea = eccentric_anomaly(ma);
   double ta = true_anomaly(ea);
+  double r = get_radius(ta);
 
-  vector<double> position = {0,0,0};
+  // Transform from polar to rectangular coords on the orbital plane
+  double x = r * cos(ta);
+  double y = r * sin(ta);
 
-  cout << "Position of " << name << " at " << time << " is: " << ta << "\n";
+  // Create position vector in orbital plane
+  // https://en.wikipedia.org/wiki/Orbital_elements
+  vector<double> position = {x,y,0}; // x^, y^, z^
+
+  cout << "Position of " << name << " at " << time << " is: "
+    << position[0] << ", " << position[1] << ", " << position[2] <<"\n";
   return position;
 }
