@@ -63,15 +63,18 @@ class CelestialObject():
         self.mean_anomaly_at_epoch = mean_anomaly_at_epoch # Mean anonaly, deg
 
 
-    def get_orbital_coords_at_time(self):
-        pass
-
-
     def orbital_parameters(self, orbital_time, mean_motion, orbital_period):
         """  """
         self.orbital_time = orbital_time # s
         self.mean_motion = mean_motion # (n) 1/s
         self.orbital_period = orbital_period # s
+
+
+    def get_position_at_time(self, time):
+        # calculate time difference from epoch
+        # calculate true anomaly from time diff.
+        # convert position coordinates to x,y,z coordinates for animation
+        pass
 
 
     def clear(self):
