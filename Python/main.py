@@ -28,6 +28,7 @@ import math as m
 
 # Third party imports
 import numpy as np
+import matplotlib.pyplot as plt
 
 # Local application imports
 from logger import MAIN_LOGGER as l
@@ -57,7 +58,6 @@ class Orbit():
         # Longitude of the ascending node (Ω), deg
         self.argument_of_periapsis = argument_of_periapsis # Argument of periapsis (ω), deg
         self.mean_anomaly_at_epoch = mean_anomaly_at_epoch # Mean anonaly (M0), deg
-        
 
         ## Orbital parameters
         self.orbital_period = None # (T) day
@@ -110,7 +110,7 @@ class Orbit():
         at a given time since J2000 epoch.
         """
 
-        # Calculate mean anomaly at J2000 
+        # Calculate mean anomaly at J2000
         mean_anomaly = (self.mean_anomaly_at_epoch + (self.mean_angular_motion * j2000)) % 360 # deg
         l.debug(f"Mean anomaly is {mean_anomaly}°") # deg
 
@@ -131,40 +131,11 @@ class Orbit():
 
         # Calculate position and velocity in orbital plane
         x = self.semimajor_axis * (m.cos(eca1) - self.eccentricity) # km
-        y = self.semimajor_axis * m.sqrt(1-pow(self.eccentricity,2)) * m.sin(eca1) #km
+        y = self.semimajor_axis * m.sqrt(1-pow(self.eccentricity,2)) * m.sin(eca1) # km
 
         # Convert position coordinates to x,y,z coordinates for animation
         # orbital_vector = np.array([x,y,0])
         return self.rotational_matrix.dot(np.array([x,y,0]))
-
-
-
-    def true_anomaly(mean_anomaly):
-        pass
-
-
-    # pylint: disable=anomalous-backslash-in-string
-    # ReST syntax generates this warning
-    # def rodrigues_rotation(vector_v, vector_k, theta):
-    #     """Implements Rodrigues rotation.
-
-    #     Calculates the rotated V vector (V\ :sub:`rot`\), based on Rodrigues
-    #     rotation formula. The axis of rotation is K, and the rotation angle is
-    #     theta according to the right hand rule:
-
-    #     .. math::
-    #       \\vec{V_{rot}} = \\vec{V} \\cos\\theta + (\\vec{K} \\times \\vec{V})
-    #       \\sin\\phi + \\vec{K} (\\vec{K} \cdot \\vec{V}) (1 - \\cos\\theta)
-
-    #     :param vector_v: V vector (Numpy).
-    #     :param vector_k: Unit vector K (rotational axis) (Numpy).
-    #     :param float theta: Rotational angle around vector K.
-    #     :return: Rotated V vector (Numpy).
-
-    #     """
-    #     v_rot = ((vector_v*m.cos(theta))+(np.cross(vector_k, vector_v)*m.sin(theta))
-    #     +(vector_k*np.dot(vector_k, vector_v)*(1-m.cos(theta))))
-    #     return v_rot
 
 
     def clear(self):
@@ -192,8 +163,13 @@ class CelestialObject():
         self._orbit = orbit
 
 
-    def get_position(self, time):
-        return self._orbit.get_position(time)
+    def get_position(self, j2000):
+        """  """
+
+        if self._parent_object is None:
+            return np.array([0,0,0])
+
+        return self._orbit.get_position(j2000) + self._parent_object.get_position(j2000)
 
 
     def clear(self):
@@ -208,48 +184,53 @@ class CelestialObject():
 # Main function for module testing
 def main():
     """  """
+    sun = CelestialObject("Nap", "0000", 1.9885*pow(10,30), 695700)
+    mercury = CelestialObject("Merkur", "0001", 3.3011*pow(10,23), 2439.7, sun)
+    venus = CelestialObject("Venus", "0002", 4.8675*pow(10,24), 6051.8, sun)
+    earth = CelestialObject("Fold", "0003", 5.972168*pow(10,24), 6371.1009, sun)
+    moon = CelestialObject("Hold", "0031", 7.342*pow(10,22), 1737.4, earth)
 
-    # earth_mass = 5.972168*pow(10,24)
-    # sun_mass = 1.9885*pow(10,30)
-    sun = CelestialObject("Nap", "0001", 1.9885*pow(10,30), 695700)
-    print(sun)
+    # Orbits
+    mercury_orbit = Orbit(0.205630, 57.91*pow(10,6), 7.005, 48.331, 29.124, 174.796)
+    mercury_orbit.calculate_orbital_period(sun._mass, mercury._mass)
+    mercury.set_orbit(mercury_orbit)
 
-    earth = CelestialObject("Fold", "0002", 5.972168*pow(10,24), 6371.1009, sun)
-    print(earth)
+    venus_orbit = Orbit(0.006772, 108.21*pow(10,6), 3.39458, 76.680, 54.884, 50.115)
+    venus_orbit.calculate_orbital_period(sun._mass, venus._mass)
+    venus.set_orbit(venus_orbit)
 
     earth_orbit = Orbit(0.0167086, 149598023, 0.00005, -11.26064, 114.20783, 358.617)
-
-    print(365.256363004) # d
-    earth_orbit.calculate_orbital_period(sun._mass, earth._mass)
-
+    earth_orbit.set_orbital_period(365.256363004) # d
+    # earth_orbit.calculate_orbital_period(sun._mass, earth._mass)
     earth.set_orbit(earth_orbit)
 
 
-
-    # Plotting
-    x = [0]
-    y = [0]
-    z = [0]
-
-    for i in range(0,365):
-        vector = earth_orbit.get_position(i)
-        x.append(vector[0])
-        y.append(vector[1])
-        z.append(vector[2])
-
-
-    import matplotlib.pyplot as plt
-
-
+    ###  Plotting
     plt.style.use('_mpl-gallery')
 
-    # plot
-    # fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
-    ax = plt.axes(projection='3d')
-    ax.scatter3D(x, y, z)
-    # ax.set(xticklabels=[], yticklabels=[], zticklabels=[])
+    fig = plt.figure()
+    ax1 = fig.add_subplot(projection='3d')
+
+    celestial_bodies = [sun, mercury, venus, earth] 
+
+    for cb in celestial_bodies:
+        xdata = []
+        ydata = []
+        zdata = []
+
+        for i in range(0,365):
+            vector = cb.get_position(i)
+            xdata.append(vector[0])
+            ydata.append(vector[1])
+            zdata.append(vector[2])
+
+        ax1.scatter3D(xdata, ydata, zdata)
 
     plt.show()
+
+
+    print(mercury_orbit.orbital_period)
+    print(venus_orbit.orbital_period)
 
 
 
