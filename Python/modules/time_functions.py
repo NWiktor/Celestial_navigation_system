@@ -40,7 +40,7 @@ def julian_date(year, month, day, hour, minute, second=0):
     """
     jdn = datetime.date(year,month,day).toordinal() + 1721424.5
     jd_ = jdn + hour/24 + minute/1440 + second/86400
-    l.debug(f"Julian date number of {year}-{month}-{day} {hour}:{minute}:{second} is: {jd_}")
+    l.debug(f"Julian date number of {year}-{month:02d}-{day:02d} {hour:02d}:{minute:02d}:{second:02d} is: {jd_}")
     return jd_
 
 
@@ -49,7 +49,7 @@ def j2000_date(year, month, day, hour, minute, second=0):
     """ Calculates J200 date of a given date from Julian date. """
     julian_d = julian_date(year, month, day, hour, minute, second)
     j2000 = 2000 + (julian_d - 2451545.0) / 365.25
-    l.debug(f"J2000 date of {year}-{month}-{day} {hour}:{minute}:{second} is: {j2000}")
+    l.debug(f"J2000 date of {year}-{month:02d}-{day:02d} {hour:02d}:{minute:02d}:{second:02d} is: {j2000}")
     return j2000
 
 
