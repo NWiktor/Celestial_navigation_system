@@ -30,6 +30,8 @@ import math as m
 import numpy as np
 
 # Local application imports
+from logger import MAIN_LOGGER as l
+from modules.time_functions import julian_date, j2000_date
 
 # Class initializations and global variables
 gravitational_constant = 6.67430 * pow(10,-11) # m^3 kg-1 s-2
@@ -107,34 +109,6 @@ class CelestialObject():
         return str(self.__class__) + ": " + str(self.__dict__)
 
 
-
-def julian_date(year, month, day, hour, minute, second=0):
-    # https://stackoverflow.com/questions/13943062/extract-day-of-year-and-julian-day-from-a-string-date
-    # https://en.wikipedia.org/wiki/Julian_day
-    """ Calculates full Julian date of a given date according to:
-    JD = JDN + hour/24 + minute/1440
-    """
-    jdn = datetime.date(year,month,day).toordinal() + 1721424.5
-    julian_date = jdn + hour/24 + minute/1440
-
-    # print(f"Date is {year}-{month}-{day} {hour}:{minute}:{second}")
-    # print(f"Julian date number of given Gregorian date is: {julian_date}")
-
-    return julian_date
-
-
-def j2000_date(year, month, day, hour, minute, second=0):
-    # https://en.wikipedia.org/wiki/Epoch_(astronomy)
-    """ Calculates J200 date of a given date from Julian date. """
-    julian_d = julian_date(year, month, day, hour, minute, second)
-    j2000 = 2000 + (julian_d - 2451545.0) / 365.25
-
-    # print(f"Date is {year}-{month}-{day} {hour}:{minute}:{second}")
-    # print(f"J2000 date of the given Gregorian date is: {j2000}")
-
-    return j2000
-
-
 # Main function for module testing
 def main():
     """  """
@@ -144,7 +118,7 @@ def main():
 
     fold = CelestialObject("Fold", "0002", 2500, 3400)
     fold_orbit = Orbit(0.0167086, 149598023, 0.00005, -11.26064, 114.20783, 358.617)
-    
+
     fold.set_orbit(fold_orbit)
     print(fold)
     print(fold_orbit)
