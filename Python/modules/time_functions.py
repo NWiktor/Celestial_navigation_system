@@ -56,7 +56,7 @@ def j2000_date(year, month, day, hour, minute, second=0):
 # Main function for module testing
 def main():
     """  """
-    julian_date(2000,1,1,12,00)
+    julian_date(2024,1,1,13,26,34)
     j2000_date(2000,1,1,12,00)
 
 
