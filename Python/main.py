@@ -40,7 +40,10 @@ gravitational_constant = 6.67430 * pow(10,-11) # m^3 kg-1 s-2
 # Class and function definitions
 
 
-class Orbit():
+class Kepler_Orbit():
+    """ This class defines a Keplerian orbit in an inertial reference frame (IRF).
+    In order to initalize, the six orbital must be defined.
+    """
 
     def __init__(self, eccentricity, semimajor_axis, inclination,
         longitude_of_ascending_node, argument_of_periapsis, mean_anomaly_at_epoch):
@@ -54,8 +57,7 @@ class Orbit():
         self.eccentricity = eccentricity # Eccentricity (e), -
         self.semimajor_axis = semimajor_axis # Semimajor axis (a), km
         self.inclination = inclination # (i), deg
-        self.longitude_of_ascending_node = longitude_of_ascending_node
-        # Longitude of the ascending node (Ω), deg
+        self.longitude_of_ascending_node = longitude_of_ascending_node # Longitude of the ascending node (Ω), deg
         self.argument_of_periapsis = argument_of_periapsis # Argument of periapsis (ω), deg
         self.mean_anomaly_at_epoch = mean_anomaly_at_epoch # Mean anonaly (M0), deg
 
@@ -69,6 +71,9 @@ class Orbit():
 
 
     def calculate_rotational_matrix(self):
+        """Calculates the rotational matrix between the inertial reference frame
+        and the orbital coordinate system.
+        """
         loan = self.longitude_of_ascending_node * m.pi/180
         aop = self.argument_of_periapsis * m.pi/180
         incl = self.inclination * m.pi/180
@@ -86,18 +91,15 @@ class Orbit():
 
 
     def calculate_mean_angular_motion(self):
-        """  """
         self.mean_angular_motion = 360/self.orbital_period
 
 
     def set_orbital_period(self, orbital_period):
-        """  """
         self.orbital_period = orbital_period # 24*60*60 seconds aka 1 day
         self.calculate_mean_angular_motion()
 
 
     def calculate_orbital_period(self, mass1, mass2=0):
-        """  """
         # Converting km to m in semimajor axis, and convert seconds to days
         self.orbital_period = 2 * m.pi * m.sqrt(pow(self.semimajor_axis * 1000,3)
             / ((mass1+mass2)*gravitational_constant) ) / 86400
@@ -105,13 +107,13 @@ class Orbit():
         self.calculate_mean_angular_motion()
 
 
-    def get_position(self, j2000):
+    def get_position(self, j2000_time):
         """ Calculate position and velocity vectors of an object at a given orbit,
-        at a given time since J2000 epoch.
+        at a given time since J2000 epoch in the inertial reference frame (IRF).
         """
 
         # Calculate mean anomaly at J2000
-        mean_anomaly = (self.mean_anomaly_at_epoch + (self.mean_angular_motion * j2000)) % 360 # deg
+        mean_anomaly = (self.mean_anomaly_at_epoch + (self.mean_angular_motion * j2000_time)) % 360 # deg
         l.debug(f"Mean anomaly is {mean_anomaly}°") # deg
 
         # Calculate eccentric anomaly
@@ -132,9 +134,9 @@ class Orbit():
         # Calculate position and velocity in orbital plane
         x = self.semimajor_axis * (m.cos(eca1) - self.eccentricity) # km
         y = self.semimajor_axis * m.sqrt(1-pow(self.eccentricity,2)) * m.sin(eca1) # km
+        # TODO: add velocity calculation
 
-        # Convert position coordinates to x,y,z coordinates for animation
-        # orbital_vector = np.array([x,y,0])
+        # Convert position vector coordinates to IRF coordinates
         return self.rotational_matrix.dot(np.array([x,y,0]))
 
 
@@ -159,17 +161,24 @@ class CelestialObject():
         self._orbit = None
 
 
+        # Rotational parameters
+        # obliquity or axial_tilt
+        # rotational_velocity
+
+
+
     def set_orbit(self, orbit):
+        # define orbit relative to the parent star inertial coordinate system
         self._orbit = orbit
 
 
-    def get_position(self, j2000):
+    def get_position(self, j2000_time):
         """  """
 
         if self._parent_object is None:
             return np.array([0,0,0])
 
-        return self._orbit.get_position(j2000) + self._parent_object.get_position(j2000)
+        return self._orbit.get_position(j2000_time) + self._parent_object.get_position(j2000_time)
 
 
     def clear(self):
@@ -191,15 +200,15 @@ def main():
     moon = CelestialObject("Hold", "0031", 7.342*pow(10,22), 1737.4, earth)
 
     # Orbits
-    mercury_orbit = Orbit(0.205630, 57.91*pow(10,6), 7.005, 48.331, 29.124, 174.796)
+    mercury_orbit = Kepler_Orbit(0.205630, 57.91*pow(10,6), 7.005, 48.331, 29.124, 174.796)
     mercury_orbit.calculate_orbital_period(sun._mass, mercury._mass)
     mercury.set_orbit(mercury_orbit)
 
-    venus_orbit = Orbit(0.006772, 108.21*pow(10,6), 3.39458, 76.680, 54.884, 50.115)
+    venus_orbit = Kepler_Orbit(0.006772, 108.21*pow(10,6), 3.39458, 76.680, 54.884, 50.115)
     venus_orbit.calculate_orbital_period(sun._mass, venus._mass)
     venus.set_orbit(venus_orbit)
 
-    earth_orbit = Orbit(0.0167086, 149598023, 0.00005, -11.26064, 114.20783, 358.617)
+    earth_orbit = Kepler_Orbit(0.0167086, 149598023, 0.00005, -11.26064, 114.20783, 358.617)
     earth_orbit.set_orbital_period(365.256363004) # d
     # earth_orbit.calculate_orbital_period(sun._mass, earth._mass)
     earth.set_orbit(earth_orbit)
@@ -209,7 +218,10 @@ def main():
     plt.style.use('_mpl-gallery')
 
     fig = plt.figure()
-    ax1 = fig.add_subplot(projection='3d')
+    ax = fig.add_subplot(projection='3d')
+    ax.set_xlim3d(-150000000, 150000000)
+    ax.set_ylim3d(-150000000, 150000000)
+    ax.set_zlim3d(-150000000, 150000000)
 
     celestial_bodies = [sun, mercury, venus, earth] 
 
@@ -224,7 +236,7 @@ def main():
             ydata.append(vector[1])
             zdata.append(vector[2])
 
-        ax1.scatter3D(xdata, ydata, zdata)
+        ax.scatter3D(xdata, ydata, zdata)
 
     plt.show()
 
