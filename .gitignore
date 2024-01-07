@@ -1,2 +1,2 @@
-# Ignore full DOC folder
-/DOC/
+# Ignore full PyCharm folder
+/.idea
