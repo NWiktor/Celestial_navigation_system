@@ -43,7 +43,7 @@ gravitational_constant = 6.67430 * pow(10, -11)  # m^3 kg-1 s-2
 
 class KeplerOrbit:
     """ This class defines a Keplerian orbit in an inertial reference frame (IRF).
-    In order to initialize, the six orbital must be defined.
+    In order to initialize, the six orbital element must be defined.
     """
 
     def __init__(self, eccentricity, semimajor_axis, inclination, longitude_of_ascending_node, argument_of_periapsis,
@@ -144,7 +144,7 @@ class KeplerOrbit:
 
 
 # TODO: split these ???
-class ObjectRotation():
+class Rotation:
     """ Creates connection between the inertial and the non-inertial reference frame between the same object. """
 
     def __init__(self, obliquity_vector, rotation_vector):
@@ -152,32 +152,36 @@ class ObjectRotation():
 
 
 # TODO: break it to CelestialObject() and Planet() child class ?? 
-class CelestialObject():
+class CelestialObject:
 
     def __init__(self, name, uuid, mass, radius, parent_object=None):
         self._name = name
         self._uuid = uuid  # Unique identifier
         self._mass = mass  # kg
         self._radius = radius  # km ???
-        self._parent_object = parent_object
+        self._parent_object = None
         self._orbit = None
         self._rotation = None
 
-    def set_orbit(self, orbit):
+    def set_orbit(self, parent_object, orbit: KeplerOrbit):
         # Relate a Kepler orbit, defined in the parent star inertial reference frame
+        self._parent_object = parent_object
         self._orbit = orbit
 
-    def set_rotation(self, rotation):
+    def set_rotation(self, rotation: Rotation):
         # Define object rotation, in the parent star inertial reference frame
         self._rotation = rotation
 
     def get_position(self, j2000_time):
         """  """
 
-        if self._parent_object is None:
+        # If parent object is not defined
+        if self._parent_object is None or self._orbit is None:
             return np.array([0, 0, 0])
 
+        # Else we add object position + parent object position
         return self._orbit.get_position(j2000_time) + self._parent_object.get_position(j2000_time)
+
 
     def clear(self):
         """ Erases all loaded and existing training data to allow refresh. """
@@ -200,16 +204,16 @@ def main():
     # Orbits
     mercury_orbit = KeplerOrbit(0.205630, 57.91 * pow(10, 6), 7.005, 48.331, 29.124, 174.796)
     mercury_orbit.calculate_orbital_period(sun._mass, mercury._mass)
-    mercury.set_orbit(mercury_orbit)
+    mercury.set_orbit(sun, mercury_orbit)
 
     venus_orbit = KeplerOrbit(0.006772, 108.21 * pow(10, 6), 3.39458, 76.680, 54.884, 50.115)
     venus_orbit.calculate_orbital_period(sun._mass, venus._mass)
-    venus.set_orbit(venus_orbit)
+    venus.set_orbit(sun, venus_orbit)
 
     earth_orbit = KeplerOrbit(0.0167086, 149598023, 0.00005, -11.26064, 114.20783, 358.617)
     earth_orbit.set_orbital_period(365.256363004)  # d
     # earth_orbit.calculate_orbital_period(sun._mass, earth._mass)
-    earth.set_orbit(earth_orbit)
+    earth.set_orbit(sun, earth_orbit)
 
     # Plotting
     plt.style.use('_mpl-gallery')
