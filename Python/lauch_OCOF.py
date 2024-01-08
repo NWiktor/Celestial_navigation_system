@@ -47,7 +47,7 @@ class Engine:
 
     def __init__(self, name, thrust, specific_impulse, duration):
         self.name = name
-        self.thrust = thrust  # N
+        self.thrust = thrust  # N aka kg/m/s
         self.specific_impulse = specific_impulse  # s
         self.duration = duration  # s
 
@@ -61,10 +61,10 @@ class Atmosphere:
         """
         rho_null = 1.204  # kg/m3
         height_scale = 10.4  # km
-        if altitude <= 10000:
-            return rho_null * m.exp(-altitude/1000/height_scale)
-
-        return 0
+        if altitude <= 18000:
+            return rho_null * m.exp(-altitude*1000/height_scale)
+        else:
+            return 0
 
 
 class SpaceCraft:
@@ -91,8 +91,12 @@ class SpaceCraft:
 
 class LaunchSite:
 
-    def __init__(self, name, latitude, longitude, distance_from_object_center, atmosphere):
-        pass
+    def __init__(self, name, latitude, longitude, distance_from_barycenter, atmosphere):
+        self.name = name
+        self.latitude = latitude
+        self.longitude = longitude
+        self.distance_from_barycenter = distance_from_barycenter
+        self.atmosphere = atmosphere
 
 
 class Launch:
@@ -104,33 +108,46 @@ class Launch:
         self.launchsite = launchsite
 
     def generate_points(self, duration):
+        """  """
+        position_0 = np.array([0, 0, 0])
+        velocity_0 = np.array([0, 0, 0])
         position = np.array([0, 0, 0])
         velocity = np.array([0, 0, 0])
+
         mass = self.spacecraft.mass
         earth_radius = 6371000  # m
-        alt = 0  # m
+        # acc = 0  # m/s2
         vel = 0  # m/s
+        alt = 0  # m
 
         for i in range(0, duration):
-            # Calculate new mass
-            # print(mass)  # Current mass
+
             if i <= self.spacecraft.engine.duration:
+                # Calculate new mass
                 mass -= self.spacecraft.thrust / (self.spacecraft.engine.specific_impulse * standard_gravity)
 
-                acc = (self.spacecraft.thrust/mass + standard_gravitational_parameter/pow(earth_radius + alt, 2)
-                       - self.spacecraft.coefficient_of_drag * self.spacecraft.area * Atmosphere.get_density(alt))
+                print("Thrust: ", self.spacecraft.thrust/mass)
+                print("Gravity: ", standard_gravitational_parameter/pow(earth_radius + alt, 2))
+                print("Drag: ", - self.spacecraft.coefficient_of_drag * self.spacecraft.area * Atmosphere.get_density(alt)*pow(vel, 2)/2)
+
+                # Calculate acceleration
+                acc = (self.spacecraft.thrust/mass - standard_gravitational_parameter/pow(earth_radius + alt, 2)
+                       - self.spacecraft.coefficient_of_drag * self.spacecraft.area
+                       * Atmosphere.get_density(alt)*pow(vel, 2)/2)
 
             else:
-                acc = (standard_gravitational_parameter/pow(earth_radius + alt, 2)
-                       - self.spacecraft.coefficient_of_drag * self.spacecraft.area * Atmosphere.get_density(alt))
+                acc = (- standard_gravitational_parameter/pow(earth_radius + alt, 2)
+                       - self.spacecraft.coefficient_of_drag * self.spacecraft.area
+                       * Atmosphere.get_density(alt)*pow(vel, 2)/2)
 
             vel += acc
             alt += vel
+            print("Mass:", mass)
+            print("Acc:", acc)
+            print("Velocity:", vel)
+            print("Altitude:", alt)
 
-            # Calculate acceleration
-
-            yield acc
-
+            yield alt, acc, mass
 
 
 # Main function for module testing
@@ -138,48 +155,44 @@ def main():
     """  """
     raptor3 = Engine("Raptor 3", 1.81*pow(10, 6), 327, 200)
     legkor = Atmosphere()
+
     starship = SpaceCraft("Starship", 5000000, 1.14, m.pi * pow(9, 2)/4, raptor3, 33)
-    cape = LaunchSite("cape", 10, 20,30, legkor)
+    cape = LaunchSite("Cape Canaveral, Earth", 28.3127, 80.3903, 6371000, legkor)
 
     kiloves = Launch("proba", starship, cape)
 
     i = 0
     x_data = []
-    z_data = []
+    alt_data = []
+    acc_data = []
+    mass_data = []
 
-    for val in kiloves.generate_points(300):
-        print(val)
+    for alt, acc, mass in kiloves.generate_points(300):
         x_data.append(i)
-        z_data.append(val)
+        alt_data.append(alt)
+        acc_data.append(acc)
+        mass_data.append(mass/1000)  # tonna
         i += 1
-
-
-
 
     # Plotting
     plt.style.use('_mpl-gallery')
 
     fig = plt.figure(figsize=(8, 8))
-    ax = fig.add_subplot()  # projection='3d')
+    ax = fig.add_subplot(2,2,1)  # projection='3d')
     ax.set_xlim(0, 500)
+    ax.scatter(x_data, alt_data)
     # ax.set_ylim(0, 6000000)
     # ax.set_zlim3d(-150000000, 150000000)
 
-    # celestial_bodies = []
+    ax1 = fig.add_subplot(2, 2, 2)
+    ax1.set_xlim(0, 500)
+    ax1.scatter(x_data, acc_data)
 
-    # for ceb in celestial_bodies:
-        # x_data: list = []
-        # y_data: list = []
-        # z_data: list = []
+    ax2 = fig.add_subplot(2, 2, 3)  # projection='3d')
+    ax2.set_xlim(0, 500)
+    ax2.scatter(x_data, mass_data)
 
-        # for i in range(0, 365):
-            # vector = ceb.get_position(i)
-            # x_data.append(vector[0])
-            # y_data.append(vector[1])
-            # z_data.append(vector[2])
-
-    ax.scatter(x_data, z_data)
-
+    plt.subplots_adjust(wspace=0.4)
     plt.show()
 
 
