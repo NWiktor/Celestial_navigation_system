@@ -147,8 +147,13 @@ class SpaceCraft:
             altitude = self.position[2] + launch_site.distance_from_barycenter
 
             # Calculate new acceleration
+            print(self.gravity(altitude))
+            print(self.thrust(i))
+            print(self.drag(air_density, self.velocity[2]))
+
+
             self.acceleration[2] = (self.thrust(i) - self.drag(air_density, self.velocity[2])
-                                     + self.gravity(altitude))
+                                     - self.gravity(altitude))
             self.velocity[2] += self.acceleration[2]  # Calculate new velocity
             self.position[2] += self.velocity[2]  # Calculate new elevation
 
@@ -188,7 +193,7 @@ def main():
 
     for p, v, a, mass in oft3.launch(cape, 900):
         x_data.append(i)
-        alt_data.append(p[2])
+        alt_data.append(p[2]/1000)
         vel_data.append(v[2])
         acc_data.append(a[2])
         mass_data.append(mass/1000)
@@ -200,26 +205,26 @@ def main():
     fig = plt.figure(layout='constrained', figsize=(8, 8))
     fig.suptitle("Spacecraft")
     ax1 = fig.add_subplot(2, 2, 1)
-    ax1.set_title("Altitude - time")
-    ax1.set_ylabel("Altitude (m)")
+    ax1.set_title("Altitude")
+    ax1.set_ylabel("Altitude (km)")
     ax1.set_xlim(0, time_limit)
-    # ax1.set_ylim(0, 2000000)
+    ax1.set_ylim(0, 2500)
     ax1.scatter(x_data, alt_data, s=0.5)
 
     ax2 = fig.add_subplot(2, 2, 2)
-    ax2.set_title("v(t)")
+    ax2.set_title("Velocity")
     ax2.set_ylabel("Velocity (m/s)")
     ax2.set_xlim(0, time_limit)
     ax2.scatter(x_data, vel_data, s=0.5)
 
     ax3 = fig.add_subplot(2, 2, 3)
-    ax3.set_title("a(t)")
+    ax3.set_title("Acceleration")
     ax3.set_ylabel("Acceleration (m/s^2)")
     ax3.set_xlim(0, time_limit)
     ax3.scatter(x_data, acc_data, s=0.5)
 
     ax4 = fig.add_subplot(2, 2, 4)
-    ax4.set_title("m(t)")
+    ax4.set_title("Spacecraft mass")
     ax4.set_ylabel("Mass (ton)")
     ax4.set_xlim(0, time_limit)
     ax4.set_ylim(0, 5000)
