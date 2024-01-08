@@ -43,13 +43,21 @@ standard_gravity = 9.81  # m/s^2
 # Class and function definitions
 
 class Engine:
-    """ Rocket engine class, defined by name, specific_impulse and burn_duration. """
+    """ Rocket engine class, defined by name and specific_impulse. """
 
-    def __init__(self, name, thrust, specific_impulse, duration):
+    def __init__(self, name, thrust: float, specific_impulse: float):
         self.name = name
         self.thrust = thrust  # N aka kg/m/s
         self.specific_impulse = specific_impulse  # s
+
+
+class Stage:
+    """ Rocket stage class, defined by engine, number of engines, and burn duration. """
+
+    def __init__(self, engine: Engine, number_of_engines: int, duration: int):
+        self.thrust = engine.thrust * number_of_engines  # N aka kg/m/s
         self.duration = duration  # s
+        self.specific_impulse = engine.specific_impulse  # s
 
 
 class Atmosphere:
@@ -67,31 +75,9 @@ class Atmosphere:
             return 0
 
 
-class SpaceCraft:
-    """  """
-
-    def __init__(self, name, mass, coefficient_of_drag, area, engine, number_of_engines):
-        self.name = name
-        self.mass = mass  # kg
-        self.coefficient_of_drag = coefficient_of_drag  # -
-        self.area = area  # m2
-
-        # Engine specs
-        self.engine = engine
-        self.number_of_engines = number_of_engines
-        self.thrust = number_of_engines * self.engine.thrust
-
-    def clear(self):
-        """ Erases all loaded and existing training data to allow refresh. """
-        self.__dict__ = {}
-
-    def __str__(self):
-        return str(self.__class__) + ": " + str(self.__dict__)
-
-
 class LaunchSite:
 
-    def __init__(self, name, latitude, longitude, distance_from_barycenter, atmosphere):
+    def __init__(self, name, latitude: float, longitude: float, distance_from_barycenter: float, atmosphere: Atmosphere):
         self.name = name
         self.latitude = latitude
         self.longitude = longitude
@@ -99,100 +85,198 @@ class LaunchSite:
         self.atmosphere = atmosphere
 
 
-class Launch:
+class SpaceCraft:
     """  """
 
-    def __init__(self, name, spacecraft: SpaceCraft, launchsite: LaunchSite):
+    def __init__(self, name, mass_0, coefficient_of_drag, area, stage1, stage2):
         self.name = name
-        self.spacecraft = spacecraft
-        self.launchsite = launchsite
+        self.mass = mass_0  # Starting mass, kg
+        self.coefficient_of_drag = coefficient_of_drag  # -
+        self.area = area  # Cross-sectional area, m2
 
-    def generate_points(self, duration):
+        # Stage specs
+        self.stage1 = stage1
+        self.stage2 = stage2
+
+        # Dynamic vectors
+        self.position = np.array([0, 0, 0])
+        self.velocity = np.array([0, 0, 0])
+        self.acceleration = np.array([0, 0, 0])
+
+    def thrust(self, time):
         """  """
-        position_0 = np.array([0, 0, 0])
-        velocity_0 = np.array([0, 0, 0])
-        position = np.array([0, 0, 0])
-        velocity = np.array([0, 0, 0])
 
-        mass = self.spacecraft.mass
-        earth_radius = 6371000  # m
-        # acc = 0  # m/s2
-        vel = 0  # m/s
-        alt = 0  # m
+        if time <= self.stage1.duration:
+            return self.stage1.thrust / self.mass
 
-        for i in range(0, duration):
+        elif time <= self.stage2.duration:
+            return self.stage2.thrust / self.mass
 
-            if i <= self.spacecraft.engine.duration:
-                # Calculate new mass
-                mass -= self.spacecraft.thrust / (self.spacecraft.engine.specific_impulse * standard_gravity)
+        return 0
 
-                print("Thrust: ", self.spacecraft.thrust/mass)
-                print("Gravity: ", standard_gravitational_parameter/pow(earth_radius + alt, 2))
-                print("Drag: ", - self.spacecraft.coefficient_of_drag * self.spacecraft.area * Atmosphere.get_density(alt)*pow(vel, 2)/2)
+    def drag(self, air_density, velocity):
+        return self.coefficient_of_drag * self.area * air_density * pow(velocity, 2) / 2
 
-                # Calculate acceleration
-                acc = (self.spacecraft.thrust/mass - standard_gravitational_parameter/pow(earth_radius + alt, 2)
-                       - self.spacecraft.coefficient_of_drag * self.spacecraft.area
-                       * Atmosphere.get_density(alt)*pow(vel, 2)/2)
+    def gravity(self, distance):
+        return standard_gravitational_parameter / pow(int(distance), 2)
 
-            else:
-                acc = (- standard_gravitational_parameter/pow(earth_radius + alt, 2)
-                       - self.spacecraft.coefficient_of_drag * self.spacecraft.area
-                       * Atmosphere.get_density(alt)*pow(vel, 2)/2)
+    def delta_m(self, time):
+        """  """
+        if time <= self.stage1.duration:
+            return self.stage1.thrust / (self.stage1.specific_impulse * standard_gravity)
 
-            vel += acc
-            alt += vel
-            print("Mass:", mass)
-            print("Acc:", acc)
-            print("Velocity:", vel)
-            print("Altitude:", alt)
+        elif time <= self.stage2.duration:
+            return self.stage2.thrust / (self.stage2.specific_impulse * standard_gravity)
 
-            yield alt, acc, mass
+        return 0
+
+    def launch(self, launch_site: LaunchSite, time):
+        """  """
+
+        # Yield initial values
+        yield self.position, self.velocity, self.acceleration, self.mass
+        print("___INITIAL_CONDITIONS___")
+        print(f"{self.position=}")
+        print(f"{self.velocity=}")
+        print(f"{self.acceleration=}")
+        print(f"{self.mass=}")
+
+        for i in range(0, time):
+            # 1 second has passed
+            air_density = launch_site.atmosphere.get_density(self.position[2])
+            altitude = self.position[2] + launch_site.distance_from_barycenter
+
+            # Calculate new acceleration
+            self.acceleration[2] = (self.thrust(i) - self.drag(air_density, self.velocity[2])
+                                     + self.gravity(altitude))
+            self.velocity[2] += self.acceleration[2]  # Calculate new velocity
+            self.position[2] += self.velocity[2]  # Calculate new elevation
+
+            # Calculate new spacecraft mass
+            self.mass -= self.delta_m(i)
+
+            yield self.position, self.velocity, self.acceleration, self.mass
+            print(f"___STEP {i}___")
+            print(f"{self.position=}")
+            print(f"{self.velocity=}")
+            print(f"{self.acceleration=}")
+            print(f"{self.mass=}")
+
+
+# class Launch:
+#     """  """
+#
+#     def __init__(self, name, spacecraft: SpaceCraft, launch_site: launch_site):
+#         self.name = name
+#         self.spacecraft = spacecraft
+#         self.launch_site = launch_site
+#
+#
+#     def liftoff(self):
+#         """  """
+#         position_0 = np.array([0, 0, 0])
+#         velocity_0 = np.array([0, 0, 0])
+#         position = np.array([0, 0, 0])
+#         velocity = np.array([0, 0, 0])
+#
+#         mass = self.spacecraft.mass
+#         earth_radius = 6371000  # m
+#         # acc = 0  # m/s2
+#         vel = 0  # m/s
+#         alt = 0  # m
+#
+#         for i in range(0, duration):
+#
+#             if i <= self.spacecraft.engine.duration:
+#                 # Calculate new mass
+#                 mass -= self.spacecraft.thrust / (self.spacecraft.engine.specific_impulse * standard_gravity)
+#
+#                 print("Thrust: ", self.spacecraft.thrust/mass)
+#                 print("Gravity: ", standard_gravitational_parameter/pow(earth_radius + alt, 2))
+#                 print("Drag: ", - self.spacecraft.coefficient_of_drag * self.spacecraft.area * Atmosphere.get_density(alt)*pow(vel, 2)/2)
+#
+#                 # Calculate acceleration
+#                 acc = (self.spacecraft.thrust/mass - standard_gravitational_parameter/pow(earth_radius + alt, 2)
+#                        - self.spacecraft.coefficient_of_drag * self.spacecraft.area
+#                        * Atmosphere.get_density(alt)*pow(vel, 2)/2)
+#
+#             else:
+#                 acc = (- standard_gravitational_parameter/pow(earth_radius + alt, 2)
+#                        - self.spacecraft.coefficient_of_drag * self.spacecraft.area
+#                        * Atmosphere.get_density(alt)*pow(vel, 2)/2)
+#
+#             vel += acc
+#             alt += vel
+#             print("Mass:", mass)
+#             print("Acc:", acc)
+#             print("Velocity:", vel)
+#             print("Altitude:", alt)
+#
+#             yield alt, acc, mass
 
 
 # Main function for module testing
 def main():
     """  """
-    raptor3 = Engine("Raptor 3", 1.81*pow(10, 6), 327, 200)
-    legkor = Atmosphere()
+    # Place
+    atmosphere = Atmosphere()
+    cape = LaunchSite("Cape Canaveral, Earth", 28.3127, 80.3903, 6371000, atmosphere)
 
-    starship = SpaceCraft("Starship", 5000000, 1.14, m.pi * pow(9, 2)/4, raptor3, 33)
-    cape = LaunchSite("Cape Canaveral, Earth", 28.3127, 80.3903, 6371000, legkor)
+    # Starship hardware specs:
+    raptor3 = Engine("Raptor 3", 2.64*pow(10, 6), 327)
+    raptor3_vac = Engine("Raptor 3 vac", 2.64*pow(10, 6), 380)
+    booster = Stage(raptor3, 33, 159)
+    starship = Stage(raptor3_vac, 3, 400)
+    oft3 = SpaceCraft("Starship", 5000000, 1.5, m.pi * pow(9, 2)/4, booster, starship)
 
-    kiloves = Launch("proba", starship, cape)
-
+    # Launch
     i = 0
+    time_limit = 900
     x_data = []
     alt_data = []
+    vel_data = []
     acc_data = []
     mass_data = []
 
-    for alt, acc, mass in kiloves.generate_points(300):
+    for p, v, a, mass in oft3.launch(cape, 900):
         x_data.append(i)
-        alt_data.append(alt)
-        acc_data.append(acc)
-        mass_data.append(mass/1000)  # tonna
+        alt_data.append(p[2])
+        vel_data.append(v[2])
+        acc_data.append(a[2])
+        mass_data.append(mass/1000)
         i += 1
 
     # Plotting
     plt.style.use('_mpl-gallery')
 
     fig = plt.figure(layout='constrained', figsize=(8, 8))
-    ax = fig.add_subplot(2,2,1)  # projection='3d')
-    ax.set_xlim(0, 500)
-    ax.scatter(x_data, alt_data)
-    # ax.set_ylim(0, 6000000)
-    # ax.set_zlim3d(-150000000, 150000000)
+    fig.suptitle("Spacecraft")
+    ax1 = fig.add_subplot(2, 2, 1)
+    ax1.set_title("Altitude - time")
+    ax1.set_ylabel("Altitude (m)")
+    ax1.set_xlim(0, time_limit)
+    # ax1.set_ylim(0, 2000000)
+    ax1.scatter(x_data, alt_data, s=0.5)
 
-    ax1 = fig.add_subplot(2, 2, 2)
-    ax1.set_xlim(0, 500)
-    ax1.scatter(x_data, acc_data)
+    ax2 = fig.add_subplot(2, 2, 2)
+    ax2.set_title("v(t)")
+    ax2.set_ylabel("Velocity (m/s)")
+    ax2.set_xlim(0, time_limit)
+    ax2.scatter(x_data, vel_data, s=0.5)
 
-    ax2 = fig.add_subplot(2, 2, 3)  # projection='3d')
-    ax2.set_xlim(0, 500)
-    ax2.scatter(x_data, mass_data)
+    ax3 = fig.add_subplot(2, 2, 3)
+    ax3.set_title("a(t)")
+    ax3.set_ylabel("Acceleration (m/s^2)")
+    ax3.set_xlim(0, time_limit)
+    ax3.scatter(x_data, acc_data, s=0.5)
 
-    plt.subplots_adjust(wspace=0.4)
+    ax4 = fig.add_subplot(2, 2, 4)
+    ax4.set_title("m(t)")
+    ax4.set_ylabel("Mass (ton)")
+    ax4.set_xlim(0, time_limit)
+    ax4.set_ylim(0, 5000)
+    ax4.scatter(x_data, mass_data, s=0.5)
+
     plt.show()
 
 
