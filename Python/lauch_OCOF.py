@@ -177,7 +177,7 @@ def main():
     # Plotting
     plt.style.use('_mpl-gallery')
 
-    fig = plt.figure(figsize=(8, 8))
+    fig = plt.figure(layout='constrained', figsize=(8, 8))
     ax = fig.add_subplot(2,2,1)  # projection='3d')
     ax.set_xlim(0, 500)
     ax.scatter(x_data, alt_data)
