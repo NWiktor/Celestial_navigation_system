@@ -163,58 +163,6 @@ class SpaceCraft:
             print(f"{self.mass=}")
 
 
-# class Launch:
-#     """  """
-#
-#     def __init__(self, name, spacecraft: SpaceCraft, launch_site: launch_site):
-#         self.name = name
-#         self.spacecraft = spacecraft
-#         self.launch_site = launch_site
-#
-#
-#     def liftoff(self):
-#         """  """
-#         position_0 = np.array([0, 0, 0])
-#         velocity_0 = np.array([0, 0, 0])
-#         position = np.array([0, 0, 0])
-#         velocity = np.array([0, 0, 0])
-#
-#         mass = self.spacecraft.mass
-#         earth_radius = 6371000  # m
-#         # acc = 0  # m/s2
-#         vel = 0  # m/s
-#         alt = 0  # m
-#
-#         for i in range(0, duration):
-#
-#             if i <= self.spacecraft.engine.duration:
-#                 # Calculate new mass
-#                 mass -= self.spacecraft.thrust / (self.spacecraft.engine.specific_impulse * standard_gravity)
-#
-#                 print("Thrust: ", self.spacecraft.thrust/mass)
-#                 print("Gravity: ", standard_gravitational_parameter/pow(earth_radius + alt, 2))
-#                 print("Drag: ", - self.spacecraft.coefficient_of_drag * self.spacecraft.area * Atmosphere.get_density(alt)*pow(vel, 2)/2)
-#
-#                 # Calculate acceleration
-#                 acc = (self.spacecraft.thrust/mass - standard_gravitational_parameter/pow(earth_radius + alt, 2)
-#                        - self.spacecraft.coefficient_of_drag * self.spacecraft.area
-#                        * Atmosphere.get_density(alt)*pow(vel, 2)/2)
-#
-#             else:
-#                 acc = (- standard_gravitational_parameter/pow(earth_radius + alt, 2)
-#                        - self.spacecraft.coefficient_of_drag * self.spacecraft.area
-#                        * Atmosphere.get_density(alt)*pow(vel, 2)/2)
-#
-#             vel += acc
-#             alt += vel
-#             print("Mass:", mass)
-#             print("Acc:", acc)
-#             print("Velocity:", vel)
-#             print("Altitude:", alt)
-#
-#             yield alt, acc, mass
-
-
 # Main function for module testing
 def main():
     """  """
