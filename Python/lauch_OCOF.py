@@ -88,11 +88,12 @@ class LaunchSite:
 class SpaceCraft:
     """  """
 
-    def __init__(self, name, mass_0, coefficient_of_drag, area, stage1, stage2):
+    def __init__(self, name, mass_0, coefficient_of_drag, diameter, stage1, stage2):
         self.name = name
         self.mass = mass_0  # Starting mass, kg
         self.coefficient_of_drag = coefficient_of_drag  # -
-        self.area = area  # Cross-sectional area, m2
+        self.diameter = diameter
+        self.area = m.pi * pow(diameter, 2) / 4  # Cross-sectional area, m2
 
         # Stage specs
         self.stage1 = stage1
@@ -180,7 +181,14 @@ def main():
     raptor3_vac = Engine("Raptor 3 vac", 2.64*pow(10, 6), 380)
     booster = Stage(raptor3, 33, 159)
     starship = Stage(raptor3_vac, 3, 400)
-    oft3 = SpaceCraft("Starship", 5000000, 1.5, m.pi * pow(9, 2)/4, booster, starship)
+    oft3 = SpaceCraft("Starship", 5000000, 1.5, 9, booster, starship)
+
+    # Falcon9 hardware specs:
+    merlin1d_p = Engine("Merlin 1D+", 934 * pow(10, 3), 282)
+    merlin1d_vac = Engine("Merlin 1D vac", 934 * pow(10, 3), 348)
+    first_stage = Stage(merlin1d_p, 9, 168)
+    second_stage = Stage(merlin1d_vac, 1, 397)
+    falcon9 = SpaceCraft("Falcon 9", 549000+22800, 1.5, 3.7, first_stage, second_stage)
 
     # Launch
     i = 0
@@ -191,7 +199,7 @@ def main():
     acc_data = []
     mass_data = []
 
-    for p, v, a, mass in oft3.launch(cape, 900):
+    for p, v, a, mass in falcon9.launch(cape, 400):
         x_data.append(i)
         alt_data.append(p[2]/1000)
         vel_data.append(v[2])
@@ -215,19 +223,21 @@ def main():
     ax2.set_title("Velocity")
     ax2.set_ylabel("Velocity (m/s)")
     ax2.set_xlim(0, time_limit)
+    ax2.set_ylim(0, 30000)
     ax2.scatter(x_data, vel_data, s=0.5)
 
     ax3 = fig.add_subplot(2, 2, 3)
     ax3.set_title("Acceleration")
     ax3.set_ylabel("Acceleration (m/s^2)")
     ax3.set_xlim(0, time_limit)
+    ax3.set_ylim(0, 100)
     ax3.scatter(x_data, acc_data, s=0.5)
 
     ax4 = fig.add_subplot(2, 2, 4)
     ax4.set_title("Spacecraft mass")
     ax4.set_ylabel("Mass (ton)")
     ax4.set_xlim(0, time_limit)
-    ax4.set_ylim(0, 5000)
+    ax4.set_ylim(0, 1000)
     ax4.scatter(x_data, mass_data, s=0.5)
 
     plt.show()
