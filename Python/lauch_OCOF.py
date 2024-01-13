@@ -32,10 +32,8 @@ import matplotlib.pyplot as plt
 
 # Local application imports
 from logger import MAIN_LOGGER as l
-# from modules.time_functions import julian_date, j2000_date
 
 # Class initializations and global variables
-gravitational_constant = 6.67430 * pow(10, -11)  # m^3 kg-1 s-2
 
 # Class and function definitions
 
@@ -101,7 +99,7 @@ class LaunchSite:
 
 
 class SpaceCraft:
-    """  """
+    """ Spacecraft class, defined by name, payload mass, drag coefficient and diameter; and stages. """
 
     def __init__(self, name, payload_mass: float, coefficient_of_drag: float, diameter: float, stages: list):
         self.name = name
@@ -123,7 +121,8 @@ class SpaceCraft:
         self.acceleration = np.array([0.0, 0.0, 0.0])
 
     def get_stage_mass(self, stage_status):
-        """  """
+        """ Sums the mass of each rocket stage. """
+
         if stage_status == 1:
             return self.stages[0].get_mass() + self.stages[1].get_mass()
 
@@ -133,7 +132,7 @@ class SpaceCraft:
         return 0
 
     def thrust(self, stage_status):
-        """  """
+        """ Calculates actual thrust (force) of the rocket, depending on actual staging. """
 
         if stage_status == 1:
             return self.stages[0].thrust / self.total_mass
@@ -150,7 +149,7 @@ class SpaceCraft:
         return std_gravitational_parameter / pow(int(distance), 2)
 
     def update_mass(self, standard_gravity, stage_status):
-        """  """
+        """ Updates total rocket mass after burning, depending on gravity and actual staging. """
 
         # Calculate delta m in stage 1
         if stage_status == 1:
@@ -164,7 +163,7 @@ class SpaceCraft:
         self.total_mass = self.payload_mass + self.get_stage_mass(stage_status)
 
     def launch(self, launch_site: LaunchSite, separation_time_1, separation_time_2):
-        """  """
+        """ Yield rocket's status parameters during launch, every second. """
 
         stage1_separation = min(separation_time_1, self.stages[0].duration)
         stage2_separation = min(separation_time_2, self.stages[0].duration + self.stages[1].duration)
@@ -201,8 +200,8 @@ class SpaceCraft:
 
 # Main function for module testing
 def main():
-    """  """
-    # Place
+    """ Defines a Spacecraft class and LaunchSite, then calculates and plots status parameters. """
+    # Launch-site
     atmosphere = Atmosphere()
     cape = LaunchSite("Cape Canaveral, Earth", 28.3127, 80.3903, 6371000,
                       atmosphere, 9.81, 3.986004418 * pow(10, 14))
