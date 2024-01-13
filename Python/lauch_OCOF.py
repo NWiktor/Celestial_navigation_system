@@ -106,7 +106,7 @@ class EarthLocation(PlanetLocation):
         """ Calculates air density in function of height on Earth, measured from sea level.
         https://en.wikipedia.org/wiki/Density_of_air
         """
-        if 0 <= altitude:
+        if 0 <= altitude <= 100000:
             return 1.204 * m.exp(-altitude / 10400)
         return 0
 
@@ -178,6 +178,7 @@ class SpaceCraft:
         # Calculate new total mass
         self.total_mass = self.payload_mass + self.get_stage_mass(stage_status)
 
+    # TODO: implement MECO - stage separation time
     def launch(self, launch_site: PlanetLocation, separation_time_1, separation_time_2):
         """ Yield rocket's status parameters during launch, every second. """
 
