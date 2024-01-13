@@ -32,12 +32,14 @@ import matplotlib.pyplot as plt
 from logger import MAIN_LOGGER as l
 
 
+# TODO: implement specific impulse variation between sea-level and vacuum
 @dataclass
 class Engine:
     """ Rocket engine class, defined by name and specific_impulse. """
     name: str
     thrust: float  # N aka kg/m/s
     specific_impulse: float  # s
+    # specific_impulse_vac: float  # s
 
 
 @dataclass
@@ -54,6 +56,7 @@ class Stage:
         self._specific_impulse = self.engine.specific_impulse  # s
 
     def is_propellant(self):
+        """ Returns if there is any fuel left in the stage and capable to generate thrust. """
         if self._propellant_mass > 0:
             return True
         return False
@@ -62,9 +65,9 @@ class Stage:
         """ Returns the actual total mass of the stage. """
         return self._empty_mass + self._propellant_mass
 
-    def burn_mass(self, standard_gravity, burn_time=1):
+    def burn_mass(self, standard_gravity):
         """ Calculates delta m after burning the engine for 1 seconds, and sets new mass. """
-        delta_m = self.thrust / (self._specific_impulse * standard_gravity) * burn_time
+        delta_m = self.thrust / (self._specific_impulse * standard_gravity)
 
         # Updates itself with new mass, negative values are omitted
         self._propellant_mass = max(0.0, self._propellant_mass - delta_m)
@@ -91,6 +94,7 @@ class PlanetLocation:
         return
 
 
+@dataclass
 class EarthLocation(PlanetLocation):
     """ Launch site class for locations on Earth's surface. """
 
@@ -195,30 +199,29 @@ class SpaceCraft:
             else:
                 self.stage_status = 3
 
+            # Calculate flight characteristics
             air_density = launch_site.get_density(self.position[2])
             altitude = self.position[2] + launch_site.distance_from_barycenter
+            thrust = self.thrust(self.stage_status) / self.total_mass
+            drag = self.drag(air_density, self.velocity[2]) / self.total_mass
+            gravity = self.gravity(launch_site.std_gravitational_parameter, altitude)
 
-            # l.debug("Air density at %s: %s", self.position[2], air_density)
+            l.debug("Air density is %s at %s", air_density, self.position[2])
+            l.debug("Drag force is %s at %s", drag, self.position[2])
 
-            t = self.thrust(self.stage_status) / self.total_mass
-            d = self.drag(air_density, self.velocity[2]) / self.total_mass
-            g = self.gravity(launch_site.std_gravitational_parameter, altitude)
-
-            # l.debug("Drag force at %s: %s", self.position[2], d)
-
-            self.acceleration[2] = (self.thrust(self.stage_status) / self.total_mass
-                                    - self.drag(air_density, self.velocity[2]) / self.total_mass
-                                    - self.gravity(launch_site.std_gravitational_parameter, altitude))
-            self.velocity[2] += self.acceleration[2]  # Calculate new velocity
-            self.position[2] += self.velocity[2]  # Calculate new elevation
+            # Calculate position, velocity and acceleration
+            self.acceleration[2] = thrust - drag - gravity
+            self.velocity[2] += self.acceleration[2]
+            self.position[2] += self.velocity[2]
 
             # Calculate new spacecraft mass
             self.update_mass(launch_site.std_gravity, self.stage_status)
 
-            yield self.position, self.velocity, self.acceleration, self.total_mass, t, d, g
+            yield self.position, self.velocity, self.acceleration, self.total_mass, thrust, drag, gravity
 
 
 # Main function for module testing
+# pylint: disable=too-many-statements, too-many-locals
 def main():
     """ Defines a Spacecraft class and LaunchSite, then calculates and plots status parameters. """
     # Launch-site
@@ -232,11 +235,13 @@ def main():
     # oft3 = SpaceCraft("Starship", 5000000, 1.5, 9, booster, starship)
 
     # Falcon9 hardware specs:
+    # https://aerospaceweb.org/question/aerodynamics/q0231.shtml
+    # https://en.wikipedia.org/wiki/Falcon_9#Design
     merlin1d_p = Engine("Merlin 1D+", 934e3, 283)
     merlin1d_vac = Engine("Merlin 1D vac", 934e3, 348)
     first_stage = Stage(merlin1d_p, 25600, 395700, 9, 162)
     second_stage = Stage(merlin1d_vac, 3900, 92670, 1, 397)
-    falcon9 = SpaceCraft("Falcon 9", 22800, 1.5, 5.2, [first_stage, second_stage])
+    falcon9 = SpaceCraft("Falcon 9", 22800, 0.25, 5.2, [first_stage, second_stage])
 
     # Launch
     i = 0
@@ -277,7 +282,7 @@ def main():
     ax2.set_title("Velocity - time")
     ax2.set_ylabel("Velocity (km/s)")
     ax2.set_xlim(0, time_limit)
-    ax2.set_ylim(0, 25)
+    ax2.set_ylim(0, 8)
     ax2.scatter(x_data, vel_data, s=0.5)
 
     ax3 = fig.add_subplot(4, 2, 3)
