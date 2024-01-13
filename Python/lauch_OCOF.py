@@ -107,7 +107,6 @@ class SpaceCraft:
         self.name = name
 
         # Stage specifications and Mass properties
-        # TODO: make stages as list, and use stage status to access values
         self.stage_status = 1
         self.stages = stages
         self.payload_mass = payload_mass
