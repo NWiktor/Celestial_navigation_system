@@ -83,8 +83,8 @@ class Atmosphere:
         height_scale = 10.4  # km
         if altitude <= 18000:
             return rho_null * m.exp(-altitude*1000/height_scale)
-        else:
-            return 0
+
+        return 0
 
 
 class LaunchSite:
@@ -106,7 +106,7 @@ class SpaceCraft:
     def __init__(self, name, payload_mass: float, coefficient_of_drag: float, diameter: float, stages: list):
         self.name = name
 
-        # Stage specifications and Mass properties
+        # Stage specifications and mass properties
         self.stage_status = 1
         self.stages = stages
         self.payload_mass = payload_mass
@@ -127,7 +127,7 @@ class SpaceCraft:
         if stage_status == 1:
             return self.stages[0].get_mass() + self.stages[1].get_mass()
 
-        elif stage_status == 2:
+        if stage_status == 2:
             return self.stages[1].get_mass()
 
         return 0
@@ -138,7 +138,7 @@ class SpaceCraft:
         if stage_status == 1:
             return self.stages[0].thrust / self.total_mass
 
-        elif stage_status == 2:
+        if stage_status == 2:
             return self.stages[1].thrust / self.total_mass
 
         return 0
@@ -172,11 +172,6 @@ class SpaceCraft:
 
         # Yield initial values
         yield self.position, self.velocity, self.acceleration, self.total_mass
-        print("___INITIAL_CONDITIONS___")
-        print(f"{self.position=}")
-        print(f"{self.velocity=}")
-        print(f"{self.acceleration=}")
-        print(f"{self.total_mass=}")
 
         # Calculate status parameters, each step is 1 second
         for i in range(0, time):
@@ -276,9 +271,6 @@ def main():
     ax4.set_ylim(0, 600)
     ax4.scatter(x_data, mass_data, s=0.5)
 
-    # Force plot to full screen, and show it
-    # manager = plt.get_current_fig_manager()
-    # manager.full_screen_toggle()
     plt.show()
 
 
