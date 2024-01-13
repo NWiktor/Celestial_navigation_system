@@ -51,7 +51,12 @@ class Stage:
 
     def __post_init__(self):
         self.thrust = self.engine.thrust * self.number_of_engines  # N aka kg/m/s
-        self._specific_impulse = self.engine.specific_impulse  # s  # s
+        self._specific_impulse = self.engine.specific_impulse  # s
+
+    def is_propellant(self):
+        if self._propellant_mass > 0:
+            return True
+        return False
 
     def get_mass(self):
         """ Returns the actual total mass of the stage. """
@@ -66,40 +71,40 @@ class Stage:
 
 
 @dataclass
-class Atmosphere:
-    """ Atmosphere class for defining density(altitude) function. """
-
-    def __init__(self, upper_limit: float, lower_limit: float = 0):
-        self.upper_limit = upper_limit  # m
-        self.lower_limit = lower_limit  # m
-
-    def get_density(self, altitude):
-        """Calculates air density in function of height on Earth, measured from sea level.
-        https://en.wikipedia.org/wiki/Density_of_air
-        """
-        rho_null = 1.204  # kg/m3
-        height_scale = 10.4  # km
-        if altitude <= self.upper_limit:
-            return rho_null * m.exp(-altitude*1000/height_scale)
-
-        return 0
-
-
-@dataclass
-class LaunchSite:
-    """ Launch site class, given by longitude, latitude, distance from barycenter, atmosphere,
-    gravity and gravitational parameter.
+class PlanetLocation:
+    """ Launch site class, given by longitude, latitude, distance from barycenter, atmosphere via the get_density
+    function, gravity and gravitational parameter.
     """
 
     def __init__(self, name, latitude: float, longitude: float, distance_from_barycenter: float,
-                 atmosphere: Atmosphere, standard_gravity, standard_gravitational_parameter):
+                 standard_gravity, standard_gravitational_parameter):
         self.name = name
         self.latitude = latitude
         self.longitude = longitude
-        self.distance_from_barycenter = distance_from_barycenter
-        self.atmosphere = atmosphere
-        self.std_gravity = standard_gravity  # 9.81 # m/s^2
-        self.std_gravitational_parameter = standard_gravitational_parameter  # 3.986004418 * pow(10, 14) # m^3/s^2
+        self.distance_from_barycenter = distance_from_barycenter  # m
+        self.std_gravity = standard_gravity  # m/s^2
+        self.std_gravitational_parameter = standard_gravitational_parameter  # m^3/s^2
+
+    # pylint: disable = unused-argument
+    def get_density(self, altitude):
+        """ Placeholder function for override. """
+        return
+
+
+class EarthLocation(PlanetLocation):
+    """ Launch site class for locations on Earth's surface. """
+
+    def __init__(self, name, latitude: float, longitude: float):
+        super().__init__(f"{name}, Earth", latitude, longitude, 6371000, 9.81,
+                         3.986004418e14)
+
+    def get_density(self, altitude: float):
+        """ Calculates air density in function of height on Earth, measured from sea level.
+        https://en.wikipedia.org/wiki/Density_of_air
+        """
+        if 0 <= altitude:
+            return 1.204 * m.exp(-altitude / 10400)
+        return 0
 
 
 class SpaceCraft:
@@ -138,20 +143,21 @@ class SpaceCraft:
     def thrust(self, stage_status):
         """ Calculates actual thrust (force) of the rocket, depending on actual staging. """
 
-        if stage_status == 1:
-            return self.stages[0].thrust / self.total_mass
+        if stage_status == 1 and self.stages[0].is_propellant():
+            return self.stages[0].thrust
 
-        if stage_status == 2:
-            return self.stages[1].thrust / self.total_mass
+        if stage_status == 2 and self.stages[1].is_propellant():
+            return self.stages[1].thrust
 
         return 0
 
     def drag(self, air_density, velocity):
-        """  """
+        """ Calculates actual drag (force) on the rocket, depending on the atmospheric density. """
         return self.coefficient_of_drag * self.area * air_density * pow(velocity, 2) / 2
 
-    def gravity(self, std_gravitational_parameter, distance):
-        """  """
+    @staticmethod
+    def gravity(std_gravitational_parameter, distance):
+        """ Calculates gravitational forces between two bodies, depending on the distance travelled. """
         return std_gravitational_parameter / pow(int(distance), 2)
 
     def update_mass(self, standard_gravity, stage_status):
@@ -168,15 +174,15 @@ class SpaceCraft:
         # Calculate new total mass
         self.total_mass = self.payload_mass + self.get_stage_mass(stage_status)
 
-    def launch(self, launch_site: LaunchSite, separation_time_1, separation_time_2):
+    def launch(self, launch_site: PlanetLocation, separation_time_1, separation_time_2):
         """ Yield rocket's status parameters during launch, every second. """
 
         stage1_separation = min(separation_time_1, self.stages[0].duration)
         stage2_separation = min(separation_time_2, self.stages[0].duration + self.stages[1].duration)
-        time = int(stage2_separation * 1.5)
+        time = int(stage2_separation * 3)
 
         # Yield initial values
-        yield self.position, self.velocity, self.acceleration, self.total_mass
+        yield self.position, self.velocity, self.acceleration, self.total_mass, 0, 0, 9.81
 
         # Calculate status parameters, each step is 1 second
         for i in range(0, time):
@@ -184,16 +190,24 @@ class SpaceCraft:
             #  Calculate stage according to time
             if i <= stage1_separation:
                 self.stage_status = 1
-            elif i <= stage2_separation:
+            elif stage2_separation >= i:
                 self.stage_status = 2
             else:
                 self.stage_status = 3
 
-            air_density = launch_site.atmosphere.get_density(self.position[2])
+            air_density = launch_site.get_density(self.position[2])
             altitude = self.position[2] + launch_site.distance_from_barycenter
 
-            self.acceleration[2] = (self.thrust(self.stage_status)
-                                    - self.drag(air_density, self.velocity[2])
+            # l.debug("Air density at %s: %s", self.position[2], air_density)
+
+            t = self.thrust(self.stage_status) / self.total_mass
+            d = self.drag(air_density, self.velocity[2]) / self.total_mass
+            g = self.gravity(launch_site.std_gravitational_parameter, altitude)
+
+            # l.debug("Drag force at %s: %s", self.position[2], d)
+
+            self.acceleration[2] = (self.thrust(self.stage_status) / self.total_mass
+                                    - self.drag(air_density, self.velocity[2]) / self.total_mass
                                     - self.gravity(launch_site.std_gravitational_parameter, altitude))
             self.velocity[2] += self.acceleration[2]  # Calculate new velocity
             self.position[2] += self.velocity[2]  # Calculate new elevation
@@ -201,16 +215,14 @@ class SpaceCraft:
             # Calculate new spacecraft mass
             self.update_mass(launch_site.std_gravity, self.stage_status)
 
-            yield self.position, self.velocity, self.acceleration, self.total_mass
+            yield self.position, self.velocity, self.acceleration, self.total_mass, t, d, g
 
 
 # Main function for module testing
 def main():
     """ Defines a Spacecraft class and LaunchSite, then calculates and plots status parameters. """
     # Launch-site
-    atmosphere = Atmosphere(18000)
-    cape = LaunchSite("Cape Canaveral, Earth", 28.3127, 80.3903, 6371000,
-                      atmosphere, 9.81, 3.986004418e14)
+    cape = EarthLocation("Cape Canaveral", 28.3127, 80.3903)
 
     # Starship hardware specs:
     # raptor3 = Engine("Raptor 3", 2.64*pow(10, 6), 327)
@@ -228,19 +240,25 @@ def main():
 
     # Launch
     i = 0
-    time_limit = 900
+    time_limit = 1500
     x_data = []
     alt_data = []
     vel_data = []
     acc_data = []
     mass_data = []
+    t_data = []
+    d_data = []
+    g_data = []
 
-    for p, v, a, mass in falcon9.launch(cape, 120, 500):
+    for p, v, a, mass, t, d, g in falcon9.launch(cape, 130, 465):
         x_data.append(i)
         alt_data.append(p[2]/1000)
-        vel_data.append(v[2])
+        vel_data.append(v[2]/1000)
         acc_data.append(a[2]/9.81)
         mass_data.append(mass/1000)
+        t_data.append(t)
+        d_data.append(d)
+        g_data.append(g)
         i += 1
 
     # Plotting
@@ -248,33 +266,54 @@ def main():
 
     fig = plt.figure(layout='constrained', figsize=(19, 9.5))
     fig.suptitle("Falcon9 launch from Cape")
-    ax1 = fig.add_subplot(2, 2, 1)
+    ax1 = fig.add_subplot(4, 2, 1)
     ax1.set_title("Altitude - time")
     ax1.set_ylabel("Altitude (km)")
     ax1.set_xlim(0, time_limit)
-    # ax1.set_ylim(0, 5000)
+    ax1.set_ylim(0, 3000)
     ax1.scatter(x_data, alt_data, s=0.5)
 
-    ax2 = fig.add_subplot(2, 2, 2)
+    ax2 = fig.add_subplot(4, 2, 2)
     ax2.set_title("Velocity - time")
-    ax2.set_ylabel("Velocity (m/s)")
+    ax2.set_ylabel("Velocity (km/s)")
     ax2.set_xlim(0, time_limit)
-    ax2.set_ylim(0, 30000)
+    ax2.set_ylim(0, 25)
     ax2.scatter(x_data, vel_data, s=0.5)
 
-    ax3 = fig.add_subplot(2, 2, 3)
+    ax3 = fig.add_subplot(4, 2, 3)
     ax3.set_title("Acceleration - time")
     ax3.set_ylabel("Acceleration (g)")
     ax3.set_xlim(0, time_limit)
-    ax3.set_ylim(0, 10)
+    ax3.set_ylim(-2.5, 7.5)
     ax3.scatter(x_data, acc_data, s=0.5)
 
-    ax4 = fig.add_subplot(2, 2, 4)
+    ax4 = fig.add_subplot(4, 2, 4)
     ax4.set_title("Spacecraft mass - time")
     ax4.set_ylabel("Mass (ton)")
     ax4.set_xlim(0, time_limit)
     ax4.set_ylim(0, 600)
     ax4.scatter(x_data, mass_data, s=0.5)
+
+    ax5 = fig.add_subplot(4, 2, 5)
+    ax5.set_title("Thrust - time")
+    ax5.set_ylabel("Force (N)")
+    ax5.set_xlim(0, time_limit)
+    # ax5.set_ylim(0, 30000)
+    ax5.scatter(x_data, t_data, s=0.5)
+
+    ax6 = fig.add_subplot(4, 2, 6)
+    ax6.set_title("Drag - time")
+    ax6.set_ylabel("Force (N)")
+    ax6.set_xlim(0, time_limit)
+    # ax6.set_ylim(-100, 100)
+    ax6.scatter(x_data, d_data, s=0.5)
+
+    ax7 = fig.add_subplot(4, 2, 7)
+    ax7.set_title("Gravity - time")
+    ax7.set_ylabel("Force (N)")
+    ax7.set_xlim(0, time_limit)
+    # ax7.set_ylim(-100, 100)
+    ax7.scatter(x_data, g_data, s=0.5)
 
     plt.show()
 
