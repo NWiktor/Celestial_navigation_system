@@ -37,7 +37,7 @@ from logger import MAIN_LOGGER as l
 class Engine:
     """ Rocket engine class, defined by name and specific_impulse. """
 
-    def __init__(self, name: str, thrust: float, specific_impulse: Union[float, list[float]]):
+    def __init__(self, name: str, thrust: float, specific_impulse: Union[int, list[int]]):
         self.name = name
         self.thrust = thrust  # N aka kg/m/s
         self._specific_impulse = specific_impulse  # s
@@ -47,13 +47,11 @@ class Engine:
         external pressure.
         https: // en.wikipedia.org / wiki / Atmospheric_pressure
         """
-        if isinstance(self._specific_impulse, float):
+        if isinstance(self._specific_impulse, int):
             return self._specific_impulse
 
         if isinstance(self._specific_impulse, list):
             return self._specific_impulse[0] + (self._specific_impulse[1] - self._specific_impulse[0]) * ratio
-
-        return 0
 
 
 @dataclass
@@ -67,8 +65,6 @@ class Stage:
         self._propellant_mass = propellant_mass  # kg
         self.number_of_engines = number_of_engines
         self.burn_duration = burn_duration  # s
-
-    def __post_init__(self):
         self.thrust = self.engine.thrust * self.number_of_engines  # N aka kg/m/s
 
     def is_propellant(self):
