@@ -204,11 +204,11 @@ class SpaceCraft:
         meco_time = min(meco, self.stages[0].burn_duration)
         stage_separation = meco_time + 8
         second_stage_ignition = meco_time + 14
-        L.debug("MAIN ENGINE CUT OFF at T+%s", meco_time)
+        L.debug("MAIN ENGINE CUT OFF at T+%s", seconds_to_minutes(meco_time))
 
         # SECO can't be later than stage 1 and 2 total burn duration, but it can't be earlier than second stage ignition
         seco_time = max(min(seco, self.stages[0].burn_duration + self.stages[1].burn_duration), second_stage_ignition)
-        L.debug("SECOND ENGINE CUT OFF at T+%s", seco_time)
+        L.debug("SECOND ENGINE CUT OFF at T+%s", seconds_to_minutes(seco_time))
 
         # Start calculation
         time = int(seco_time * 3)  # Total time for loop
@@ -247,6 +247,15 @@ class SpaceCraft:
             self.update_mass(launch_site.std_gravity)
 
             yield self.position, self.velocity, self.acceleration, self.total_mass, thrust, drag, gravity
+
+
+def seconds_to_minutes(total_seconds) -> str:
+    """ Formats seconds to HH:MM:SS format. """
+    total_minutes, seconds = divmod(total_seconds, 60)
+    hours, minutes = divmod(total_minutes, 60)
+    if hours == 0:
+        return f"{minutes:02d}:{seconds:02d}"
+    return f"{hours}:{minutes:02d}:{seconds:02d}"
 
 
 # Main function for module testing
