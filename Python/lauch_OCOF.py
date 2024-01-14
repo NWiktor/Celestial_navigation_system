@@ -23,6 +23,7 @@ Contents
 # First import should be the logging module if any!
 from dataclasses import dataclass
 import math as m
+from typing import Union
 
 # Third party imports
 import numpy as np
@@ -32,30 +33,43 @@ import matplotlib.pyplot as plt
 from logger import MAIN_LOGGER as l
 
 
-# TODO: implement specific impulse variation between sea-level and vacuum
 @dataclass
 class Engine:
     """ Rocket engine class, defined by name and specific_impulse. """
 
-    def __init__(self, name: str, thrust: float, specific_impulse: float):
+    def __init__(self, name: str, thrust: float, specific_impulse: Union[float, list[float]]):
         self.name = name
         self.thrust = thrust  # N aka kg/m/s
-        self.specific_impulse = specific_impulse  # s
-        # self.specific_impulse_vac = specific_impulse_vac  # s
+        self._specific_impulse = specific_impulse  # s
+
+    def specific_impulse(self, ratio: float = 0.0) -> float:
+        """ Returns the specific impulse depending on an arbitrary ratio, which can be calculated according to
+        external pressure.
+        https: // en.wikipedia.org / wiki / Atmospheric_pressure
+        """
+        if isinstance(self._specific_impulse, float):
+            return self._specific_impulse
+
+        if isinstance(self._specific_impulse, list):
+            return self._specific_impulse[0] + (self._specific_impulse[1] - self._specific_impulse[0]) * ratio
+
+        return 0
 
 
 @dataclass
 class Stage:
     """ Rocket stage class, defined by engine, number of engines, and max. burn duration. """
-    engine: Engine
-    _empty_mass: float  # kg
-    _propellant_mass: float  # kg
-    number_of_engines: int
-    duration: int  # s
+
+    def __init__(self, engine: Engine, empty_mass: float, propellant_mass: float,
+                 number_of_engines: int, burn_duration: int):
+        self.engine = engine
+        self._empty_mass = empty_mass  # kg
+        self._propellant_mass = propellant_mass  # kg
+        self.number_of_engines = number_of_engines
+        self.burn_duration = burn_duration  # s
 
     def __post_init__(self):
         self.thrust = self.engine.thrust * self.number_of_engines  # N aka kg/m/s
-        self._specific_impulse = self.engine.specific_impulse  # s
 
     def is_propellant(self):
         """ Returns if there is any fuel left in the stage and capable to generate thrust. """
@@ -69,7 +83,7 @@ class Stage:
 
     def burn_mass(self, standard_gravity):
         """ Calculates delta m after burning the engine for 1 seconds, and sets new mass. """
-        delta_m = self.thrust / (self._specific_impulse * standard_gravity)
+        delta_m = self.thrust / (self.engine.specific_impulse() * standard_gravity)
 
         # Updates itself with new mass, negative values are omitted
         self._propellant_mass = max(0.0, self._propellant_mass - delta_m)
@@ -91,9 +105,9 @@ class PlanetLocation:
         self.std_gravitational_parameter = standard_gravitational_parameter  # m^3/s^2
 
     # pylint: disable = unused-argument
-    def get_density(self, altitude):
+    def get_density(self, altitude) -> float:
         """ Placeholder function for override. """
-        return
+        return 0.0
 
 
 @dataclass
@@ -104,7 +118,7 @@ class EarthLocation(PlanetLocation):
         super().__init__(f"{name}, Earth", latitude, longitude, 6371000, 9.80665,
                          3.986004418e14)
 
-    def get_density(self, altitude: float):
+    def get_density(self, altitude: float) -> float:
         """ Calculates air density in function of height on Earth, measured from sea level.
         https://en.wikipedia.org/wiki/Density_of_air
         """
@@ -157,9 +171,9 @@ class SpaceCraft:
 
         return 0
 
-    def drag(self, air_density, velocity):
-        """ Calculates actual drag (force) on the rocket, depending on the atmospheric density. """
-        return self.coefficient_of_drag * self.area * air_density * pow(velocity, 2) / 2
+    # def drag(self, air_density, velocity):
+    #     """ Calculates actual drag (force) on the rocket, depending on the atmospheric density. """
+    #     return self.coefficient_of_drag * self.area * air_density * pow(velocity, 2) / 2
 
     @staticmethod
     def gravity(std_gravitational_parameter, distance):
@@ -184,8 +198,8 @@ class SpaceCraft:
     def launch(self, launch_site: PlanetLocation, separation_time_1, separation_time_2):
         """ Yield rocket's status parameters during launch, every second. """
 
-        stage1_separation = min(separation_time_1, self.stages[0].duration)
-        stage2_separation = min(separation_time_2, self.stages[0].duration + self.stages[1].duration)
+        stage1_separation = min(separation_time_1, self.stages[0].burn_duration)
+        stage2_separation = min(separation_time_2, self.stages[0].burn_duration + self.stages[1].burn_duration)
         time = int(stage2_separation * 3)
 
         # Yield initial values
@@ -206,7 +220,7 @@ class SpaceCraft:
             air_density = launch_site.get_density(self.position[2])
             altitude = self.position[2] + launch_site.distance_from_barycenter
             thrust = self.thrust(self.stage_status) / self.total_mass
-            drag = self.drag(air_density, self.velocity[2]) / self.total_mass
+            drag = (self.coefficient_of_drag * self.area * air_density * pow(self.velocity[2], 2)) / 2 / self.total_mass
             gravity = self.gravity(launch_site.std_gravitational_parameter, altitude)
 
             l.debug("Air density is %s at %s", air_density, self.position[2])
@@ -230,17 +244,10 @@ def main():
     # Launch-site
     cape = EarthLocation("Cape Canaveral", 28.3127, 80.3903)
 
-    # Starship hardware specs:
-    # raptor3 = Engine("Raptor 3", 2.64*pow(10, 6), 327)
-    # raptor3_vac = Engine("Raptor 3 vac", 2.64*pow(10, 6), 380)
-    # booster = Stage(raptor3, 33, 159)
-    # starship = Stage(raptor3_vac, 3, 400)
-    # oft3 = SpaceCraft("Starship", 5000000, 1.5, 9, booster, starship)
-
     # Falcon9 hardware specs:
     # https://aerospaceweb.org/question/aerodynamics/q0231.shtml
     # https://en.wikipedia.org/wiki/Falcon_9#Design
-    merlin1d_p = Engine("Merlin 1D+", 934e3, 283)
+    merlin1d_p = Engine("Merlin 1D+", 934e3, [283, 312])
     merlin1d_vac = Engine("Merlin 1D vac", 934e3, 348)
     first_stage = Stage(merlin1d_p, 25600, 395700, 9, 162)
     second_stage = Stage(merlin1d_vac, 3900, 92670, 1, 397)
