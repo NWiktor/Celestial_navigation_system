@@ -24,7 +24,7 @@ Contents
 from dataclasses import dataclass
 import math as m
 from typing import Union
-from enum import Enum, auto
+from enum import Enum
 
 # Third party imports
 import numpy as np
@@ -36,7 +36,7 @@ from logger import MAIN_LOGGER as L
 
 @dataclass
 class Engine:
-    """ Rocket engine class, defined by name and specific_impulse. """
+    """ Rocket engine class, defined by name, thrust and specific_impulse. """
 
     def __init__(self, name: str, thrust: float, specific_impulse: Union[int, list[int]]):
         self.name = name
@@ -44,8 +44,13 @@ class Engine:
         self._specific_impulse = specific_impulse  # s
 
     def specific_impulse(self, ratio: float = 0.0) -> float:
-        """ Returns the specific impulse depending on an arbitrary ratio, which can be calculated according to
-        external pressure.
+        """ Returns the specific impulse.
+
+        If only one (float) value is given, returns it.
+
+        If a list is given, linearly interpolates between them, using the ratio.
+        Ratio 0.0 returns first value, ratio 1.1 returns second value.
+        This feature allows value-corrections depending on the external pressure.
         https: // en.wikipedia.org / wiki / Atmospheric_pressure
         """
         if isinstance(self._specific_impulse, int):
@@ -59,7 +64,7 @@ class Engine:
 
 @dataclass
 class Stage:
-    """ Rocket stage class, defined by engine, number of engines, and max. burn duration. """
+    """ Rocket stage class, defined by engine, empty mass, propellant mass, number of engines and burn duration. """
 
     def __init__(self, engine: Engine, empty_mass: float, propellant_mass: float,
                  number_of_engines: int, burn_duration: int):
@@ -71,10 +76,9 @@ class Stage:
         self.stage_thrust = self.engine.thrust * self.number_of_engines
 
     def get_thrust(self) -> float:
-        """ Returns thrust if there is any fuel left in the stage. """
+        """ Returns thrust, if there is any fuel left in the stage to generate it. """
         if self._propellant_mass > 0:
             return self.stage_thrust  # N aka kg/m/s
-
         return 0.0
 
     def get_mass(self):
@@ -82,26 +86,26 @@ class Stage:
         return self._empty_mass + self._propellant_mass
 
     def burn_mass(self, standard_gravity):
-        """ Calculates delta m after burning the engine for 1 seconds, and sets new mass. """
+        """ Reduces propellant mass, by calculating the proper delta-m after burning for 1 s. """
         delta_m = self.stage_thrust / (self.engine.specific_impulse() * standard_gravity)
 
         # Updates itself with new mass, negative values are omitted
         self._propellant_mass = max(0.0, self._propellant_mass - delta_m)
 
 
-class StageStatus(Enum):
+class RocketStatus(Enum):
     """ Describes the status of the rocket during liftoff. """
     STAGE_0 = 0
     STAGE_1_BURN = 1
-    STAGE_1_COAST = auto()
+    STAGE_1_COAST = 11
     STAGE_2_BURN = 2
-    STAGE_2_COAST = auto()
+    STAGE_2_COAST = 22
 
 
 @dataclass
 class PlanetLocation:
-    """ Launch site class, given by longitude, latitude, distance from barycenter, atmosphere via the get_density
-    function, gravity and gravitational parameter.
+    """ Launch site class, given by longitude, latitude, surface radius (where the site is located),
+    atmospheric density via the get_density function, gravity and gravitational parameter.
     """
 
     def __init__(self, name, latitude: float, longitude: float, surface_radius: float,
@@ -128,10 +132,10 @@ class EarthLocation(PlanetLocation):
                          3.986004418e14)
 
     def get_density(self, altitude: float) -> float:
-        """ Calculates air density in function of height on Earth, measured from sea level.
+        """ Approximates air density in function of height on Earth, measured from sea level.
         https://en.wikipedia.org/wiki/Density_of_air
         """
-        if 0 <= altitude <= 100000:
+        if 0 <= altitude <= 120000:
             return 1.204 * m.exp(-altitude / 10400)
         return 0
 
@@ -141,7 +145,7 @@ class SpaceCraft:
 
     def __init__(self, name, payload_mass: float, coefficient_of_drag: float, diameter: float, stages: list):
         self.name = name
-        self.stage_status = StageStatus.STAGE_0
+        self.stage_status = RocketStatus.STAGE_0
         self.stages = stages
 
         # Physical properties
@@ -158,12 +162,12 @@ class SpaceCraft:
         self.total_mass = self.payload_mass + self.get_stage_mass()
 
     def get_stage_mass(self):
-        """ Sums the mass of each rocket stage. """
+        """ Sums the mass of each rocket stage, depending on actual staging. """
 
-        if self.stage_status in (StageStatus.STAGE_0, StageStatus.STAGE_1_BURN, StageStatus.STAGE_1_COAST):
+        if self.stage_status in (RocketStatus.STAGE_0, RocketStatus.STAGE_1_BURN, RocketStatus.STAGE_1_COAST):
             return self.stages[0].get_mass() + self.stages[1].get_mass()
 
-        if self.stage_status in (StageStatus.STAGE_2_BURN, StageStatus.STAGE_2_COAST):
+        if self.stage_status in (RocketStatus.STAGE_2_BURN, RocketStatus.STAGE_2_COAST):
             return self.stages[1].get_mass()
 
         return 0
@@ -171,10 +175,10 @@ class SpaceCraft:
     def thrust(self):
         """ Calculates actual thrust (force) of the rocket, depending on actual staging. """
 
-        if self.stage_status == StageStatus.STAGE_1_BURN:
+        if self.stage_status == RocketStatus.STAGE_1_BURN:
             return self.stages[0].get_thrust()
 
-        if self.stage_status == StageStatus.STAGE_2_BURN:
+        if self.stage_status == RocketStatus.STAGE_2_BURN:
             return self.stages[1].get_thrust()
 
         return 0
@@ -183,48 +187,49 @@ class SpaceCraft:
         """ Updates total rocket mass after burning, depending on gravity and actual staging. """
 
         # Calculate delta m in stage 1
-        if self.stage_status == StageStatus.STAGE_1_BURN:
+        if self.stage_status == RocketStatus.STAGE_1_BURN:
             self.stages[0].burn_mass(standard_gravity)
 
         # Calculate delta m in stage 2
-        elif self.stage_status == StageStatus.STAGE_2_BURN:
+        elif self.stage_status == RocketStatus.STAGE_2_BURN:
             self.stages[1].burn_mass(standard_gravity)
 
         # Calculate new total mass
         self.total_mass = self.payload_mass + self.get_stage_mass()
 
     def launch(self, launch_site: PlanetLocation, meco, seco):
-        """ Yield rocket's status parameters during launch, every second. """
+        """ Yield rocket's status variables during launch, every second. """
 
         # MECO can't be later than stage 1 burn duration
         meco_time = min(meco, self.stages[0].burn_duration)
         stage_separation = meco_time + 8
         second_stage_ignition = meco_time + 14
+        L.debug("MAIN ENGINE CUT OFF at T+%s", meco_time)
 
         # SECO can't be later than stage 1 and 2 total burn duration, but it can't be earlier than second stage ignition
         seco_time = max(min(seco, self.stages[0].burn_duration + self.stages[1].burn_duration), second_stage_ignition)
-        time = int(seco_time * 3)
+        L.debug("SECOND ENGINE CUT OFF at T+%s", seco_time)
 
-        # Yield initial values
-        yield self.position, self.velocity, self.acceleration, self.total_mass, 0, 0, 9.81
+        # Start calculation
+        time = int(seco_time * 3)  # Total time for loop
+        yield self.position, self.velocity, self.acceleration, self.total_mass, 0, 0, 9.81  # Yield initial values
 
         for i in range(0, time):
-
             #  Calculate stage status according to time
             if i <= meco_time:
-                self.stage_status = StageStatus.STAGE_1_BURN
+                self.stage_status = RocketStatus.STAGE_1_BURN
             elif meco_time < i <= stage_separation:
-                self.stage_status = StageStatus.STAGE_1_COAST
+                self.stage_status = RocketStatus.STAGE_1_COAST
             elif second_stage_ignition < i <= seco_time:
-                self.stage_status = StageStatus.STAGE_2_BURN
+                self.stage_status = RocketStatus.STAGE_2_BURN
             else:
-                self.stage_status = StageStatus.STAGE_2_COAST
+                self.stage_status = RocketStatus.STAGE_2_COAST
 
             # Calculate flight characteristics
             air_density = launch_site.get_density(self.position[2])
             distance_from_barycenter = self.position[2] + launch_site.surface_radius
-            thrust = self.thrust() / self.total_mass
-            drag = self.drag_constant * air_density * pow(self.velocity[2], 2) / 2 / self.total_mass
+            thrust = self.thrust()
+            drag = self.drag_constant * air_density * pow(self.velocity[2], 2) / 2
             gravity = launch_site.std_gravitational_parameter / pow(distance_from_barycenter, 2)
 
             L.debug("Rocket altitude is %s m", self.position[2])
@@ -234,7 +239,7 @@ class SpaceCraft:
             L.debug("Drag force is %s N", drag)
 
             # Calculate position, velocity and acceleration
-            self.acceleration[2] = thrust - drag - gravity
+            self.acceleration[2] = (thrust - drag) / self.total_mass - gravity
             self.velocity[2] += self.acceleration[2]
             self.position[2] += self.velocity[2]
 
@@ -247,7 +252,7 @@ class SpaceCraft:
 # Main function for module testing
 # pylint: disable=too-many-statements, too-many-locals
 def main():
-    """ Defines a Spacecraft class and LaunchSite, then calculates and plots status parameters. """
+    """ Defines a Spacecraft and LaunchSite classes, then calculates and plots flight parameters during liftoff. """
     # Launch-site
     cape = EarthLocation("Cape Canaveral", 28.3127, 80.3903)
 
@@ -262,80 +267,80 @@ def main():
 
     # Launch
     i = 0
-    time_limit = 1500
-    x_data = []
+    time_limit = 1400
+    time_data = []
     alt_data = []
     vel_data = []
     acc_data = []
     mass_data = []
-    t_data = []
-    d_data = []
-    g_data = []
+    thrust_data = []
+    drag_data = []
+    gravity_data = []
 
     for p, v, a, mass, t, d, g in falcon9.launch(cape, 130, 465):
-        x_data.append(i)
+        time_data.append(i)
         alt_data.append(p[2]/1000)
         vel_data.append(v[2]/1000)
         acc_data.append(a[2]/9.81)
         mass_data.append(mass/1000)
-        t_data.append(t)
-        d_data.append(d)
-        g_data.append(g)
+        thrust_data.append(t/1000)
+        drag_data.append(d/1000)
+        gravity_data.append(g)
         i += 1
 
     # Plotting
     plt.style.use('_mpl-gallery')
 
     fig = plt.figure(layout='constrained', figsize=(19, 9.5))
-    fig.suptitle("Falcon9 launch from Cape")
+    fig.suptitle("Falcon9 launch from Cape Canaveral")
     ax1 = fig.add_subplot(4, 2, 1)
-    ax1.set_title("Altitude - time")
+    ax1.set_title("Altitude (z)")
     ax1.set_ylabel("Altitude (km)")
     ax1.set_xlim(0, time_limit)
     ax1.set_ylim(0, 3000)
-    ax1.scatter(x_data, alt_data, s=0.5)
+    ax1.scatter(time_data, alt_data, s=0.5)
 
     ax2 = fig.add_subplot(4, 2, 2)
-    ax2.set_title("Velocity - time")
+    ax2.set_title("Velocity (z)")
     ax2.set_ylabel("Velocity (km/s)")
     ax2.set_xlim(0, time_limit)
     ax2.set_ylim(0, 8)
-    ax2.scatter(x_data, vel_data, s=0.5)
+    ax2.scatter(time_data, vel_data, s=0.5)
 
     ax3 = fig.add_subplot(4, 2, 3)
-    ax3.set_title("Acceleration - time")
+    ax3.set_title("Acceleration (z)")
     ax3.set_ylabel("Acceleration (g)")
     ax3.set_xlim(0, time_limit)
     ax3.set_ylim(-2.5, 7.5)
-    ax3.scatter(x_data, acc_data, s=0.5)
+    ax3.scatter(time_data, acc_data, s=0.5)
 
     ax4 = fig.add_subplot(4, 2, 4)
-    ax4.set_title("Spacecraft mass - time")
+    ax4.set_title("Spacecraft mass")
     ax4.set_ylabel("Mass (ton)")
     ax4.set_xlim(0, time_limit)
     ax4.set_ylim(0, 600)
-    ax4.scatter(x_data, mass_data, s=0.5)
+    ax4.scatter(time_data, mass_data, s=0.5)
 
     ax5 = fig.add_subplot(4, 2, 5)
-    ax5.set_title("Thrust - time")
-    ax5.set_ylabel("Force (N)")
+    ax5.set_title("Thrust")
+    ax5.set_ylabel("Force (kN)")
     ax5.set_xlim(0, time_limit)
-    # ax5.set_ylim(0, 30000)
-    ax5.scatter(x_data, t_data, s=0.5)
+    # ax5.set_ylim(0, 80)
+    ax5.scatter(time_data, thrust_data, s=0.5)
 
     ax6 = fig.add_subplot(4, 2, 6)
-    ax6.set_title("Drag - time")
-    ax6.set_ylabel("Force (N)")
+    ax6.set_title("Drag")
+    ax6.set_ylabel("Force (kN)")
     ax6.set_xlim(0, time_limit)
-    # ax6.set_ylim(-100, 100)
-    ax6.scatter(x_data, d_data, s=0.5)
+    # ax6.set_ylim(0, 3)
+    ax6.scatter(time_data, drag_data, s=0.5)
 
     ax7 = fig.add_subplot(4, 2, 7)
-    ax7.set_title("Gravity - time")
-    ax7.set_ylabel("Force (N)")
+    ax7.set_title("Gravity")
+    ax7.set_ylabel("Force (m/s2)")
     ax7.set_xlim(0, time_limit)
-    # ax7.set_ylim(-100, 100)
-    ax7.scatter(x_data, g_data, s=0.5)
+    ax7.set_ylim(4, 10)
+    ax7.scatter(time_data, gravity_data, s=0.5)
 
     plt.show()
 
