@@ -24,13 +24,14 @@ Contents
 from dataclasses import dataclass
 import math as m
 from typing import Union
+from enum import Enum, auto
 
 # Third party imports
 import numpy as np
 import matplotlib.pyplot as plt
 
 # Local application imports
-from logger import MAIN_LOGGER as l
+from logger import MAIN_LOGGER as L
 
 
 @dataclass
@@ -53,6 +54,8 @@ class Engine:
         if isinstance(self._specific_impulse, list):
             return self._specific_impulse[0] + (self._specific_impulse[1] - self._specific_impulse[0]) * ratio
 
+        return 0
+
 
 @dataclass
 class Stage:
@@ -65,13 +68,14 @@ class Stage:
         self._propellant_mass = propellant_mass  # kg
         self.number_of_engines = number_of_engines
         self.burn_duration = burn_duration  # s
-        self.thrust = self.engine.thrust * self.number_of_engines  # N aka kg/m/s
+        self.stage_thrust = self.engine.thrust * self.number_of_engines
 
-    def is_propellant(self):
-        """ Returns if there is any fuel left in the stage and capable to generate thrust. """
+    def get_thrust(self) -> float:
+        """ Returns thrust if there is any fuel left in the stage. """
         if self._propellant_mass > 0:
-            return True
-        return False
+            return self.stage_thrust  # N aka kg/m/s
+
+        return 0.0
 
     def get_mass(self):
         """ Returns the actual total mass of the stage. """
@@ -79,10 +83,19 @@ class Stage:
 
     def burn_mass(self, standard_gravity):
         """ Calculates delta m after burning the engine for 1 seconds, and sets new mass. """
-        delta_m = self.thrust / (self.engine.specific_impulse() * standard_gravity)
+        delta_m = self.stage_thrust / (self.engine.specific_impulse() * standard_gravity)
 
         # Updates itself with new mass, negative values are omitted
         self._propellant_mass = max(0.0, self._propellant_mass - delta_m)
+
+
+class StageStatus(Enum):
+    """ Describes the status of the rocket during liftoff. """
+    STAGE_0 = 0
+    STAGE_1_BURN = 1
+    STAGE_1_COAST = auto()
+    STAGE_2_BURN = 2
+    STAGE_2_COAST = auto()
 
 
 @dataclass
@@ -91,14 +104,14 @@ class PlanetLocation:
     function, gravity and gravitational parameter.
     """
 
-    def __init__(self, name, latitude: float, longitude: float, distance_from_barycenter: float,
-                 standard_gravity, standard_gravitational_parameter):
+    def __init__(self, name, latitude: float, longitude: float, surface_radius: float,
+                 std_gravity, std_gravitational_parameter):
         self.name = name
         self.latitude = latitude
         self.longitude = longitude
-        self.distance_from_barycenter = distance_from_barycenter  # m
-        self.std_gravity = standard_gravity  # m/s^2
-        self.std_gravitational_parameter = standard_gravitational_parameter  # m^3/s^2
+        self.surface_radius = surface_radius  # m
+        self.std_gravity = std_gravity  # m/s^2
+        self.std_gravitational_parameter = std_gravitational_parameter  # m^3/s^2
 
     # pylint: disable = unused-argument
     def get_density(self, altitude) -> float:
@@ -128,99 +141,97 @@ class SpaceCraft:
 
     def __init__(self, name, payload_mass: float, coefficient_of_drag: float, diameter: float, stages: list):
         self.name = name
-
-        # Stage specifications and mass properties
-        self.stage_status = 1
+        self.stage_status = StageStatus.STAGE_0
         self.stages = stages
-        self.payload_mass = payload_mass
-        self.total_mass = self.payload_mass + self.get_stage_mass(self.stage_status)
 
         # Physical properties
-        self.coefficient_of_drag = coefficient_of_drag  # -
-        self.diameter = diameter
-        self.area = m.pi * pow(diameter, 2) / 4  # Cross-sectional area, m2
+        # Drag coefficient (-) times cross-sectional area of rocket (m2)
+        self.drag_constant = coefficient_of_drag * (m.pi * pow(diameter, 2) / 4)
 
-        # Dynamic vectors
+        # State variables / dynamic vectors and mass
         self.position = np.array([0.0, 0.0, 0.0])
         self.velocity = np.array([0.0, 0.0, 0.0])
         self.acceleration = np.array([0.0, 0.0, 0.0])
 
-    def get_stage_mass(self, stage_status):
+        # Mass properties
+        self.payload_mass = payload_mass
+        self.total_mass = self.payload_mass + self.get_stage_mass()
+
+    def get_stage_mass(self):
         """ Sums the mass of each rocket stage. """
 
-        if stage_status == 1:
+        if self.stage_status in (StageStatus.STAGE_0, StageStatus.STAGE_1_BURN, StageStatus.STAGE_1_COAST):
             return self.stages[0].get_mass() + self.stages[1].get_mass()
 
-        if stage_status == 2:
+        if self.stage_status in (StageStatus.STAGE_2_BURN, StageStatus.STAGE_2_COAST):
             return self.stages[1].get_mass()
 
         return 0
 
-    def thrust(self, stage_status):
+    def thrust(self):
         """ Calculates actual thrust (force) of the rocket, depending on actual staging. """
 
-        if stage_status == 1 and self.stages[0].is_propellant():
-            return self.stages[0].thrust
+        if self.stage_status == StageStatus.STAGE_1_BURN:
+            return self.stages[0].get_thrust()
 
-        if stage_status == 2 and self.stages[1].is_propellant():
-            return self.stages[1].thrust
+        if self.stage_status == StageStatus.STAGE_2_BURN:
+            return self.stages[1].get_thrust()
 
         return 0
 
-    # def drag(self, air_density, velocity):
-    #     """ Calculates actual drag (force) on the rocket, depending on the atmospheric density. """
-    #     return self.coefficient_of_drag * self.area * air_density * pow(velocity, 2) / 2
-
-    @staticmethod
-    def gravity(std_gravitational_parameter, distance):
-        """ Calculates gravitational forces between two bodies, depending on the distance travelled. """
-        return std_gravitational_parameter / pow(int(distance), 2)
-
-    def update_mass(self, standard_gravity, stage_status):
+    def update_mass(self, standard_gravity):
         """ Updates total rocket mass after burning, depending on gravity and actual staging. """
 
         # Calculate delta m in stage 1
-        if stage_status == 1:
+        if self.stage_status == StageStatus.STAGE_1_BURN:
             self.stages[0].burn_mass(standard_gravity)
 
         # Calculate delta m in stage 2
-        elif stage_status == 2:
+        elif self.stage_status == StageStatus.STAGE_2_BURN:
             self.stages[1].burn_mass(standard_gravity)
 
         # Calculate new total mass
-        self.total_mass = self.payload_mass + self.get_stage_mass(stage_status)
+        self.total_mass = self.payload_mass + self.get_stage_mass()
 
-    # TODO: implement MECO - stage separation time
-    def launch(self, launch_site: PlanetLocation, separation_time_1, separation_time_2):
+    def launch(self, launch_site: PlanetLocation, meco, seco):
         """ Yield rocket's status parameters during launch, every second. """
 
-        stage1_separation = min(separation_time_1, self.stages[0].burn_duration)
-        stage2_separation = min(separation_time_2, self.stages[0].burn_duration + self.stages[1].burn_duration)
-        time = int(stage2_separation * 3)
+        # MECO can't be later than stage 1 burn duration
+        meco_time = min(meco, self.stages[0].burn_duration)
+        stage_separation = meco_time + 8
+        second_stage_ignition = meco_time + 14
+
+        # SECO can't be later than stage 1 and 2 total burn duration, but it can't be earlier than second stage ignition
+        seco_time = max(min(seco, self.stages[0].burn_duration + self.stages[1].burn_duration), second_stage_ignition)
+        time = int(seco_time * 3)
 
         # Yield initial values
         yield self.position, self.velocity, self.acceleration, self.total_mass, 0, 0, 9.81
 
-        # Calculate status parameters, each step is 1 second
         for i in range(0, time):
 
-            #  Calculate stage according to time
-            if i <= stage1_separation:
-                self.stage_status = 1
-            elif stage2_separation >= i:
-                self.stage_status = 2
+            #  Calculate stage status according to time
+            if i <= meco_time:
+                self.stage_status = StageStatus.STAGE_1_BURN
+            elif meco_time < i <= stage_separation:
+                self.stage_status = StageStatus.STAGE_1_COAST
+            elif second_stage_ignition < i <= seco_time:
+                self.stage_status = StageStatus.STAGE_2_BURN
             else:
-                self.stage_status = 3
+                self.stage_status = StageStatus.STAGE_2_COAST
 
             # Calculate flight characteristics
             air_density = launch_site.get_density(self.position[2])
-            altitude = self.position[2] + launch_site.distance_from_barycenter
-            thrust = self.thrust(self.stage_status) / self.total_mass
-            drag = (self.coefficient_of_drag * self.area * air_density * pow(self.velocity[2], 2)) / 2 / self.total_mass
-            gravity = self.gravity(launch_site.std_gravitational_parameter, altitude)
+            distance_from_barycenter = self.position[2] + launch_site.surface_radius
+            thrust = self.thrust() / self.total_mass
+            drag = self.drag_constant * air_density * pow(self.velocity[2], 2) / 2 / self.total_mass
+            gravity = launch_site.std_gravitational_parameter / pow(distance_from_barycenter, 2)
 
-            l.debug("Air density is %s at %s", air_density, self.position[2])
-            l.debug("Drag force is %s at %s", drag, self.position[2])
+            L.debug("Rocket altitude is %s m", self.position[2])
+            L.debug("Thrust is %s N", thrust)
+            L.debug("Rocket total mass is %s kg", self.total_mass)
+            L.debug("Air density is %s kg/m3", air_density)
+            L.debug("Drag force is %s N", drag)
 
             # Calculate position, velocity and acceleration
             self.acceleration[2] = thrust - drag - gravity
@@ -228,7 +239,7 @@ class SpaceCraft:
             self.position[2] += self.velocity[2]
 
             # Calculate new spacecraft mass
-            self.update_mass(launch_site.std_gravity, self.stage_status)
+            self.update_mass(launch_site.std_gravity)
 
             yield self.position, self.velocity, self.acceleration, self.total_mass, thrust, drag, gravity
 
