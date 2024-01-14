@@ -36,10 +36,12 @@ from logger import MAIN_LOGGER as l
 @dataclass
 class Engine:
     """ Rocket engine class, defined by name and specific_impulse. """
-    name: str
-    thrust: float  # N aka kg/m/s
-    specific_impulse: float  # s
-    # specific_impulse_vac: float  # s
+
+    def __init__(self, name: str, thrust: float, specific_impulse: float):
+        self.name = name
+        self.thrust = thrust  # N aka kg/m/s
+        self.specific_impulse = specific_impulse  # s
+        # self.specific_impulse_vac = specific_impulse_vac  # s
 
 
 @dataclass
@@ -99,7 +101,7 @@ class EarthLocation(PlanetLocation):
     """ Launch site class for locations on Earth's surface. """
 
     def __init__(self, name, latitude: float, longitude: float):
-        super().__init__(f"{name}, Earth", latitude, longitude, 6371000, 9.81,
+        super().__init__(f"{name}, Earth", latitude, longitude, 6371000, 9.80665,
                          3.986004418e14)
 
     def get_density(self, altitude: float):
