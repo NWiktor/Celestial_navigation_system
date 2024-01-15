@@ -238,6 +238,7 @@ class SpaceCraft:
             L.debug("Air density is %s kg/m3", air_density)
             L.debug("Drag force is %s N", drag)
 
+            # TODO: implement Runge-Kutta 4 method for calculating the state variables
             # Calculate position, velocity and acceleration
             self.acceleration[2] = (thrust - drag) / self.total_mass - gravity
             self.velocity[2] += self.acceleration[2]
