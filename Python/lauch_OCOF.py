@@ -199,7 +199,7 @@ class SpaceCraft:
         self.total_mass = self.payload_mass + self.get_stage_mass()
 
     # @staticmethod
-    def launch_ode(self, t, state, mu, thrust, drag_const):
+    def launch_ode(self, t, state, mu, thrust, drag_const, mass):
         """ 2nd order ODE of the state-vectors, during launch.
 
         The function returns the second derivative of position vector at a given time (acceleration vector),
@@ -207,23 +207,28 @@ class SpaceCraft:
 
         Trick: While passing (leaving) the velocity vector unchanged, we don't need another equation.
 
-        State-vector: rx, ry, rz, vx, vy, vz, m
+        State-vector: rx, ry, rz, vx, vy, vz
         State-vector_dot : vx, vy, vz, ax, ay, az
         """
         # Működése: state -> state_dot
 
         r = state[:3]
         v = state[3:6]
-        mass = state[6]
+
+        # If the vector length is zero, division is not interpretable:
+        if np.linalg.norm(v) == 0:
+            unit_v = np.array([0, 0, 1])
+
+        else:
+            unit_v = v / np.linalg.norm(v)
 
         a1 = -r * mu / np.linalg.norm(r) ** 3
-        a2 = thrust / mass * np.linalg.norm(v)
-        a3 = - drag_const * v * np.linalg.norm(v) ** 2 / mass
-
+        a2 = thrust / mass * unit_v
+        a3 = - unit_v * drag_const * np.linalg.norm(v) ** 2 / mass
         a = a1 + a2 + a3
 
-        # returns: vx, vy, vz, ax, ay, az, m
-        return np.array([state[3], state[4], state[5], a[0], a[1], a[2], mass])
+        # returns: vx, vy, vz, ax, ay, az
+        return np.array([state[3], state[4], state[5], a[0], a[1], a[2]])
 
     def launch(self, launch_site: PlanetLocation, meco, seco):
         """ Yield rocket's status variables during launch, every second. """
@@ -243,8 +248,9 @@ class SpaceCraft:
         # yield self.position, self.velocity, self.acceleration, self.total_mass, 0, 0, 9.81  # Yield initial values
 
         # new yield with state variables
-        state = np.array([0, 0, launch_site.surface_radius, 0, 0, 0, self.total_mass])
-        yield state
+        state = np.array([0, 0, launch_site.surface_radius, 0, 0, 0])
+        accel = np.array([0, 0, 0])
+        yield state, accel
 
         for i in range(0, time):
             #  Calculate stage status according to time
@@ -276,6 +282,8 @@ class SpaceCraft:
             self.velocity[2] += self.acceleration[2]
             self.position[2] += self.velocity[2]
 
+            L.debug("Acceleration is %s m/s2", self.acceleration[2])
+
             # Calculate new spacecraft mass
             self.update_mass(launch_site.std_gravity)
             # yield self.position, self.velocity, self.acceleration, self.total_mass, thrust, drag, gravity
@@ -283,8 +291,9 @@ class SpaceCraft:
             # New method for calculating accel
             alt = state[2] - launch_site.surface_radius
             drag_const = self.drag_constant * launch_site.get_density(alt) / 2
-            new_state = mch.rk4(self.launch_ode, 0, state, 1, launch_site.std_gravitational_parameter, self.thrust(), drag_const)
-            yield new_state
+            new_state, accels = mch.rk4(self.launch_ode, 0, state[:6], 1, launch_site.std_gravitational_parameter, self.thrust(), drag_const, self.total_mass)
+            yield new_state, accels
+            print(accels)
             state = new_state
 
 
@@ -326,20 +335,20 @@ def main():
     gravity_data = []
 
     # for p, v, a, mass, t, d, g in falcon9.launch(cape, 130, 465):
-    for state in falcon9.launch(cape, 130, 465):
+    for state, acc in falcon9.launch(cape, 130, 465):
         # print(state)
         # print(t)
         # print(d)
         # print(g)
         time_data.append(i)
-        alt_data.append(state[2]/1000)
+        alt_data.append((state[2]-6371000)/1000)
         vel_data.append(state[5]/1000)
-        acc_data.append(state[2]/9.81)
+        acc_data.append(acc[2]/9.81)
         # mass_data.append(mass/1000)
         # thrust_data.append(t/1000)
         # drag_data.append(d/1000)
         # gravity_data.append(g)
-        # i += 1
+        i += 1
 
     # Plotting
     plt.style.use('_mpl-gallery')
@@ -383,14 +392,14 @@ def main():
     ax5.set_title("Thrust")
     ax5.set_ylabel("Force (kN)")
     ax5.set_xlim(0, time_limit)
-    # ax5.set_ylim(0, 80)
+    ax5.set_ylim(0, 80)
     ax5.scatter(time_data, thrust_data, s=0.5)
 
     ax6 = fig.add_subplot(4, 2, 6)
     ax6.set_title("Drag")
     ax6.set_ylabel("Force (kN)")
     ax6.set_xlim(0, time_limit)
-    # ax6.set_ylim(0, 3)
+    ax6.set_ylim(0, 3)
     ax6.scatter(time_data, drag_data, s=0.5)
 
     ax7 = fig.add_subplot(4, 2, 7)

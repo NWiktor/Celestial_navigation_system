@@ -16,7 +16,7 @@ def rk4(func, t0, y0, h, *args):
 
     # Returns y1 value, which is the approximation of the y(t) function at t1:
     # This is basically the velocity-vector
-    return y0 + h / 6.0 * (k1 + 2 * k2 + 2 * k3 + k4)
+    return y0 + h / 6.0 * (k1 + 2 * k2 + 2 * k3 + k4), k4[3:6]
 
 # TODO: gyorsulásvektor (f(y1) kiszámítása, mivel ismerem a pozíciót és a sebességet (y0)
 # TODO: a gyorsulásvektor közelítése RK4-el, így megkapom a sebességvektort
