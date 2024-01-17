@@ -154,8 +154,9 @@ class SpaceCraft:
         self.drag_constant = coefficient_of_drag * (m.pi * pow(diameter, 2) / 4)
 
         # State variables / dynamic vectors and mass
-        self.position = np.array([0.0, 0.0, 0.0])
-        self.velocity = np.array([0.0, 0.0, 0.0])
+        self.state = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        # self.position = np.array([0.0, 0.0, 0.0])
+        # self.velocity = np.array([0.0, 0.0, 0.0])
         self.acceleration = np.array([0.0, 0.0, 0.0])
 
         # Mass properties
@@ -247,15 +248,12 @@ class SpaceCraft:
 
         # Start calculation
         time = int(seco_time * 3)  # Total time for loop
-        # yield self.position, self.velocity, self.acceleration, self.total_mass, 0, 0, 9.81  # Yield initial values
 
-        # new yield with state variables
-        state = np.array([0, 0, launch_site.surface_radius, 0, 0, 0])
-        accel = np.array([0, 0, 0])
-        yield state, accel
+        # TODO: add earth rotation, and calculate lat, long coodinates to rectangular coords.
+        self.state[2] = launch_site.surface_radius  # Update state vector with initial conditions
+        yield self.state, self.acceleration, self.total_mass  #, 0, 0, 9.81  # Yield initial values
 
-        for i in range(0, time):
-            #  Calculate stage status according to time
+        for i in range(0, time):  #  Calculate stage status according to time
             if i <= meco_time:
                 self.stage_status = RocketStatus.STAGE_1_BURN
             elif meco_time < i <= stage_separation:
@@ -265,42 +263,33 @@ class SpaceCraft:
             else:
                 self.stage_status = RocketStatus.STAGE_2_COAST
 
-            # Calculate flight characteristics
-            air_density = launch_site.get_density(self.position[2])
-            distance_from_barycenter = self.position[2] + launch_site.surface_radius
-            thrust = self.thrust()
-            drag = self.drag_constant * air_density * pow(self.velocity[2], 2) / 2
-            gravity = launch_site.std_gravitational_parameter / pow(distance_from_barycenter, 2)
-
-            L.debug("Rocket altitude is %s m", self.position[2])
-            L.debug("Thrust is %s N", thrust)
-            L.debug("Rocket total mass is %s kg", self.total_mass)
-            L.debug("Air density is %s kg/m3", air_density)
-            L.debug("Drag force is %s N", drag)
-
-            # TODO: implement Runge-Kutta 4 method for calculating the state variables
-            # Calculate position, velocity and acceleration
-            self.acceleration[2] = (thrust - drag) / self.total_mass - gravity
-            self.velocity[2] += self.acceleration[2]
-            self.position[2] += self.velocity[2]
-
-            L.debug("Acceleration is %s m/s2", self.acceleration[2])
-
             # Calculate new spacecraft mass
+            # TODO: implement timestep based mass calculation
             self.update_mass(launch_site.std_gravity)
-            # yield self.position, self.velocity, self.acceleration, self.total_mass, thrust, drag, gravity
 
-            # New method for calculating accel
+            # Calculate flight characteristics
+            distance_from_surface = np.linalg.norm(self.state[0:3]) - launch_site.surface_radius
+            air_density = launch_site.get_density(distance_from_surface)
+            drag_const = self.drag_constant * air_density / 2
+
+            # Calculate state-vector and acceleration
             # TODO: gyorsulásvektor (f(y1) kiszámítása, mivel ismerem a pozíciót és a sebességet (y0)
             # TODO: a gyorsulásvektor közelítése RK4-el, így megkapom a sebességvektort
             # TODO: a sebessévektor integrálása RK4-el, így megkapom a pozícióvektort
             # TODO: mivel a f(y0) egyben a sebességvektort is visszaadja, ezért az RK-4 is kétszer tud integrálni - egy lépésben
-            alt = state[2] - launch_site.surface_radius
-            drag_const = self.drag_constant * launch_site.get_density(alt) / 2
-            new_state, accels = mch.rk4(self.launch_ode, 0, state[:6], 1, launch_site.std_gravitational_parameter, self.thrust(), drag_const, self.total_mass)
-            yield new_state, accels
-            print(accels)
-            state = new_state
+            self.state, self.acceleration = mch.rk4(self.launch_ode, 0, self.state, 1,
+                launch_site.std_gravitational_parameter, self.thrust(), drag_const, self.total_mass)
+
+            # Log new data
+            L.debug("Rocket altitude is %s m", np.linalg.norm(self.state[0:3]) - launch_site.surface_radius)
+            # L.debug("Thrust is %s N", thrust)
+            L.debug("Rocket total mass is %s kg", self.total_mass)
+            L.debug("Air density is %s kg/m3", air_density)
+            # L.debug("Drag force is %s N", drag)
+            L.debug("Acceleration is %s m/s2", np.linalg.norm(self.acceleration))
+
+            # Yield values
+            yield self.state, self.acceleration, self.total_mass
 
 
 def seconds_to_minutes(total_seconds) -> str:
@@ -340,17 +329,13 @@ def main():
     drag_data = []
     gravity_data = []
 
-    # for p, v, a, mass, t, d, g in falcon9.launch(cape, 130, 465):
-    for state, acc in falcon9.launch(cape, 130, 465):
-        # print(state)
-        # print(t)
-        # print(d)
-        # print(g)
+    for state, a, mass in falcon9.launch(cape, 130, 465):
+
         time_data.append(i)
-        alt_data.append((state[2]-6371000)/1000)
-        vel_data.append(state[5]/1000)
-        acc_data.append(acc[2]/9.81)
-        # mass_data.append(mass/1000)
+        alt_data.append((np.linalg.norm(state[0:3]) - 6371000) / 1000)  # Altitude in km-s
+        vel_data.append(np.linalg.norm(state[3:6]) / 1000)  # Velocity in km/s
+        acc_data.append(np.linalg.norm(a) / 9.81)  # Accceleration in g-s
+        mass_data.append(mass / 1000)  # Mass in kg-s
         # thrust_data.append(t/1000)
         # drag_data.append(d/1000)
         # gravity_data.append(g)
@@ -382,16 +367,15 @@ def main():
     ax3.set_ylim(-2.5, 7.5)
     ax3.scatter(time_data, acc_data, s=0.5)
 
-    plt.show()
-
-    return
-
     ax4 = fig.add_subplot(4, 2, 4)
     ax4.set_title("Spacecraft mass")
     ax4.set_ylabel("Mass (ton)")
     ax4.set_xlim(0, time_limit)
     ax4.set_ylim(0, 600)
     ax4.scatter(time_data, mass_data, s=0.5)
+
+    plt.show()
+    return
 
 
     ax5 = fig.add_subplot(4, 2, 5)
