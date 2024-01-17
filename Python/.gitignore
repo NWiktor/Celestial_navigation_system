@@ -1,5 +1,6 @@
 # Sajat ignore
 log/
+AWP_copycode.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
