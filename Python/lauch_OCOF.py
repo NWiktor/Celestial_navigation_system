@@ -29,6 +29,7 @@ from enum import Enum
 # Third party imports
 import numpy as np
 import matplotlib.pyplot as plt
+import mechanics as mch
 
 # Local application imports
 from logger import MAIN_LOGGER as L
@@ -197,6 +198,33 @@ class SpaceCraft:
         # Calculate new total mass
         self.total_mass = self.payload_mass + self.get_stage_mass()
 
+    # @staticmethod
+    def launch_ode(self, t, state, mu, thrust, drag_const):
+        """ 2nd order ODE of the state-vectors, during launch.
+
+        The function returns the second derivative of position vector at a given time (acceleration vector),
+        using the position (r) and velocity (v) vectors. All values represent the same time.
+
+        Trick: While passing (leaving) the velocity vector unchanged, we don't need another equation.
+
+        State-vector: rx, ry, rz, vx, vy, vz, m
+        State-vector_dot : vx, vy, vz, ax, ay, az
+        """
+        # Működése: state -> state_dot
+
+        r = state[:3]
+        v = state[3:6]
+        mass = state[6]
+
+        a1 = -r * mu / np.linalg.norm(r) ** 3
+        a2 = thrust / mass * np.linalg.norm(v)
+        a3 = - drag_const * v * np.linalg.norm(v) ** 2 / mass
+
+        a = a1 + a2 + a3
+
+        # returns: vx, vy, vz, ax, ay, az, m
+        return np.array([state[3], state[4], state[5], a[0], a[1], a[2], mass])
+
     def launch(self, launch_site: PlanetLocation, meco, seco):
         """ Yield rocket's status variables during launch, every second. """
 
@@ -212,7 +240,11 @@ class SpaceCraft:
 
         # Start calculation
         time = int(seco_time * 3)  # Total time for loop
-        yield self.position, self.velocity, self.acceleration, self.total_mass, 0, 0, 9.81  # Yield initial values
+        # yield self.position, self.velocity, self.acceleration, self.total_mass, 0, 0, 9.81  # Yield initial values
+
+        # new yield with state variables
+        state = np.array([0, 0, launch_site.surface_radius, 0, 0, 0, self.total_mass])
+        yield state
 
         for i in range(0, time):
             #  Calculate stage status according to time
@@ -246,8 +278,14 @@ class SpaceCraft:
 
             # Calculate new spacecraft mass
             self.update_mass(launch_site.std_gravity)
+            # yield self.position, self.velocity, self.acceleration, self.total_mass, thrust, drag, gravity
 
-            yield self.position, self.velocity, self.acceleration, self.total_mass, thrust, drag, gravity
+            # New method for calculating accel
+            alt = state[2] - launch_site.surface_radius
+            drag_const = self.drag_constant * launch_site.get_density(alt) / 2
+            new_state = mch.rk4(self.launch_ode, 0, state, 1, launch_site.std_gravitational_parameter, self.thrust(), drag_const)
+            yield new_state
+            state = new_state
 
 
 def seconds_to_minutes(total_seconds) -> str:
@@ -287,16 +325,21 @@ def main():
     drag_data = []
     gravity_data = []
 
-    for p, v, a, mass, t, d, g in falcon9.launch(cape, 130, 465):
+    # for p, v, a, mass, t, d, g in falcon9.launch(cape, 130, 465):
+    for state in falcon9.launch(cape, 130, 465):
+        # print(state)
+        # print(t)
+        # print(d)
+        # print(g)
         time_data.append(i)
-        alt_data.append(p[2]/1000)
-        vel_data.append(v[2]/1000)
-        acc_data.append(a[2]/9.81)
-        mass_data.append(mass/1000)
-        thrust_data.append(t/1000)
-        drag_data.append(d/1000)
-        gravity_data.append(g)
-        i += 1
+        alt_data.append(state[2]/1000)
+        vel_data.append(state[5]/1000)
+        acc_data.append(state[2]/9.81)
+        # mass_data.append(mass/1000)
+        # thrust_data.append(t/1000)
+        # drag_data.append(d/1000)
+        # gravity_data.append(g)
+        # i += 1
 
     # Plotting
     plt.style.use('_mpl-gallery')
@@ -324,12 +367,17 @@ def main():
     ax3.set_ylim(-2.5, 7.5)
     ax3.scatter(time_data, acc_data, s=0.5)
 
+    plt.show()
+
+    return
+
     ax4 = fig.add_subplot(4, 2, 4)
     ax4.set_title("Spacecraft mass")
     ax4.set_ylabel("Mass (ton)")
     ax4.set_xlim(0, time_limit)
     ax4.set_ylim(0, 600)
     ax4.scatter(time_data, mass_data, s=0.5)
+
 
     ax5 = fig.add_subplot(4, 2, 5)
     ax5.set_title("Thrust")
