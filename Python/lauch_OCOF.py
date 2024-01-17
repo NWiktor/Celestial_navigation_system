@@ -223,8 +223,8 @@ class SpaceCraft:
             unit_v = v / np.linalg.norm(v)
 
         # 2nd order ODE function (acceleration)
-        x = 10
-        y = 30
+        x = 10  # Tower cleared
+        y = 30  # Pitch over maneuver ended
         if t <= x:  # Vertical flight until tower is cleared
             a_thrust = thrust / mass * (r / np.linalg.norm(r))
         elif x < t <= y:  # Initial pitch-over maneuver
