@@ -212,21 +212,27 @@ class SpaceCraft:
         State-vector: rx, ry, rz, vx, vy, vz
         State-vector_dot: vx, vy, vz, ax, ay, az
         """
-        # Működése: state -> state_dot
-
         r = state[:3]  # Position vector
         v = state[3:6]  # Velocity vector
 
         # If the vector length is zero, division is not interpretable
         if np.linalg.norm(v) == 0:
-            unit_v = np.array([0, 0, 1])
+            unit_v = np.array([0, 0, 0])
 
         else:
             unit_v = v / np.linalg.norm(v)
 
         # 2nd order ODE function (acceleration)
+        x = 10
+        y = 30
+        if t <= x:  # Vertical flight until tower is cleared
+            a_thrust = thrust / mass * (r / np.linalg.norm(r))
+        elif x < t <= y:  # Initial pitch-over maneuver
+            a_thrust = thrust / mass * 1 * (r / np.linalg.norm(r))
+        else:  # Gravity assist
+            a_thrust = thrust / mass * unit_v
+
         a_gravity = -r * mu / np.linalg.norm(r) ** 3
-        a_thrust = thrust / mass * unit_v
         a_drag = - unit_v * drag_const * np.linalg.norm(v) ** 2 / mass
         a = a_gravity + a_thrust + a_drag
 
@@ -251,9 +257,9 @@ class SpaceCraft:
 
         # TODO: add earth rotation, and calculate lat, long coodinates to rectangular coords.
         self.state[2] = launch_site.surface_radius  # Update state vector with initial conditions
-        yield self.state, self.acceleration, self.total_mass  #, 0, 0, 9.81  # Yield initial values
+        yield self.state, self.acceleration, self.total_mass  # Yield initial values
 
-        for i in range(0, time):  #  Calculate stage status according to time
+        for i in range(0, time):  # Calculate stage status according to time
             if i <= meco_time:
                 self.stage_status = RocketStatus.STAGE_1_BURN
             elif meco_time < i <= stage_separation:
@@ -263,28 +269,29 @@ class SpaceCraft:
             else:
                 self.stage_status = RocketStatus.STAGE_2_COAST
 
-            # Calculate new spacecraft mass
-            # TODO: implement timestep based mass calculation
-            self.update_mass(launch_site.std_gravity)
-
             # Calculate flight characteristics
             distance_from_surface = np.linalg.norm(self.state[0:3]) - launch_site.surface_radius
             air_density = launch_site.get_density(distance_from_surface)
             drag_const = self.drag_constant * air_density / 2
 
             # Calculate state-vector and acceleration
-            # TODO: gyorsulásvektor (f(y1) kiszámítása, mivel ismerem a pozíciót és a sebességet (y0)
-            # TODO: a gyorsulásvektor közelítése RK4-el, így megkapom a sebességvektort
-            # TODO: a sebessévektor integrálása RK4-el, így megkapom a pozícióvektort
-            # TODO: mivel a f(y0) egyben a sebességvektort is visszaadja, ezért az RK-4 is kétszer tud integrálni - egy lépésben
+            # The ODE is solved for the acceleration vector, which is used as an initial condition for the
+            # RK4 numerical integrator function.
+            # Passing not only the acceleration vector, but the velocity vector to the RK4, we can numerically
+            # integrate twice with one function-call, thus we get back the state-vector as well.
             self.state, self.acceleration = mch.rk4(self.launch_ode, 0, self.state, 1,
-                launch_site.std_gravitational_parameter, self.thrust(), drag_const, self.total_mass)
+                                                    launch_site.std_gravitational_parameter, self.thrust(),
+                                                    drag_const, self.total_mass)
+
+            # Calculate new spacecraft mass
+            # TODO: implement timestep based mass calculation
+            self.update_mass(launch_site.std_gravity)
 
             # Log new data
             L.debug("Rocket altitude is %s m", np.linalg.norm(self.state[0:3]) - launch_site.surface_radius)
-            # L.debug("Thrust is %s N", thrust)
             L.debug("Rocket total mass is %s kg", self.total_mass)
             L.debug("Air density is %s kg/m3", air_density)
+            # L.debug("Thrust is %s N", thrust)
             # L.debug("Drag force is %s N", drag)
             L.debug("Acceleration is %s m/s2", np.linalg.norm(self.acceleration))
 
@@ -325,9 +332,9 @@ def main():
     vel_data = []
     acc_data = []
     mass_data = []
-    thrust_data = []
-    drag_data = []
-    gravity_data = []
+    # thrust_data = []
+    # drag_data = []
+    # gravity_data = []
 
     for state, a, mass in falcon9.launch(cape, 130, 465):
 
@@ -342,6 +349,8 @@ def main():
         i += 1
 
     # Plotting
+    # TODO: implement colormap for each stage of the flight
+    # https://matplotlib.org/stable/gallery/lines_bars_and_markers/multicolored_line.html#sphx-glr-gallery-lines-bars-and-markers-multicolored-line-py
     plt.style.use('_mpl-gallery')
 
     fig = plt.figure(layout='constrained', figsize=(19, 9.5))
@@ -376,7 +385,6 @@ def main():
 
     plt.show()
     return
-
 
     ax5 = fig.add_subplot(4, 2, 5)
     ax5.set_title("Thrust")
