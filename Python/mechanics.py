@@ -1,27 +1,32 @@
-def rk4(f, t0, y0, h):
-    """ A Runge-Kutta módszer egy függvény értékét közelíti egy lépéssel később.
+def rk4(func, t0, y0, h, *args):
+    """ The fourth-order Runge-Kutta method approximates the solution (function) of a first-order ODE.
 
-    Adott egy f(t, y(t)) függvény, ahol ismert egy kezdeti érték: y(t0)=y
-    f - keresett függvény
+    Adott egy y'(t) = f(t, y(t), *args) ODE függvény, és ismert a megoldás fv. egy kezdeti értéke: y(t0)=y0
+    func - ODE függvény
     t0 - kezdeti idő
     y0 - kezdeti fv. érték t0 időpillanatban
     h - lépésköz
     https://lpsa.swarthmore.edu/NumInt/NumIntFourth.html
     https://www.youtube.com/watch?v=TzX6bg3Kc0E&list=PLOIRBaljOV8hBJS4m6brpmUrncqkyXBjB&index=5
     """
-    k1 = f(t0, y0)
-    k2 = f(t0 + 0.5 * h, y0 + 0.5 * k1 * h)
-    k3 = f(t0 + 0.5 * h, y0 + 0.5 * k2 * h)
-    k4 = f(t0 + h, y0 + k3 * h)
+    k1 = func(t0, y0, *args)
+    k2 = func(t0 + 0.5 * h, y0 + 0.5 * k1 * h, *args)
+    k3 = func(t0 + 0.5 * h, y0 + 0.5 * k2 * h, *args)
+    k4 = func(t0 + h, y0 + k3 * h, *args)
 
-    # Returns integral of function
+    # Returns y1 value, which is the approximation of the y(t) function at t1:
+    # This is basically the velocity-vector
     return y0 + h / 6.0 * (k1 + 2 * k2 + 2 * k3 + k4)
 
-# TODO: gyorsulásvektor (f(y0) kiszámítása, mivel ismerem a pozíciót és a sebességet (y0)
-# TODO: a gyorsulásvektor integrálása RK4-el, így megkapom a sebességvektort
+# TODO: gyorsulásvektor (f(y1) kiszámítása, mivel ismerem a pozíciót és a sebességet (y0)
+# TODO: a gyorsulásvektor közelítése RK4-el, így megkapom a sebességvektort
 # TODO: a sebessévektor integrálása RK4-el, így megkapom a pozícióvektort
 # TODO: mivel a f(y0) egyben a sebességvektort is visszaadja, ezért az RK-4 is kétszer tud integrálni - egy lépésben
 
+
+# Include guard
+if __name__ == '__main__':
+    pass
 
 # def rk4_ks( f, t, y, h ):
 # 	'''
