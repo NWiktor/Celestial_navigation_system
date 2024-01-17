@@ -29,7 +29,7 @@ from enum import Enum
 # Third party imports
 import numpy as np
 import matplotlib.pyplot as plt
-import mechanics as mch
+from modules import ode_solvers as mch
 
 # Local application imports
 from logger import MAIN_LOGGER as L
@@ -205,30 +205,32 @@ class SpaceCraft:
         The function returns the second derivative of position vector at a given time (acceleration vector),
         using the position (r) and velocity (v) vectors. All values represent the same time.
 
-        Trick: While passing (leaving) the velocity vector unchanged, we don't need another equation.
+        Trick: While passing through the velocity vector unchanged, we can numerically integrate both functions in
+        the RK4-solver in one step (this is outside of this functions scope).
 
         State-vector: rx, ry, rz, vx, vy, vz
-        State-vector_dot : vx, vy, vz, ax, ay, az
+        State-vector_dot: vx, vy, vz, ax, ay, az
         """
         # Működése: state -> state_dot
 
-        r = state[:3]
-        v = state[3:6]
+        r = state[:3]  # Position vector
+        v = state[3:6]  # Velocity vector
 
-        # If the vector length is zero, division is not interpretable:
+        # If the vector length is zero, division is not interpretable
         if np.linalg.norm(v) == 0:
             unit_v = np.array([0, 0, 1])
 
         else:
             unit_v = v / np.linalg.norm(v)
 
-        a1 = -r * mu / np.linalg.norm(r) ** 3
-        a2 = thrust / mass * unit_v
-        a3 = - unit_v * drag_const * np.linalg.norm(v) ** 2 / mass
-        a = a1 + a2 + a3
+        # 2nd order ODE function (acceleration)
+        a_gravity = -r * mu / np.linalg.norm(r) ** 3
+        a_thrust = thrust / mass * unit_v
+        a_drag = - unit_v * drag_const * np.linalg.norm(v) ** 2 / mass
+        a = a_gravity + a_thrust + a_drag
 
         # returns: vx, vy, vz, ax, ay, az
-        return np.array([state[3], state[4], state[5], a[0], a[1], a[2]])
+        return np.concatenate((v, a))
 
     def launch(self, launch_site: PlanetLocation, meco, seco):
         """ Yield rocket's status variables during launch, every second. """
@@ -289,6 +291,10 @@ class SpaceCraft:
             # yield self.position, self.velocity, self.acceleration, self.total_mass, thrust, drag, gravity
 
             # New method for calculating accel
+            # TODO: gyorsulásvektor (f(y1) kiszámítása, mivel ismerem a pozíciót és a sebességet (y0)
+            # TODO: a gyorsulásvektor közelítése RK4-el, így megkapom a sebességvektort
+            # TODO: a sebessévektor integrálása RK4-el, így megkapom a pozícióvektort
+            # TODO: mivel a f(y0) egyben a sebességvektort is visszaadja, ezért az RK-4 is kétszer tud integrálni - egy lépésben
             alt = state[2] - launch_site.surface_radius
             drag_const = self.drag_constant * launch_site.get_density(alt) / 2
             new_state, accels = mch.rk4(self.launch_ode, 0, state[:6], 1, launch_site.std_gravitational_parameter, self.thrust(), drag_const, self.total_mass)
