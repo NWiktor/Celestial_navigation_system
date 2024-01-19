@@ -21,6 +21,10 @@ Contents
 
 # Standard library imports
 # First import should be the logging module if any!
+import math
+
+import numpy as np
+
 
 # Third party imports
 
@@ -52,6 +56,31 @@ def rk4(func, t0, y0, h, *args):
 
     # Returns y1 value, which is the approximation of the y(t) solution-function at t1:
     return y0 + h / 6.0 * (k1 + 2 * k2 + 2 * k3 + k4), k4[3:6]
+
+
+def convert_spherical_to_cartesian_coords(radius, theta, phi):
+    """
+    theta = latitude, rad (-90° to +90°)
+    phi = longitude, rad (0° - 360°)
+    https://stackoverflow.com/questions/1185408/converting-from-longitude-latitude-to-cartesian-coordinates
+    https://en.wikipedia.org/wiki/List_of_common_coordinate_transformations#To_Cartesian_coordinates_2
+    """
+    x = radius * math.cos(theta) * math.cos(phi)
+    y = radius * math.cos(theta) * math.sin(phi)
+    z = radius * math.sin(theta)
+    return x, y, z
+
+
+
+def Cz( a ):
+	'''
+	Principal Z axis active rotation matrix by an angle
+	'''
+	return np.array( [
+		[ math.cos( a ), -math.sin( a ), 0 ],
+		[ math.sin( a ),  math.cos( a ), 0 ],
+		[        0,             0,       1 ]
+	] )
 
 
 # Include guard
