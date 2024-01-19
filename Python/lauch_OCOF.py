@@ -126,7 +126,7 @@ class EarthLocation(PlanetLocation):
 
     def __init__(self, name, latitude: float, longitude: float):
         super().__init__(f"{name}, Earth", latitude, longitude, 6371000, 7.292115e-5,
-                         9.80665,3.986004418e14)
+                         9.80665, 3.986004418e14)
 
     def get_density(self, altitude: float) -> float:
         """ Approximates air density in function of height on Earth, measured from sea level.
@@ -134,6 +134,10 @@ class EarthLocation(PlanetLocation):
         """
         if 0 <= altitude <= 120000:
             return 1.204 * m.exp(-altitude / 10400)
+        return 0.0
+
+    def get_pressure(self, altitude: float) -> float:
+        altitude += 1
         return 0.0
 
 
@@ -161,7 +165,9 @@ class SpaceCraft:
     def get_stage_mass(self):
         """ Sums the mass of each rocket stage, depending on actual staging. """
 
-        if self.stage_status in (SpaceCraftStatus.STAGE_0, SpaceCraftStatus.STAGE_1_BURN, SpaceCraftStatus.STAGE_1_COAST):
+        if self.stage_status in (SpaceCraftStatus.STAGE_0,
+                                 SpaceCraftStatus.STAGE_1_BURN,
+                                 SpaceCraftStatus.STAGE_1_COAST):
             return self.stages[0].get_mass() + self.stages[1].get_mass()
 
         if self.stage_status in (SpaceCraftStatus.STAGE_2_BURN, SpaceCraftStatus.STAGE_2_COAST):
@@ -260,7 +266,6 @@ class SpaceCraft:
                                                             launch_site.longitude * m.pi/180)
         r_rocket = np.array([x, y, z])  # m
         angular_v_earth = np.array([0, 0, launch_site.angular_velocity])  # rad/s
-
         v_rocket = np.cross(angular_v_earth, r_rocket)
         self.state = np.concatenate((r_rocket, v_rocket))
         self.acceleration = np.array([0.0, 0.0, 0.0])
