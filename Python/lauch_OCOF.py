@@ -232,7 +232,7 @@ class SpaceCraft:
         if t <= x:  # Vertical flight until tower is cleared
             a_thrust = self.thrust() / mass * (r / np.linalg.norm(r))
         elif x < t <= y:  # Initial pitch-over maneuver
-            a_thrust = self.thrust() / mass * 1 * (r / np.linalg.norm(r))
+            a_thrust = self.thrust() / mass * mch.pitch_over_matrix(-0.01) * (r / np.linalg.norm(r))
         else:  # Gravity assist
             a_thrust = self.thrust() / mass * unit_v
 
@@ -243,6 +243,7 @@ class SpaceCraft:
         # returns: vx, vy, vz, ax, ay, az
         return np.concatenate((v, a))
 
+    # pylint: disable = too-many-locals
     def launch(self, launch_site: PlanetLocation, meco, seco):
         """ Yield rocket's status variables during launch, every second. """
 
@@ -269,7 +270,6 @@ class SpaceCraft:
         v_rocket = np.cross(angular_v_earth, r_rocket)
         self.state = np.concatenate((r_rocket, v_rocket))
         self.acceleration = np.array([0.0, 0.0, 0.0])
-
         yield self.state, self.acceleration, self.total_mass  # Yield initial values
 
         for i in range(0, time):  # Calculate stage status according to time

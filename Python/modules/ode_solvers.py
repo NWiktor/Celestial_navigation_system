@@ -24,6 +24,7 @@ Contents
 import math
 
 # Third party imports
+import numpy as np
 
 # Local application imports
 # from logger import MAIN_LOGGER as L
@@ -67,15 +68,12 @@ def convert_spherical_to_cartesian_coords(radius, theta, phi):
     z = radius * math.sin(theta)
     return x, y, z
 
-# def Cz( a ):
-# 	'''
-# 	Principal Z axis active rotation matrix by an angle
-# 	'''
-# 	return np.array( [
-# 		[ math.cos( a ), -math.sin( a ), 0 ],
-# 		[ math.sin( a ),  math.cos( a ), 0 ],
-# 		[        0,             0,       1 ]
-# 	] )
+
+def pitch_over_matrix(angle):
+    """ Principal Z axis active rotation matrix by an angle. """
+    return np.array([[math.cos(angle), -math.sin(angle), 0],
+                     [math.sin(angle), math.cos(angle), 0],
+                     [0, 0, 1]])
 
 
 # Include guard
