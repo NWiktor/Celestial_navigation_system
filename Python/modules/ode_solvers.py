@@ -23,9 +23,6 @@ Contents
 # First import should be the logging module if any!
 import math
 
-import numpy as np
-
-
 # Third party imports
 
 # Local application imports
@@ -70,17 +67,15 @@ def convert_spherical_to_cartesian_coords(radius, theta, phi):
     z = radius * math.sin(theta)
     return x, y, z
 
-
-
-def Cz( a ):
-	'''
-	Principal Z axis active rotation matrix by an angle
-	'''
-	return np.array( [
-		[ math.cos( a ), -math.sin( a ), 0 ],
-		[ math.sin( a ),  math.cos( a ), 0 ],
-		[        0,             0,       1 ]
-	] )
+# def Cz( a ):
+# 	'''
+# 	Principal Z axis active rotation matrix by an angle
+# 	'''
+# 	return np.array( [
+# 		[ math.cos( a ), -math.sin( a ), 0 ],
+# 		[ math.sin( a ),  math.cos( a ), 0 ],
+# 		[        0,             0,       1 ]
+# 	] )
 
 
 # Include guard
