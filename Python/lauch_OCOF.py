@@ -42,10 +42,9 @@ class Stage:
     """
 
     def __init__(self, empty_mass: float, propellant_mass: float, number_of_engines: int, thrust_per_engine: float,
-                 burn_duration: int, specific_impulse: Union[int, list[int]]):
+                 specific_impulse: Union[int, list[int]]):
         self._empty_mass = empty_mass  # kg
         self._propellant_mass = propellant_mass  # kg
-        self.burn_duration = burn_duration  # s
         self.stage_thrust = thrust_per_engine * number_of_engines
         self.specific_impulse = specific_impulse  # s
 
@@ -86,6 +85,7 @@ class SpaceCraftStatus(Enum):
     """ Describes the status of the rocket during liftoff. """
     STAGE_0 = 0
     STAGE_1_BURN = 1
+    STAGE_1_BURN_THROTTLED = 11
     STAGE_1_COAST = 10
     STAGE_2_BURN = 2
     STAGE_2_COAST = 20
@@ -244,21 +244,22 @@ class SpaceCraft:
         return np.concatenate((v, a))
 
     # pylint: disable = too-many-locals
-    def launch(self, launch_site: PlanetLocation, meco, seco):
+    def launch(self, launch_site: PlanetLocation, meco, ses_1, seco_1, ses_2, seco_2):
         """ Yield rocket's status variables during launch, every second. """
 
-        # MECO can't be later than stage 1 burn duration
-        meco_time = min(meco, self.stages[0].burn_duration)
-        stage_separation = meco_time + 8
-        ses_time = meco_time + 14
-        L.debug("MAIN ENGINE CUT OFF at T+%s", seconds_to_minutes(meco_time))
+        # EXAMPLE: https://spaceflight101.com/falcon-9-ses-10/flight-profile/#google_vignette
 
-        # SECO can't be later than stage 1 and 2 total burn duration, but it can't be earlier than second stage ignition
-        seco_time = max(min(seco, self.stages[0].burn_duration + self.stages[1].burn_duration), ses_time)
-        L.debug("SECOND ENGINE CUT OFF at T+%s", seconds_to_minutes(seco_time))
+        # MECO can't be later than stage 1 burn duration
+        stage_separation = meco + 3
+        L.debug("MAIN ENGINE CUT OFF at T+%s (%s)", seconds_to_minutes(meco), meco)
+        L.debug("STAGE SEPARATION at T+%s (%s)", seconds_to_minutes(stage_separation), stage_separation)
+        L.debug("SECOND ENGINE START 1 at T+%s (%s)", seconds_to_minutes(ses_1), ses_1)
+        L.debug("SECOND ENGINE CUT OFF 1 at T+%s (%s)", seconds_to_minutes(seco_1), seco_1)
+        L.debug("SECOND ENGINE START 2 at T+%s (%s)", seconds_to_minutes(ses_2), ses_2)
+        L.debug("SECOND ENGINE CUT OFF 2 at T+%s (%s)", seconds_to_minutes(seco_2), seco_2)
 
         # Start calculation
-        time = int(seco_time * 3)  # Total time for loop
+        time = 4000  # Total time for loop
 
         # Update state vector with initial conditions
         # https://en.wikipedia.org/wiki/Earth%27s_rotation
@@ -273,11 +274,11 @@ class SpaceCraft:
         yield self.state, self.acceleration, self.total_mass  # Yield initial values
 
         for i in range(0, time):  # Calculate stage status according to time
-            if i <= meco_time:
+            if i <= meco:
                 self.stage_status = SpaceCraftStatus.STAGE_1_BURN
-            elif meco_time < i <= stage_separation:
+            elif meco < i <= stage_separation:
                 self.stage_status = SpaceCraftStatus.STAGE_1_COAST
-            elif ses_time < i <= seco_time:
+            elif ses_1 < i <= seco_1 or ses_2 < i <= seco_2:
                 self.stage_status = SpaceCraftStatus.STAGE_2_BURN
             else:
                 self.stage_status = SpaceCraftStatus.STAGE_2_COAST
@@ -327,9 +328,10 @@ def main():
 
     # Falcon9 hardware specs:
     # https://aerospaceweb.org/question/aerodynamics/q0231.shtml
+    # https://spaceflight101.com/spacerockets/falcon-9-ft/
     # https://en.wikipedia.org/wiki/Falcon_9#Design
-    first_stage = Stage(25600, 395700, 9, 934e3, 162, [283, 312])
-    second_stage = Stage(3900, 92670, 1, 934e3, 397, 348)
+    first_stage = Stage(25600, 395700, 9, 934e3, [283, 312])
+    second_stage = Stage(3900, 107500, 1, 934e3, 348)
     falcon9 = SpaceCraft("Falcon 9", 22800, 0.25, 5.2, [first_stage, second_stage])
 
     # Launch
@@ -341,7 +343,7 @@ def main():
     acc_data = []
     mass_data = []
 
-    for state, a, mass in falcon9.launch(cape, 130, 465):
+    for state, a, mass in falcon9.launch(cape, 145, 156, 514, 3090, 3390):
 
         time_data.append(i)
         alt_data.append((np.linalg.norm(state[0:3]) - 6371000) / 1000)  # Altitude in km-s
