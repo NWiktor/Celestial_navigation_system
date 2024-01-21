@@ -203,7 +203,7 @@ class SpaceCraft:
         self.total_mass = self.payload_mass + self.get_stage_mass()
 
     # @staticmethod
-    def launch_ode(self, t, state, mu, drag_const):
+    def launch_ode(self, t, state, mu, drag_const, angular_v_earth):
         """ 2nd order ODE of the state-vectors, during launch.
 
         The function returns the second derivative of position vector at a given time (acceleration vector),
@@ -219,37 +219,30 @@ class SpaceCraft:
         v = state[3:6]  # Velocity vector
         mass = self.total_mass  # Mass
 
-        # If the vector length is zero, division is not interpretable
-        if np.linalg.norm(v) == 0:
-            unit_v = np.array([0, 0, 0])
-
-        else:
-            unit_v = v / np.linalg.norm(v)
+        # Unit vector of velocity
+        unit_v = v / np.linalg.norm(v)
 
         # 2nd order ODE function (acceleration)
-        x = 10  # Tower cleared
-        y = 30  # Pitch over maneuver ended
-        if t <= x:  # Vertical flight until tower is cleared
+        if t <= 16:  # Vertical flight until tower is cleared
             a_thrust = self.thrust() / mass * (r / np.linalg.norm(r))
-        elif x < t <= y:  # Initial pitch-over maneuver
+        elif 16 < t <= 30:  # Initial pitch-over maneuver ended
             a_thrust = self.thrust() / mass * mch.pitch_over_matrix(-0.01) * (r / np.linalg.norm(r))
         else:  # Gravity assist
             a_thrust = self.thrust() / mass * unit_v
 
         a_gravity = -r * mu / np.linalg.norm(r) ** 3
         a_drag = - unit_v * drag_const * np.linalg.norm(v) ** 2 / mass
-        a = a_gravity + a_thrust + a_drag
+        a = (a_gravity + a_thrust + a_drag + 2 * np.cross(angular_v_earth, v)
+             + np.cross(angular_v_earth, np.cross(angular_v_earth, r)))
 
-        # returns: vx, vy, vz, ax, ay, az
-        return np.concatenate((v, a))
+        return np.concatenate((v, a))  # vx, vy, vz, ax, ay, az
 
     # pylint: disable = too-many-locals
     def launch(self, launch_site: PlanetLocation, meco, ses_1, seco_1, ses_2, seco_2):
         """ Yield rocket's status variables during launch, every second. """
 
+        # FLIGHT PROFILE
         # EXAMPLE: https://spaceflight101.com/falcon-9-ses-10/flight-profile/#google_vignette
-
-        # MECO can't be later than stage 1 burn duration
         stage_separation = meco + 3
         L.debug("MAIN ENGINE CUT OFF at T+%s (%s)", seconds_to_minutes(meco), meco)
         L.debug("STAGE SEPARATION at T+%s (%s)", seconds_to_minutes(stage_separation), stage_separation)
@@ -258,10 +251,7 @@ class SpaceCraft:
         L.debug("SECOND ENGINE START 2 at T+%s (%s)", seconds_to_minutes(ses_2), ses_2)
         L.debug("SECOND ENGINE CUT OFF 2 at T+%s (%s)", seconds_to_minutes(seco_2), seco_2)
 
-        # Start calculation
-        time = 4000  # Total time for loop
-
-        # Update state vector with initial conditions
+        # Start calculation - Update state vector with initial conditions
         # https://en.wikipedia.org/wiki/Earth%27s_rotation
         x, y, z = mch.convert_spherical_to_cartesian_coords(launch_site.surface_radius,
                                                             launch_site.latitude * m.pi/180,
@@ -273,7 +263,7 @@ class SpaceCraft:
         self.acceleration = np.array([0.0, 0.0, 0.0])
         yield self.state, self.acceleration, self.total_mass  # Yield initial values
 
-        for i in range(0, time):  # Calculate stage status according to time
+        for i in range(0, 3500):  # Calculate stage status according to time
             if i <= meco:
                 self.stage_status = SpaceCraftStatus.STAGE_1_BURN
             elif meco < i <= stage_separation:
@@ -294,14 +284,20 @@ class SpaceCraft:
             # Passing not only the acceleration vector, but the velocity vector to the RK4, we can numerically
             # integrate twice with one function-call, thus we get back the state-vector as well.
             self.state, self.acceleration = mch.rk4(self.launch_ode, 0, self.state, 1,
-                                                    launch_site.std_gravitational_parameter, drag_const)
+                                                    launch_site.std_gravitational_parameter,
+                                                    drag_const, angular_v_earth)
 
             # Calculate new spacecraft mass
             # TODO: implement timestep based mass calculation
             self.update_mass(launch_site.std_gravity)
 
             # Log new data
-            L.debug("Rocket altitude is %s m", np.linalg.norm(self.state[0:3]) - launch_site.surface_radius)
+            altitude_above_surface = np.linalg.norm(self.state[0:3]) - launch_site.surface_radius
+            if altitude_above_surface <= 0:
+                L.warning("WARNING! LITHOBRAKING!")
+                break
+            L.debug("Rocket state is %s", self.state)
+            L.debug("Rocket altitude is %s m", altitude_above_surface)
             L.debug("Rocket total mass is %s kg", self.total_mass)
             L.debug("Air density is %s kg/m3", air_density)
             L.debug("Acceleration is %s m/s2", np.linalg.norm(self.acceleration))
@@ -324,7 +320,7 @@ def seconds_to_minutes(total_seconds) -> str:
 def main():
     """ Defines a Spacecraft and LaunchSite classes, then calculates and plots flight parameters during liftoff. """
     # Launch-site
-    cape = EarthLocation("Cape Canaveral", 28.3127, 80.3903)
+    cape = EarthLocation("Cape Canaveral", 28.3127, -80.3903)
 
     # Falcon9 hardware specs:
     # https://aerospaceweb.org/question/aerodynamics/q0231.shtml
@@ -332,25 +328,36 @@ def main():
     # https://en.wikipedia.org/wiki/Falcon_9#Design
     first_stage = Stage(25600, 395700, 9, 934e3, [283, 312])
     second_stage = Stage(3900, 107500, 1, 934e3, 348)
-    falcon9 = SpaceCraft("Falcon 9", 22800, 0.25, 5.2, [first_stage, second_stage])
+    falcon9 = SpaceCraft("Falcon 9", 22000, 0.25, 5.2, [first_stage, second_stage])
 
     # Launch
     i = 0
-    time_limit = 1400
+    time_limit = 3500
     time_data = []
     alt_data = []
+    rx = []
+    ry = []
+    rz = []
     vel_data = []
     acc_data = []
     mass_data = []
 
-    for state, a, mass in falcon9.launch(cape, 145, 156, 514, 3090, 3390):
-
+    # MECO: 145 s
+    # TODO: Modelling throttle to 80%
+    # SES_1: MECO + 11s
+    for state, a, mass in falcon9.launch(cape, 130, 141, 514, 3090, 3390):
+        i += 1
         time_data.append(i)
+        rx.append(state[0])
+        ry.append(state[1])
+        rz.append(state[2])
         alt_data.append((np.linalg.norm(state[0:3]) - 6371000) / 1000)  # Altitude in km-s
         vel_data.append(np.linalg.norm(state[3:6]) / 1000)  # Velocity in km/s
-        acc_data.append(np.linalg.norm(a) / 9.81)  # Accceleration in g-s
-        mass_data.append(mass / 1000)  # Mass in kg-s
-        i += 1
+        acc_data.append(np.linalg.norm(a))  # Accceleration in m/s2
+        mass_data.append(mass / 1000)  # Mass in 1000 kg-s
+
+        if i == time_limit:
+            break
 
     # Plotting
     # TODO: implement colormap for each stage of the flight
@@ -359,34 +366,28 @@ def main():
 
     fig = plt.figure(layout='constrained', figsize=(19, 9.5))
     fig.suptitle("Falcon9 launch from Cape Canaveral")
-    ax1 = fig.add_subplot(4, 2, 1)
-    ax1.set_title("Altitude (z)")
-    ax1.set_ylabel("Altitude (km)")
+    ax1 = fig.add_subplot(1, 2, 1)
+    ax1.set_title("Flight path")
     ax1.set_xlim(0, time_limit)
-    # ax1.set_ylim(0, 3000)
+    # ax1.set_ylim(0, 8)
     ax1.scatter(time_data, alt_data, s=0.5)
 
-    ax2 = fig.add_subplot(4, 2, 2)
-    ax2.set_title("Velocity (z)")
-    ax2.set_ylabel("Velocity (km/s)")
-    ax2.set_xlim(0, time_limit)
-    # ax2.set_ylim(0, 8)
-    ax2.scatter(time_data, vel_data, s=0.5)
+    ax1.scatter(time_data, vel_data, s=0.5)
 
-    ax3 = fig.add_subplot(4, 2, 3)
-    ax3.set_title("Acceleration (z)")
-    ax3.set_ylabel("Acceleration (g)")
-    ax3.set_xlim(0, time_limit)
-    ax3.set_ylim(-2.5, 7.5)
-    ax3.scatter(time_data, acc_data, s=0.5)
+    # ax1.scatter(time_data, acc_data, s=0.5)
 
-    ax4 = fig.add_subplot(4, 2, 4)
-    ax4.set_title("Spacecraft mass")
-    ax4.set_ylabel("Mass (ton)")
-    ax4.set_xlim(0, time_limit)
-    ax4.set_ylim(0, 600)
-    ax4.scatter(time_data, mass_data, s=0.5)
+    # ax1.scatter(time_data, mass_data, s=0.5)
 
+    ax5 = fig.add_subplot(1, 2, 2, projection='3d')
+    ax5.plot(rx, ry, rz, label="Trajectory")
+
+    u = np.linspace(0, 2 * np.pi, 100)
+    v = np.linspace(0, np.pi, 100)
+    x = 6371000 * np.outer(np.cos(u), np.sin(v))
+    y = 6371000 * np.outer(np.sin(u), np.sin(v))
+    z = 6371000 * np.outer(np.ones(np.size(u)), np.cos(v))
+    ax5.plot_surface(x, y, z)
+    ax5.set_aspect('equal')
     plt.show()
 
 
