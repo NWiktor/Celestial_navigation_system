@@ -34,7 +34,7 @@ from modules import ode_solvers as mch
 # Local application imports
 from logger import MAIN_LOGGER as L
 
-
+# TODO: refactor to create "true" dataclass without complex calculation
 @dataclass
 class Stage:
     """ Rocket stage class, defined by engine thrust, specific impulse, empty mass, propellant mass,
@@ -141,7 +141,9 @@ class EarthLocation(PlanetLocation):
         return 0.0
 
 
-# TODO: refactor payload as stage3
+# TODO: refactor payload as stage3 ??
+# TODO: create detailed lauch-profile function, to model the behavior of the rocket at diffrent stages in flight
+# e.g.: ISP variation, engine throttle, stage separation, staging, etc.
 class SpaceCraft:
     """ Spacecraft class, defined by name, payload mass, drag coefficient and diameter; and stages. """
 
