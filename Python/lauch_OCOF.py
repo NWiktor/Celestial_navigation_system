@@ -265,10 +265,10 @@ class SpaceCraft:
 
         # Update state vector with initial conditions
         # https://en.wikipedia.org/wiki/Earth%27s_rotation
-        x, y, z = mch.convert_spherical_to_cartesian_coords(launch_site.surface_radius,
+        ix, iy, iz = mch.convert_spherical_to_cartesian_coords(launch_site.surface_radius,
                                                             launch_site.latitude * m.pi/180,
                                                             launch_site.longitude * m.pi/180)
-        r_rocket = np.array([x, y, z])  # m
+        r_rocket = np.array([ix, iy, iz])  # m
         angular_v_earth = np.array([0, 0, launch_site.angular_velocity])  # rad/s
         v_rocket = np.cross(angular_v_earth, r_rocket)
         self.state = np.concatenate((r_rocket, v_rocket))
@@ -289,6 +289,8 @@ class SpaceCraft:
             distance_from_surface = np.linalg.norm(self.state[0:3]) - launch_site.surface_radius
             air_density = launch_site.get_density(distance_from_surface)
             drag_const = self.drag_constant * air_density / 2
+
+            # TODO: calculate thrust according to rocket stage outside of rk4 at each-step ??
 
             # Calculate state-vector and acceleration
             # The ODE is solved for the acceleration vector, which is used as an initial condition for the
