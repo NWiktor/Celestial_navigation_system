@@ -34,7 +34,7 @@ from modules import ode_solvers as mch
 # Local application imports
 from logger import MAIN_LOGGER as L
 
-
+# TODO: refactor to create "true" dataclass without complex calculation
 @dataclass
 class Stage:
     """ Rocket stage class, defined by engine thrust, specific impulse, empty mass, propellant mass,
@@ -141,7 +141,9 @@ class EarthLocation(PlanetLocation):
         return 0.0
 
 
-# TODO: refactor payload as stage3
+# TODO: refactor payload as stage3 ??
+# TODO: create detailed lauch-profile function, to model the behavior of the rocket at diffrent stages in flight
+# e.g.: ISP variation, engine throttle, stage separation, staging, etc.
 class SpaceCraft:
     """ Spacecraft class, defined by name, payload mass, drag coefficient and diameter; and stages. """
 
@@ -253,10 +255,10 @@ class SpaceCraft:
 
         # Start calculation - Update state vector with initial conditions
         # https://en.wikipedia.org/wiki/Earth%27s_rotation
-        x, y, z = mch.convert_spherical_to_cartesian_coords(launch_site.surface_radius,
+        ix, iy, iz = mch.convert_spherical_to_cartesian_coords(launch_site.surface_radius,
                                                             launch_site.latitude * m.pi/180,
                                                             launch_site.longitude * m.pi/180)
-        r_rocket = np.array([x, y, z])  # m
+        r_rocket = np.array([ix, iy, iz])  # m
         angular_v_earth = np.array([0, 0, launch_site.angular_velocity])  # rad/s
         v_rocket = np.cross(angular_v_earth, r_rocket)
         self.state = np.concatenate((r_rocket, v_rocket))
@@ -277,6 +279,8 @@ class SpaceCraft:
             distance_from_surface = np.linalg.norm(self.state[0:3]) - launch_site.surface_radius
             air_density = launch_site.get_density(distance_from_surface)
             drag_const = self.drag_constant * air_density / 2
+
+            # TODO: calculate thrust according to rocket stage outside of rk4 at each-step ??
 
             # Calculate state-vector and acceleration
             # The ODE is solved for the acceleration vector, which is used as an initial condition for the
