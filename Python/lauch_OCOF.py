@@ -232,10 +232,10 @@ class SpaceCraft:
         else:  # Gravity assist
             a_thrust = self.thrust() / mass * unit_v
 
+        # print(f"{a_thrust=}")
         a_gravity = -r * mu / np.linalg.norm(r) ** 3
-        a_drag = - unit_v * drag_const * np.linalg.norm(v) ** 2 / mass
-        a = (a_gravity + a_thrust + a_drag + 2 * np.cross(angular_v_earth, v)
-             + np.cross(angular_v_earth, np.cross(angular_v_earth, r)))
+        a_drag = np.zeros(3)  # - unit_v * drag_const * np.linalg.norm(v) ** 2 / mass
+        a = a_gravity + a_thrust + a_drag
 
         return np.concatenate((v, a))  # vx, vy, vz, ax, ay, az
 
@@ -263,6 +263,7 @@ class SpaceCraft:
         v_rocket = np.cross(angular_v_earth, r_rocket)
         self.state = np.concatenate((r_rocket, v_rocket))
         self.acceleration = np.array([0.0, 0.0, 0.0])
+        print(f"{self.state=}")
         yield self.state, self.acceleration, self.total_mass  # Yield initial values
 
         for i in range(0, 3500):  # Calculate stage status according to time
@@ -288,8 +289,7 @@ class SpaceCraft:
             # Passing not only the acceleration vector, but the velocity vector to the RK4, we can numerically
             # integrate twice with one function-call, thus we get back the state-vector as well.
             self.state, self.acceleration = mch.rk4(self.launch_ode, 0, self.state, 1,
-                                                    launch_site.std_gravitational_parameter,
-                                                    drag_const, angular_v_earth)
+                                                    launch_site.std_gravitational_parameter, drag_const, angular_v_earth)
 
             # Calculate new spacecraft mass
             # TODO: implement timestep based mass calculation
@@ -382,9 +382,11 @@ def main():
 
     # ax1.scatter(time_data, mass_data, s=0.5)
 
+    # Plot trajectory
     ax5 = fig.add_subplot(1, 2, 2, projection='3d')
-    ax5.plot(rx, ry, rz, label="Trajectory")
+    ax5.plot(rx, ry, rz, label="Trajectory", color="m")
 
+    # Plot surface
     u = np.linspace(0, 2 * np.pi, 100)
     v = np.linspace(0, np.pi, 100)
     x = 6371000 * np.outer(np.cos(u), np.sin(v))
@@ -392,6 +394,15 @@ def main():
     z = 6371000 * np.outer(np.ones(np.size(u)), np.cos(v))
     ax5.plot_surface(x, y, z)
     ax5.set_aspect('equal')
+
+    # Reference vectors
+    ax5.plot([0, 6371000 * 1.1], [0, 0], [0, 0], label="x", color="r")
+    ax5.plot([0, 0], [0, 6371000 * 1.1], [0, 0], label="y", color="g")
+    ax5.plot([0, 0], [0, 0], [0, 6371000 * 1.1], label="z", color="b")
+    ax5.plot([0, rx[0]], [0, ry[0]], [0, rz[0]], label="z", color="w")
+
+    # 9.36317400e+05, -5.53014700e+06, 3.02165929e+06
+
     plt.show()
 
 
