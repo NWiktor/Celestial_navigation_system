@@ -69,7 +69,7 @@ def convert_spherical_to_cartesian_coords(radius, theta, phi):
     return x, y, z
 
 
-def pitch_over_matrix(angle):
+def rotation_z(angle):
     """ Principal Z axis active rotation matrix by an angle. """
     return np.array([[math.cos(angle), -math.sin(angle), 0],
                      [math.sin(angle), math.cos(angle), 0],
