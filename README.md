@@ -10,8 +10,9 @@ This is a hobby-project, to create a software to navigate inside the solar syste
 
 In the future, it is planned to refactor the python code to C / C++ as an exercise.
 
-## Project status
-* Under development
+## To-dos
+* Launch trajectory calculation in an object-centered, inertial-frame of reference (e.g. spacecraft launch from Earth)
+* Animation for self-checks
 
 ## Thanks
 I wish to express my gratitude to Alfonso Gonzalez and his videos:
