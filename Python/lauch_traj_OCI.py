@@ -221,27 +221,33 @@ class SpaceCraft:
         v = state[3:6]  # Velocity vector
         mass = self.total_mass  # Mass
 
-        # Unit vector of velocity
-        unit_v = v / np.linalg.norm(v)
-
         # 2nd order ODE function (acceleration)
-        if t <= 16:  # Vertical flight until tower is cleared
+        if t <= 2000:  # Vertical flight until tower is cleared
             a_thrust = self.thrust() / mass * (r / np.linalg.norm(r))
-        elif 16 < t <= 30:  # Initial pitch-over maneuver ended
-            a_thrust = self.thrust() / mass * mch.pitch_over_matrix(-0.01) * (r / np.linalg.norm(r))
-        else:  # Gravity assist
-            a_thrust = self.thrust() / mass * unit_v
 
-        # print(f"{a_thrust=}")
+        # TODO: implement rotation according to the target orbit, not the 'Z'
+        #  it is only works for 2D representation
+        elif 2000 < t <= 3500:  # Initial pitch-over maneuver ended
+            a_thrust = self.thrust() / mass * np.dot(mch.rotation_z(-0.05), (r / np.linalg.norm(r)))
+        else:  # Gravity assist
+            a_thrust = self.thrust() / mass * (v / np.linalg.norm(v))
+
         a_gravity = -r * mu / np.linalg.norm(r) ** 3
         a_drag = np.zeros(3)  # - unit_v * drag_const * np.linalg.norm(v) ** 2 / mass
         a = a_gravity + a_thrust + a_drag
 
+        # Ficious forces for non-inertial ref. frames
+        # a = a + (2 * np.cross(angular_v_earth, v)) + np.cross(angular_v_earth, np.cross(angular_v_earth, r))
+        # v = v + np.cross(angular_v_earth, r)
+
         return np.concatenate((v, a))  # vx, vy, vz, ax, ay, az
 
     # pylint: disable = too-many-locals
-    def launch(self, launch_site: PlanetLocation, meco, ses_1, seco_1, ses_2, seco_2):
+    def launch(self, launch_site: PlanetLocation, meco, ses_1, seco_1, ses_2, seco_2, inclination):
         """ Yield rocket's status variables during launch, every second. """
+
+        launch_azimuth = m.asinh(m.cos(inclination * m.pi/180) / m.cos(launch_site.latitude * m.pi/180))
+        # target_velocity =
 
         # FLIGHT PROFILE
         # EXAMPLE: https://spaceflight101.com/falcon-9-ses-10/flight-profile/#google_vignette
@@ -258,13 +264,14 @@ class SpaceCraft:
         ix, iy, iz = mch.convert_spherical_to_cartesian_coords(launch_site.surface_radius,
                                                             launch_site.latitude * m.pi/180,
                                                             launch_site.longitude * m.pi/180)
+
         r_rocket = np.array([ix, iy, iz])  # m
+        start_vector = np.array([ix, iy, iz])  # for flight_path angle
         angular_v_earth = np.array([0, 0, launch_site.angular_velocity])  # rad/s
         v_rocket = np.cross(angular_v_earth, r_rocket)
         self.state = np.concatenate((r_rocket, v_rocket))
         self.acceleration = np.array([0.0, 0.0, 0.0])
-        print(f"{self.state=}")
-        yield self.state, self.acceleration, self.total_mass  # Yield initial values
+        yield 0, self.state, self.acceleration, self.total_mass, 0  # Yield initial values
 
         for i in range(0, 3500):  # Calculate stage status according to time
             if i <= meco:
@@ -288,7 +295,7 @@ class SpaceCraft:
             # RK4 numerical integrator function.
             # Passing not only the acceleration vector, but the velocity vector to the RK4, we can numerically
             # integrate twice with one function-call, thus we get back the state-vector as well.
-            self.state, self.acceleration = mch.rk4(self.launch_ode, 0, self.state, 1,
+            self.state, self.acceleration = mch.rk4(self.launch_ode, i, self.state, 1,
                                                     launch_site.std_gravitational_parameter, drag_const, angular_v_earth)
 
             # Calculate new spacecraft mass
@@ -300,14 +307,19 @@ class SpaceCraft:
             if altitude_above_surface <= 0:
                 L.warning("WARNING! LITHOBRAKING!")
                 break
-            L.debug("Rocket state is %s", self.state)
+            # L.debug("Rocket state is %s", self.state)
             L.debug("Rocket altitude is %s m", altitude_above_surface)
-            L.debug("Rocket total mass is %s kg", self.total_mass)
-            L.debug("Air density is %s kg/m3", air_density)
-            L.debug("Acceleration is %s m/s2", np.linalg.norm(self.acceleration))
+            # L.debug("Rocket total mass is %s kg", self.total_mass)
+            # L.debug("Air density is %s kg/m3", air_density)
+            # L.debug("Acceleration is %s m/s2", np.linalg.norm(self.acceleration))
+
+            # Flight angle
+            a_l = np.linalg.norm(start_vector)
+            b_l = np.linalg.norm(self.state[3:6])
+            angle = m.acos( np.dot(start_vector, self.state[3:6]) / (a_l * b_l) )
 
             # Yield values
-            yield self.state, self.acceleration, self.total_mass
+            yield i, self.state, self.acceleration, self.total_mass, angle
 
 
 def seconds_to_minutes(total_seconds) -> str:
@@ -335,8 +347,6 @@ def main():
     falcon9 = SpaceCraft("Falcon 9", 22000, 0.25, 5.2, [first_stage, second_stage])
 
     # Launch
-    i = 0
-    time_limit = 3500
     time_data = []
     alt_data = []
     rx = []
@@ -345,45 +355,58 @@ def main():
     vel_data = []
     acc_data = []
     mass_data = []
+    angle = []
 
     # MECO: 145 s
     # TODO: Modelling throttle to 80%
     # SES_1: MECO + 11s
-    for state, a, mass in falcon9.launch(cape, 130, 141, 514, 3090, 3390):
-        i += 1
-        time_data.append(i)
+    for time, state, a, mass, fpa in falcon9.launch(cape, 130, 141, 514, 3090, 3390, 55):
+        time_data.append(time)
         rx.append(state[0])
         ry.append(state[1])
         rz.append(state[2])
         alt_data.append((np.linalg.norm(state[0:3]) - 6371000) / 1000)  # Altitude in km-s
         vel_data.append(np.linalg.norm(state[3:6]) / 1000)  # Velocity in km/s
-        acc_data.append(np.linalg.norm(a))  # Accceleration in m/s2
+        acc_data.append(np.linalg.norm(a) / 9.82)  # Accceleration in g-s
         mass_data.append(mass / 1000)  # Mass in 1000 kg-s
+        angle.append(fpa * 180 / m.pi)
 
-        if i == time_limit:
-            break
 
     # Plotting
     # TODO: implement colormap for each stage of the flight
     # https://matplotlib.org/stable/gallery/lines_bars_and_markers/multicolored_line.html#sphx-glr-gallery-lines-bars-and-markers-multicolored-line-py
     plt.style.use('_mpl-gallery')
 
-    fig = plt.figure(layout='constrained', figsize=(19, 9.5))
+    fig = plt.figure(layout='tight', figsize=(19, 9.5))
     fig.suptitle("Falcon9 launch from Cape Canaveral")
-    ax1 = fig.add_subplot(1, 2, 1)
-    ax1.set_title("Flight path")
-    ax1.set_xlim(0, time_limit)
+    ax1 = fig.add_subplot(2, 2, 1)
+    ax1.set_title("Flight altitude")
+    ax1.set_xlim(0, len(time_data))
     # ax1.set_ylim(0, 8)
-    ax1.scatter(time_data, alt_data, s=0.5)
+    ax1.scatter(time_data, alt_data, s=0.5, color="m")
 
-    ax1.scatter(time_data, vel_data, s=0.5)
+    ax2 = fig.add_subplot(2, 2, 2)
+    ax2.set_title("Flight path angle")
+    ax2.set_xlim(0, len(time_data))
+    ax2.scatter(time_data, angle, s=0.5)
 
-    # ax1.scatter(time_data, acc_data, s=0.5)
+    ax3 = fig.add_subplot(2, 2, 3)
+    ax3.set_title("Flight velocity and acc.")
+    ax3.set_xlabel('time (s)')
+    ax3.set_ylabel('velocity (km/s)', color="b")
+    ax3.set_xlim(0, len(time_data))
+    ax3.scatter(time_data, vel_data, s=0.5, color="b")
+    ax3.tick_params(axis='y', labelcolor="b")
+
+    ax4 = ax3.twinx()
+    ax4.set_ylabel('acceleration (g)', color="g")
+    ax4.scatter(time_data, acc_data, s=0.5, color="g")
+    ax4.tick_params(axis='y', labelcolor="g")
 
     # ax1.scatter(time_data, mass_data, s=0.5)
 
     # Plot trajectory
-    ax5 = fig.add_subplot(1, 2, 2, projection='3d')
+    ax5 = fig.add_subplot(2, 2, 4, projection='3d')
     ax5.plot(rx, ry, rz, label="Trajectory", color="m")
 
     # Plot surface
@@ -399,7 +422,10 @@ def main():
     ax5.plot([0, 6371000 * 1.1], [0, 0], [0, 0], label="x", color="r")
     ax5.plot([0, 0], [0, 6371000 * 1.1], [0, 0], label="y", color="g")
     ax5.plot([0, 0], [0, 0], [0, 6371000 * 1.1], label="z", color="b")
-    ax5.plot([0, rx[0]], [0, ry[0]], [0, rz[0]], label="z", color="w")
+    ax5.plot([0, rx[0]], [0, ry[0]], [0, rz[0]], label="z", color="w")  # Launch site
+
+    # pos = 20
+    # ax5.plot([0, rx[0]], [0, ry[0]], [0, rz[0]], label="z", color="w")  # Launch site
 
     # 9.36317400e+05, -5.53014700e+06, 3.02165929e+06
 
