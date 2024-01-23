@@ -21,7 +21,7 @@ Contents
 
 # Standard library imports
 # First import should be the logging module if any!
-import math
+import math as m
 
 # Third party imports
 import numpy as np
@@ -63,17 +63,41 @@ def convert_spherical_to_cartesian_coords(radius, theta, phi):
     https://stackoverflow.com/questions/1185408/converting-from-longitude-latitude-to-cartesian-coordinates
     https://en.wikipedia.org/wiki/List_of_common_coordinate_transformations#To_Cartesian_coordinates_2
     """
-    x = radius * math.cos(theta) * math.cos(phi)
-    y = radius * math.cos(theta) * math.sin(phi)
-    z = radius * math.sin(theta)
+    x = radius * m.cos(theta) * m.cos(phi)
+    y = radius * m.cos(theta) * m.sin(phi)
+    z = radius * m.sin(theta)
     return x, y, z
 
 
 def rotation_z(angle):
     """ Principal Z axis active rotation matrix by an angle. """
-    return np.array([[math.cos(angle), -math.sin(angle), 0],
-                     [math.sin(angle), math.cos(angle), 0],
+    return np.array([[m.cos(angle), -m.sin(angle), 0],
+                     [m.sin(angle), m.cos(angle), 0],
                      [0, 0, 1]])
+
+
+# pylint: disable=anomalous-backslash-in-string
+# ReST syntax generates this warning
+def rodrigues_rotation(vector_v, vector_k, theta):
+    """Implements Rodrigues rotation.
+
+    Calculates the rotated V vector (V\ :sub:`rot`\), based on Rodrigues
+    rotation formula. The axis of rotation is K, and the rotation angle is
+    theta according to the right hand rule:
+
+    .. math::
+      \\vec{V_{rot}} = \\vec{V} \\cos\\theta + (\\vec{K} \\times \\vec{V})
+      \\sin\\phi + \\vec{K} (\\vec{K} \cdot \\vec{V}) (1 - \\cos\\theta)
+
+    :param vector_v: V vector (Numpy).
+    :param vector_k: Unit vector K (rotational axis) (Numpy).
+    :param float theta: Rotational angle around vector K.
+    :return: Rotated V vector (Numpy).
+
+    """
+    v_rot = ((vector_v * m.cos(theta)) + (np.cross(vector_k, vector_v) * m.sin(theta))
+    + (vector_k * np.dot(vector_k, vector_v) * (1 - m.cos(theta))))
+    return v_rot
 
 
 # Include guard
