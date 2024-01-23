@@ -76,8 +76,8 @@ def rotation_z(angle):
                      [0, 0, 1]])
 
 
-# pylint: disable=anomalous-backslash-in-string
-# ReST syntax generates this warning
+# ReST syntax generates 'invalid-escape-sequence' warning
+# pylint: disable = anomalous-backslash-in-string
 def rodrigues_rotation(vector_v, vector_k, theta):
     """Implements Rodrigues rotation.
 
