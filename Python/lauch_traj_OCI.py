@@ -121,7 +121,7 @@ class Stage:
             return np.interp(pressure_ratio, [0, 1], self.specific_impulse)
 
         L.warning("Specific impulse is not in the expected format (float or list of floats)!")
-        return
+        return 0.0
 
     # TODO: refactor this one--level up, and remove from here
     def burn_mass(self, standard_gravity, duration: float = 1.0):
@@ -134,8 +134,8 @@ class Stage:
         self._propellant_mass = max(0.0, self._propellant_mass + delta_m)
 
 
-class SpaceCraftStatus(Enum):
-    """ Describes the status of the rocket during liftoff. """
+class RocketEngineStatus(Enum):
+    """ Describes the status of the rocket engine during liftoff. """
     STAGE_0 = 0
     STAGE_1_BURN = 1
     STAGE_1_COAST = 10
@@ -145,7 +145,26 @@ class SpaceCraftStatus(Enum):
     STAGE_3_COAST = 30
 
 
+class RocketAttitudeStatus(Enum):
+    """ Describes the status of the rocket attitude control programs during liftoff. """
+    VERTICAL_FLIGHT = 0
+    ROLL_PROGRAM = 1
+    PITCH_PROGRAM = 2
+    YAW_PROGRAM = 3
 
+
+class RocketFlightProgram:
+    """  """
+
+    def __init__(self, meco, ses_1, seco_1, ses_2, seco_2, throttle, fairing_jettisom):
+        pass
+
+
+class Orbit:
+    """  """
+
+    def __init__(self):
+        pass
 
 
 # TODO: refactor payload as stage3 ??
@@ -156,7 +175,7 @@ class SpaceCraft:
 
     def __init__(self, name, payload_mass: float, coefficient_of_drag: float, diameter: float, stages: list):
         self.name = name
-        self.stage_status = SpaceCraftStatus.STAGE_0
+        self.stage_status = RocketEngineStatus.STAGE_0
         self.stages = stages
 
         # Physical properties
@@ -176,12 +195,12 @@ class SpaceCraft:
     def get_stage_mass(self):
         """ Sums the mass of each rocket stage, depending on actual staging. """
 
-        if self.stage_status in (SpaceCraftStatus.STAGE_0,
-                                 SpaceCraftStatus.STAGE_1_BURN,
-                                 SpaceCraftStatus.STAGE_1_COAST):
+        if self.stage_status in (RocketEngineStatus.STAGE_0,
+                                 RocketEngineStatus.STAGE_1_BURN,
+                                 RocketEngineStatus.STAGE_1_COAST):
             return self.stages[0].get_mass() + self.stages[1].get_mass()
 
-        if self.stage_status in (SpaceCraftStatus.STAGE_2_BURN, SpaceCraftStatus.STAGE_2_COAST):
+        if self.stage_status in (RocketEngineStatus.STAGE_2_BURN, RocketEngineStatus.STAGE_2_COAST):
             return self.stages[1].get_mass()
 
         return 0
@@ -189,10 +208,10 @@ class SpaceCraft:
     def thrust(self):
         """ Calculates actual thrust (force) of the rocket, depending on actual staging. """
 
-        if self.stage_status == SpaceCraftStatus.STAGE_1_BURN:
+        if self.stage_status == RocketEngineStatus.STAGE_1_BURN:
             return self.stages[0].get_thrust()
 
-        if self.stage_status == SpaceCraftStatus.STAGE_2_BURN:
+        if self.stage_status == RocketEngineStatus.STAGE_2_BURN:
             return self.stages[1].get_thrust()
 
         return 0
@@ -203,11 +222,11 @@ class SpaceCraft:
         """ Updates total rocket mass after burning, depending on gravity and actual staging. """
 
         # Calculate delta m in stage 1
-        if self.stage_status == SpaceCraftStatus.STAGE_1_BURN:
+        if self.stage_status == RocketEngineStatus.STAGE_1_BURN:
             self.stages[0].burn_mass(standard_gravity, duration)
 
         # Calculate delta m in stage 2
-        elif self.stage_status == SpaceCraftStatus.STAGE_2_BURN:
+        elif self.stage_status == RocketEngineStatus.STAGE_2_BURN:
             self.stages[1].burn_mass(standard_gravity, duration)
 
         # Calculate new total mass
@@ -294,13 +313,13 @@ class SpaceCraft:
         # TODO: expand this to fully (throttling, payload fairing jettison)
         for i in range(0, 8000):  # Calculate stage status according to time
             if i <= meco:
-                self.stage_status = SpaceCraftStatus.STAGE_1_BURN
+                self.stage_status = RocketEngineStatus.STAGE_1_BURN
             elif meco < i <= stage_separation:
-                self.stage_status = SpaceCraftStatus.STAGE_1_COAST
+                self.stage_status = RocketEngineStatus.STAGE_1_COAST
             elif ses_1 < i <= seco_1 or ses_2 < i <= seco_2:
-                self.stage_status = SpaceCraftStatus.STAGE_2_BURN
+                self.stage_status = RocketEngineStatus.STAGE_2_BURN
             else:
-                self.stage_status = SpaceCraftStatus.STAGE_2_COAST
+                self.stage_status = RocketEngineStatus.STAGE_2_COAST
 
             # Calculate flight characteristics at given step
             distance_from_surface = np.linalg.norm(self.state[0:3]) - launch_site.surface_radius
@@ -415,8 +434,9 @@ def main():
     ax2.set_xlim(0, len(time_data))
     ax2.scatter(time_data, angle, s=0.5)
 
+    # Flight velocity and acceleration
     ax3 = fig.add_subplot(2, 2, 3)
-    ax3.set_title("Flight velocity and acc.")
+    ax3.set_title("Flight velocity and acceleration")
     ax3.set_xlabel('time (s)')
     ax3.set_ylabel('acceleration (g)', color="b")
     ax3.set_xlim(0, len(time_data))
@@ -430,11 +450,13 @@ def main():
     ax3.set_ylim(0, 8)
     ax4.tick_params(axis='y', labelcolor="g")
 
+    # Mass
     # ax1.scatter(time_data, mass_data, s=0.5)
 
-    # Plot trajectory
+    # Plot trajectory in 3D
     ax5 = fig.add_subplot(2, 2, 4, projection='3d')
     ax5.plot(rx, ry, rz, label="Trajectory", color="m")
+    ax5.set_title("Flight trajectory")
 
     # Plot surface
     u = np.linspace(0, 2 * np.pi, 100)
@@ -446,15 +468,15 @@ def main():
     ax5.set_aspect('equal')
 
     # Reference vectors
-    ax5.plot([0, 6371000 * 1.1], [0, 0], [0, 0], label="x", color="r")
-    ax5.plot([0, 0], [0, 6371000 * 1.1], [0, 0], label="y", color="g")
-    ax5.plot([0, 0], [0, 0], [0, 6371000 * 1.1], label="z", color="b")
-    ax5.plot([0, rx[0]], [0, ry[0]], [0, rz[0]], label="z", color="w")  # Launch site
+    ax5.plot([0, 6371000 * 1.1], [0, 0], [0, 0], label="x axis", color="r")
+    ax5.plot([0, 0], [0, 6371000 * 1.1], [0, 0], label="y axis", color="g")
+    ax5.plot([0, 0], [0, 0], [0, 6371000 * 1.1], label="z axis", color="b")
+    ax5.plot([0, rx[0]], [0, ry[0]], [0, rz[0]], label="launch", color="w")  # Launch site
 
-    # Velocity vector at launch-site
+    # Velocity vector at given pos
     pos = 0
     ax5.plot([rx[pos], rx[pos]+vx[pos]*10000], [ry[pos], ry[pos]+vy[pos]*10000],
-             [rz[pos], rz[pos]+vz[pos]*10000], label="z", color="c")
+             [rz[pos], rz[pos]+vz[pos]*10000], label="start_v", color="c")
 
     plt.show()
 
