@@ -40,7 +40,7 @@ gravitational_constant = 6.67430 * pow(10, -11)  # m^3 kg-1 s-2
 
 # Class and function definitions
 
-
+# TODO: replace with kepler_orbit.py !!!
 class KeplerOrbit:
     """ This class defines a Keplerian orbit in an inertial reference frame (IRF).
     In order to initialize, the six orbital element must be defined.
