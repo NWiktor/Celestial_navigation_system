@@ -33,6 +33,56 @@ from modules import ode_solvers as mch
 from logger import MAIN_LOGGER as L
 
 
+@dataclass
+class PlanetLocation:
+    """ Launch site class, given by longitude, latitude, surface radius (where the site is located),
+    atmospheric density via the get_density function, gravity and gravitational parameter.
+    """
+
+    def __init__(self, name, latitude: float, longitude: float, surface_radius: float, angular_velocity: float,
+                 std_gravity, std_gravitational_parameter):
+        self.name = name
+        self.latitude = latitude
+        self.longitude = longitude
+        self.surface_radius = surface_radius  # m
+        self.angular_velocity = angular_velocity  # rad/s
+        self.std_gravity = std_gravity  # m/s^2
+        self.std_gravitational_parameter = std_gravitational_parameter  # m^3/s^2
+
+    # pylint: disable = unused-argument
+    def get_density(self, altitude) -> float:
+        """ Placeholder function for override by child. """
+        L.error("Missing function!")
+        return 0.0
+
+    # pylint: disable = unused-argument
+    def get_pressure(self, altitude) -> float:
+        """ Placeholder function for override by child. """
+        L.error("Missing function!")
+        return 0.0
+
+
+@dataclass
+class EarthLocation(PlanetLocation):
+    """ Launch site class for locations on Earth's surface. """
+
+    def __init__(self, name, latitude: float, longitude: float):
+        super().__init__(f"{name}, Earth", latitude, longitude, 6371000, 7.292115e-5,
+                         9.80665, 3.986004418e14)
+
+    def get_density(self, altitude: float) -> float:
+        """ Approximates air density in function of height on Earth, measured from sea level.
+        https://en.wikipedia.org/wiki/Density_of_air
+        """
+        if 0 <= altitude <= 120000:
+            return 1.204 * m.exp(-altitude / 10400)
+        return 0.0
+
+    def get_pressure(self, altitude: float) -> float:
+        altitude += 1
+        return 0.0
+
+
 # TODO: refactor to create "true" dataclass without complex calculation
 class Stage:
     """ Rocket stage class, defined by engine thrust, specific impulse, empty mass, propellant mass,
@@ -95,54 +145,7 @@ class SpaceCraftStatus(Enum):
     STAGE_3_COAST = 30
 
 
-@dataclass
-class PlanetLocation:
-    """ Launch site class, given by longitude, latitude, surface radius (where the site is located),
-    atmospheric density via the get_density function, gravity and gravitational parameter.
-    """
 
-    def __init__(self, name, latitude: float, longitude: float, surface_radius: float, angular_velocity: float,
-                 std_gravity, std_gravitational_parameter):
-        self.name = name
-        self.latitude = latitude
-        self.longitude = longitude
-        self.surface_radius = surface_radius  # m
-        self.angular_velocity = angular_velocity  # rad/s
-        self.std_gravity = std_gravity  # m/s^2
-        self.std_gravitational_parameter = std_gravitational_parameter  # m^3/s^2
-
-    # pylint: disable = unused-argument
-    def get_density(self, altitude) -> float:
-        """ Placeholder function for override by child. """
-        L.error("Missing function!")
-        return 0.0
-
-    # pylint: disable = unused-argument
-    def get_pressure(self, altitude) -> float:
-        """ Placeholder function for override by child. """
-        L.error("Missing function!")
-        return 0.0
-
-
-@dataclass
-class EarthLocation(PlanetLocation):
-    """ Launch site class for locations on Earth's surface. """
-
-    def __init__(self, name, latitude: float, longitude: float):
-        super().__init__(f"{name}, Earth", latitude, longitude, 6371000, 7.292115e-5,
-                         9.80665, 3.986004418e14)
-
-    def get_density(self, altitude: float) -> float:
-        """ Approximates air density in function of height on Earth, measured from sea level.
-        https://en.wikipedia.org/wiki/Density_of_air
-        """
-        if 0 <= altitude <= 120000:
-            return 1.204 * m.exp(-altitude / 10400)
-        return 0.0
-
-    def get_pressure(self, altitude: float) -> float:
-        altitude += 1
-        return 0.0
 
 
 # TODO: refactor payload as stage3 ??
@@ -311,8 +314,8 @@ class SpaceCraft:
             # RK4 numerical integrator function, which solves for the velocity function.
             # Passing not only the acceleration vector, but the velocity vector to the RK4, we can numerically
             # integrate twice with one function-call, thus we get back the full state-vector.
-            self.state, self.acceleration = mch.rk4(self.launch_ode, i, self.state, 1,
-                                                    launch_site.std_gravitational_parameter, drag_const)
+            self.state, self.acceleration = mch.runge_kutta_4(self.launch_ode, i, self.state, 1,
+                                                              launch_site.std_gravitational_parameter, drag_const)
 
             # Calculate new spacecraft mass
             # TODO: implement timestep based mass calculation
@@ -393,7 +396,6 @@ def main():
         acc_data.append(np.linalg.norm(a) / 9.82)  # Accceleration in g-s
         mass_data.append(mass / 1000)  # Mass in 1000 kg-s
         angle.append(fpa * 180 / m.pi)
-
 
     # Plotting
     # TODO: implement colormap for each stage of the flight
