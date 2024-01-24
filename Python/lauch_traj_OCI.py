@@ -1,15 +1,13 @@
 # -*- coding: utf-8 -*-
 # !/usr/bin/python3
 
-""" Summary of this code file goes here. The purpose of this module can be
-expanded in multiple sentences. Below a short free-text summary of the included
-classes and functions to give an overview. More detailed summary of the
-functions can be provided inside the function's body.
+""" This module contains all relevant class and function for orbit propagation around a celestial body. The module
+calculates the trajectory of a two-stage rocket launched from surface in Object-Centered Inertial reference frame (OCI).
 
 Libs
 ----
-* some_module - This is used for imported, non-standard modules, to help track
-    dependencies. Summary is not needed.
+* Numpy
+* Mathplotlib
 
 Help
 ----
@@ -34,8 +32,8 @@ from modules import ode_solvers as mch
 # Local application imports
 from logger import MAIN_LOGGER as L
 
+
 # TODO: refactor to create "true" dataclass without complex calculation
-@dataclass
 class Stage:
     """ Rocket stage class, defined by engine thrust, specific impulse, empty mass, propellant mass,
     number of engines and burn duration.
@@ -58,35 +56,38 @@ class Stage:
         """ Returns the actual total mass of the stage. """
         return self._empty_mass + self._propellant_mass
 
-    def burn_mass(self, standard_gravity, pressure_ratio: float = 0.0, duration: float = 1.0):
-        """ Reduces propellant mass, by calculating the proper delta-m after burning for a given duration (s).
-        The function takes into account athmospheric pressure change by the pressure ratio:
-        (0.0 is sea-level, 1.0 is vaccum pressure).
+    def get_specific_impulse(self, pressure_ratio: float = 0.0):
+        """ Returns specific impulse value.
+
+        If the class initiated with a list, for specific impulse, this function can compensate athmospheric pressure
+        change by the pressure ratio: (0.0 is sea-level, 1.0 is vaccum pressure). If instead a float is given, this is
+        omitted.
         """
+        if isinstance(self.specific_impulse, int):  # If only one value is given, it is handled as a constant
+            return self.specific_impulse
 
-        # If only one value is given, it is handled as a constant
-        if isinstance(self.specific_impulse, int):
-            isp = self.specific_impulse
+        if isinstance(self.specific_impulse, list):
+            # If a list is given, linearly interpolating between them by the pressure-ratio
+            return np.interp(pressure_ratio, [0, 1], self.specific_impulse)
 
-        # If a list is given, linearly interpolating between them by the pressure-ratio
-        elif isinstance(self.specific_impulse, list):
-            isp_sl = min(self.specific_impulse)
-            isp_vac = max(self.specific_impulse)
-            isp = isp_sl + (isp_vac - isp_sl) * (1 - pressure_ratio)
-        else:
-            isp = 0
+        L.warning("Specific impulse is not in the expected format (float or list of floats)!")
+        return
+
+    # TODO: refactor this one--level up, and remove from here
+    def burn_mass(self, standard_gravity, duration: float = 1.0):
+        """ Reduces propellant mass, by calculating the proper delta-m after burning for a given duration (s).
+        """
+        isp = self.get_specific_impulse()  # Get specific impulse
 
         # Updates itself with new mass, negative values are omitted
         delta_m = - self.stage_thrust / (isp * standard_gravity) * duration
         self._propellant_mass = max(0.0, self._propellant_mass + delta_m)
 
 
-# TODO: implement throttling
 class SpaceCraftStatus(Enum):
     """ Describes the status of the rocket during liftoff. """
     STAGE_0 = 0
     STAGE_1_BURN = 1
-    STAGE_1_BURN_THROTTLED = 11
     STAGE_1_COAST = 10
     STAGE_2_BURN = 2
     STAGE_2_COAST = 20
@@ -112,12 +113,14 @@ class PlanetLocation:
 
     # pylint: disable = unused-argument
     def get_density(self, altitude) -> float:
-        """ Placeholder function for override. """
+        """ Placeholder function for override by child. """
+        L.error("Missing function!")
         return 0.0
 
     # pylint: disable = unused-argument
     def get_pressure(self, altitude) -> float:
-        """ Placeholder function for override. """
+        """ Placeholder function for override by child. """
+        L.error("Missing function!")
         return 0.0
 
 
@@ -163,6 +166,8 @@ class SpaceCraft:
 
         # Mass properties
         self.payload_mass = payload_mass
+        # TODO: implement this with stage 2, remove redundancy
+        self.payload_fairing_mass = 1900  # kg
         self.total_mass = self.payload_mass + self.get_stage_mass()
 
     def get_stage_mass(self):
@@ -206,7 +211,7 @@ class SpaceCraft:
         self.total_mass = self.payload_mass + self.get_stage_mass()
 
     # @staticmethod
-    def launch_ode(self, t, state, mu, drag_const, angular_v_earth):
+    def launch_ode(self, t, state, mu, drag_const):
         """ 2nd order ODE of the state-vectors, during launch.
 
         The function returns the second derivative of position vector at a given time (acceleration vector),
@@ -223,33 +228,29 @@ class SpaceCraft:
         mass = self.total_mass  # Mass
 
         # 2nd order ODE function (acceleration)
-        # Function ends at 16s
         if t <= 16:  # Vertical flight until tower is cleared
             a_thrust = self.thrust() / mass * (r / np.linalg.norm(r))
 
-        # TODO: implement rotation according to the target orbit, not the 'default'
-        #  it is only works for 2D representation
-        elif 16 < t <= 60:  # Initial pitch-over maneuver ended
+        # TODO: implement rotations according to the target orbit, not the 'default'
+        # TODO: handle end_limit as variable -> must be calculated somehow
+        elif 16 < t <= 60:  # Initial pitch-over maneuver -> Slight offset of Thrust and Velocity vectors
             # a_thrust = self.thrust() / mass * np.dot(mch.rotation_z(-0.05 * m.pi/180), (r / np.linalg.norm(r)))
 
-            # FIXME: cleanup, and investigate how this works
-            # TODO: LGTM
+            # FIXME: cleanup, and investigate how this works exactly
             unit_r = r / np.linalg.norm(r)
-            acc = self.thrust() / mass * unit_r
+            acc_vector = self.thrust() / mass * unit_r
             k_vector = np.cross(unit_r, np.array([1, 0, 0]))
             unit_k = k_vector / np.linalg.norm(k_vector)
-            a_thrust = mch.rodrigues_rotation(acc, unit_k, 0.01 * m.pi/180)
+            a_thrust = mch.rodrigues_rotation(acc_vector, unit_k, 0.01 * m.pi/180)
 
-        else:  # Gravity assist
+        else:  # Gravity assist -> Thrust is parallel with velocity
+            # TODO: calculate V in non-inertial-frame (??), then finish pitch-over early
             a_thrust = self.thrust() / mass * (v / np.linalg.norm(v))
 
         a_gravity = -r * mu / np.linalg.norm(r) ** 3
+        # TODO: calculate V in non-inertial-frame
         a_drag = np.zeros(3)  # - unit_v * drag_const * np.linalg.norm(v) ** 2 / mass
         a = a_gravity + a_thrust + a_drag
-
-        # Ficious forces for non-inertial ref. frames
-        # a = a + (2 * np.cross(angular_v_earth, v)) + np.cross(angular_v_earth, np.cross(angular_v_earth, r))
-        # v = v + np.cross(angular_v_earth, r)
 
         return np.concatenate((v, a))  # vx, vy, vz, ax, ay, az
 
@@ -258,10 +259,11 @@ class SpaceCraft:
         """ Yield rocket's status variables during launch, every second. """
 
         # TODO: pre-flight checks for inclination limits
+        # TODO: implement calculations for desired orbit, and provide defaults for minimal energy orbit
         launch_azimuth = m.asinh(m.cos(inclination * m.pi/180) / m.cos(launch_site.latitude * m.pi/180))
         # target_velocity =
 
-        # FLIGHT PROFILE
+        # FLIGHT PROFILE DATA
         # EXAMPLE: https://spaceflight101.com/falcon-9-ses-10/flight-profile/#google_vignette
         stage_separation = meco + 3
         L.debug("MAIN ENGINE CUT OFF at T+%s (%s)", seconds_to_minutes(meco), meco)
@@ -271,8 +273,10 @@ class SpaceCraft:
         L.debug("SECOND ENGINE START 2 at T+%s (%s)", seconds_to_minutes(ses_2), ses_2)
         L.debug("SECOND ENGINE CUT OFF 2 at T+%s (%s)", seconds_to_minutes(seco_2), seco_2)
 
-        # Start calculation - Update state vector with initial conditions
+        # CALCULATION START - Update state vector with initial conditions
         # https://en.wikipedia.org/wiki/Earth%27s_rotation
+        # TODO: implement timestep =/= 1
+        timestep = 1  # s
         ix, iy, iz = mch.convert_spherical_to_cartesian_coords(launch_site.surface_radius,
                                                             launch_site.latitude * m.pi/180,
                                                             launch_site.longitude * m.pi/180)
@@ -284,7 +288,8 @@ class SpaceCraft:
         self.acceleration = np.array([0.0, 0.0, 0.0])
         yield 0, self.state, self.acceleration, self.total_mass, 0  # Yield initial values
 
-        for i in range(0, 3500):  # Calculate stage status according to time
+        # TODO: expand this to fully (throttling, payload fairing jettison)
+        for i in range(0, 8000):  # Calculate stage status according to time
             if i <= meco:
                 self.stage_status = SpaceCraftStatus.STAGE_1_BURN
             elif meco < i <= stage_separation:
@@ -294,7 +299,7 @@ class SpaceCraft:
             else:
                 self.stage_status = SpaceCraftStatus.STAGE_2_COAST
 
-            # Calculate flight characteristics
+            # Calculate flight characteristics at given step
             distance_from_surface = np.linalg.norm(self.state[0:3]) - launch_site.surface_radius
             air_density = launch_site.get_density(distance_from_surface)
             drag_const = self.drag_constant * air_density / 2
@@ -303,23 +308,24 @@ class SpaceCraft:
 
             # Calculate state-vector and acceleration
             # The ODE is solved for the acceleration vector, which is used as an initial condition for the
-            # RK4 numerical integrator function.
+            # RK4 numerical integrator function, which solves for the velocity function.
             # Passing not only the acceleration vector, but the velocity vector to the RK4, we can numerically
-            # integrate twice with one function-call, thus we get back the state-vector as well.
+            # integrate twice with one function-call, thus we get back the full state-vector.
             self.state, self.acceleration = mch.rk4(self.launch_ode, i, self.state, 1,
-                                                    launch_site.std_gravitational_parameter, drag_const, angular_v_earth)
+                                                    launch_site.std_gravitational_parameter, drag_const)
 
             # Calculate new spacecraft mass
             # TODO: implement timestep based mass calculation
             self.update_mass(launch_site.std_gravity)
 
             # Log new data
+            # TODO: implement checks for mass, target velocity, etc.
             altitude_above_surface = np.linalg.norm(self.state[0:3]) - launch_site.surface_radius
             if altitude_above_surface <= 0:
                 L.warning("WARNING! LITHOBRAKING!")
                 break
             # L.debug("Rocket state is %s", self.state)
-            L.debug("Rocket altitude is %s m", altitude_above_surface)
+            # L.debug("Rocket altitude is %s m", altitude_above_surface)
             # L.debug("Rocket total mass is %s kg", self.total_mass)
             # L.debug("Air density is %s kg/m3", air_density)
             # L.debug("Acceleration is %s m/s2", np.linalg.norm(self.acceleration))
