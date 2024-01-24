@@ -96,7 +96,7 @@ def rodrigues_rotation(vector_v, vector_k, theta):
 
     """
     v_rot = ((vector_v * m.cos(theta)) + (np.cross(vector_k, vector_v) * m.sin(theta))
-    + (vector_k * np.dot(vector_k, vector_v) * (1 - m.cos(theta))))
+             + (vector_k * np.dot(vector_k, vector_v) * (1 - m.cos(theta))))
     return v_rot
 
 
