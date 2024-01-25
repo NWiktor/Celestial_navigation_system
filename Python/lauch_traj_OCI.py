@@ -184,7 +184,7 @@ class RocketFlightProgram:
     * MECO: 145 s
     * STAGE_SEPARATION: MECO + 3 s
     * SES_1: MECO + 11s
-    * fairing jettison = 195 (LEO) - 222 (GTO)
+    * fairing jettison = 195 s (LEO) - 222 s (GTO)
     * https://spaceflight101.com/falcon-9-ses-10/flight-profile/#google_vignette
     """
 
@@ -266,11 +266,12 @@ class SpaceCraft:
 
 
 # TODO: heave refactoring this: split into Spacecraft ??
+# TODO: Add PlanetLocation as variable
 class RocketLaunch:
     """ RocketLaunch class, defined by name, payload mass, drag coefficient and diameter; and stages. """
 
     def __init__(self, name: str, payload_mass: float, fairing_mass: float, coefficient_of_drag: float, diameter: float,
-                 stages: list[Stage], flight_program: RocketFlightProgram):
+                 stages: list[Stage], flight_program: RocketFlightProgram, central_body):
         self.name = name
         self.stage_status = RocketEngineStatus.STAGE_0
         self.stages = stages
@@ -345,11 +346,15 @@ class RocketLaunch:
         """
         r = state[:3]  # Position vector
         v = state[3:6]  # Velocity vector
-        mass = self.total_mass  # Mass
+        mass = self.total_mass  # Mass # TODO: implement mass as member of the state variable
 
+        # TODO: calculate relative velocity for drag calculation
+
+        # TODO: kiemelni a thrust * mass elemet
         # Calculate thrust
         if t <= 16:  # Vertical flight until tower is cleared
             a_thrust = self.thrust() / mass * (r / np.linalg.norm(r))
+            L.debug("Vertical flight")
 
         # TODO: implement rotations according to the target orbit, not the 'default'
         # TODO: handle end_limit as variable -> must be calculated somehow
@@ -362,10 +367,12 @@ class RocketLaunch:
             k_vector = np.cross(unit_r, np.array([1, 0, 0]))
             unit_k = k_vector / np.linalg.norm(k_vector)
             a_thrust = mch.rodrigues_rotation(acc_vector, unit_k, 0.01 * m.pi/180)
+            L.debug("Pitch-over manuever")
 
         else:  # Gravity assist -> Thrust is parallel with velocity
             # TODO: calculate V in non-inertial-frame (??), then finish pitch-over early
             a_thrust = self.thrust() / mass * (v / np.linalg.norm(v))
+            L.debug("Gravity assist")
 
         a_gravity = -r * mu / np.linalg.norm(r) ** 3
         # TODO: calculate V in non-inertial-frame
