@@ -104,14 +104,15 @@ class Stage:
         L.warning("Fuel tank is empty!")
         return 0.0
 
-    def get_mass(self):
+    def get_mass(self) -> float:
         """ Returns the actual total mass of the stage. """
         return self._empty_mass + self._propellant_mass
 
-    def get_propellant_percentage(self):
-        return self._propellant_mass / self._propellant_mass0  # %
+    def get_propellant_percentage(self) -> float:
+        """ Returns the percentage of fuel left. """
+        return self._propellant_mass / self._propellant_mass0
 
-    def get_specific_impulse(self, pressure_ratio: float = 0.0):
+    def get_specific_impulse(self, pressure_ratio: float = 0.0) -> float:
         """ Returns specific impulse value.
 
         If the class initiated with a list, for specific impulse, this function can compensate atmospheric pressure
@@ -164,8 +165,9 @@ class RocketAttitudeStatus(Enum):
 class RocketFlightProgram:
     """ Describes the rocket launch program (staging, engine throttling, roll and pitch maneuvers). """
 
-    def __init__(self, meco, ses_1, seco_1, ses_2, seco_2, throttle_map: tuple, stage_separation, fairing_jettison,
-                 pitch_maneuver_start, pitch_maneuver_end):
+    def __init__(self, meco: float, ses_1: float, seco_1: float, ses_2: float, seco_2: float, throttle_map: tuple,
+                 stage_separation: float, fairing_jettison: float,
+                 pitch_maneuver_start: float, pitch_maneuver_end: float):
         # Staging parameters
         self.meco = meco  # s
         self.ses_1 = ses_1  # s
@@ -180,7 +182,8 @@ class RocketFlightProgram:
         self.pitch_maneuver_start = pitch_maneuver_start
         self.pitch_maneuver_end = pitch_maneuver_end
 
-    def get_engine_status(self, t):
+    def get_engine_status(self, t: float) -> RocketEngineStatus:
+        """ Return RocketEngineStatus at a given t time since launch. """
         if t < self.meco:
             return RocketEngineStatus.STAGE_1_BURN
         if self.meco <= t < self.ses_1:
@@ -194,10 +197,15 @@ class RocketFlightProgram:
         if self.seco_2 <= t:
             return RocketEngineStatus.STAGE_2_COAST
 
-    def get_throttle(self, t):
+    def get_throttle(self, t: float) -> float:
+        """ Return engine throttling factor at a given t time since launch.
+
+
+        """
         return np.interp(t, self.throttle_map[0], self.throttle_map[1], left=1, right=1)
 
-    def get_attitude_status(self, t):
+    def get_attitude_status(self, t: float) -> RocketAttitudeStatus:
+        """ Return RocketAttitudeStatus at a given t time since launch. """
         if self.pitch_maneuver_start <= t < self.pitch_maneuver_end:
             return RocketAttitudeStatus.PITCH_PROGRAM
 
