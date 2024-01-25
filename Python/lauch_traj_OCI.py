@@ -165,9 +165,16 @@ class RocketAttitudeStatus(Enum):
 class RocketFlightProgram:
     """ Describes the rocket launch program (staging, engine throttling, roll and pitch maneuvers). """
 
-    def __init__(self, meco: float, ses_1: float, seco_1: float, ses_2: float, seco_2: float, throttle_map: tuple,
-                 stage_separation: float, fairing_jettison: float,
+    def __init__(self, meco: float, ses_1: float, seco_1: float, ses_2: float, seco_2: float,
+                 throttle_map: tuple[list[float], list[float]], stage_separation: float, fairing_jettison: float,
                  pitch_maneuver_start: float, pitch_maneuver_end: float):
+        """
+        throttle_map - tuple(t, y): t is the list of time-points since launch, and y is the list of throttling
+        factor at the corresponding t values. Outside the given timerange, 100% is the default value. Burn duration,
+        staging is not evaluated with t.
+        Example: 80% throttling between 34 and 45 seconds after burn. Before and after no throttling (100%).
+            throttle_map = ([34, 45], [0.8, 0.8])
+        """
         # Staging parameters
         self.meco = meco  # s
         self.ses_1 = ses_1  # s
@@ -198,10 +205,7 @@ class RocketFlightProgram:
             return RocketEngineStatus.STAGE_2_COAST
 
     def get_throttle(self, t: float) -> float:
-        """ Return engine throttling factor at a given t time since launch.
-
-
-        """
+        """ Return engine throttling factor at a given t time since launch. """
         return np.interp(t, self.throttle_map[0], self.throttle_map[1], left=1, right=1)
 
     def get_attitude_status(self, t: float) -> RocketAttitudeStatus:
