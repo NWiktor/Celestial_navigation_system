@@ -30,7 +30,7 @@ import numpy as np
 # from logger import MAIN_LOGGER as L
 
 
-def runge_kutta_4(func, t0, y0, h, *args):
+def runge_kutta_4(func, t0: float, y0, h: float, *args):
     """ The fourth-order Runge-Kutta method approximates the solution (function) of a first-order ODE.
 
     Given a y'(t) = f(t, y(t), *args) ODE, and known an initial value of the solution (initial condition) as y(t0)=y0.
@@ -68,10 +68,10 @@ def convert_spherical_to_cartesian_coords(radius: float, theta: float, phi: floa
     x = radius * m.cos(theta) * m.cos(phi)
     y = radius * m.cos(theta) * m.sin(phi)
     z = radius * m.sin(theta)
-    return x, y, z
+    return np.array([x, y, z])
 
 
-def rotation_z(angle):
+def rotation_z(angle: float):
     """ Principal Z axis active rotation matrix by an angle. """
     return np.array([[m.cos(angle), -m.sin(angle), 0],
                      [m.sin(angle), m.cos(angle), 0],
