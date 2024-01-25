@@ -72,7 +72,6 @@ class PlanetLocation:
 
     def get_surface_velocity(self):
         """ Placeholder func. """
-        pass
 
 
 @dataclass
@@ -189,7 +188,7 @@ class RocketFlightProgram:
     """
 
     def __init__(self, meco: float, ses_1: float, seco_1: float, ses_2: float, seco_2: float,
-                 throttle_map: tuple[list[float], list[float]], fairing_jettison: float,
+                 throttle_map, fairing_jettison: float,
                  pitch_maneuver_start: float, pitch_maneuver_end: float, stage_separation: float = None):
         """
         throttle_map - tuple(t, y): t is the list of time-points since launch, and y is the list of throttling
@@ -257,25 +256,16 @@ class RocketFlightProgram:
 
 #### CODE REFACTORED UNTIL THIS POINT
 
-# TODO: kell ez???
-class SpaceCraft:
-    """ Spacecraft (rocket) class, defined by name, payload mass, drag coefficient and diameter; and stages. """
-
-    def __init__(self):
-        pass
-
-
-# TODO: heave refactoring this: split into Spacecraft ??
-# TODO: Add PlanetLocation as variable
 class RocketLaunch:
     """ RocketLaunch class, defined by name, payload mass, drag coefficient and diameter; and stages. """
 
     def __init__(self, name: str, payload_mass: float, fairing_mass: float, coefficient_of_drag: float, diameter: float,
-                 stages: list[Stage], flight_program: RocketFlightProgram, central_body):
+                 stages: list[Stage], flight_program: RocketFlightProgram, central_body: PlanetLocation):
         self.name = name
         self.stage_status = RocketEngineStatus.STAGE_0
         self.stages = stages
         self.flight_program = flight_program
+        self.central_body = central_body
 
         # Physical properties
         # Drag coefficient (-) times cross-sectional area of rocket (m2)
@@ -287,7 +277,7 @@ class RocketLaunch:
 
         # Mass properties
         self.payload_mass = payload_mass  # kg
-        self.fairing_mass = fairing_mass  # kg
+        self.fairing_mass = fairing_mass  # kg # TODO: implement
         self.total_mass = self.payload_mass + self.get_stage_mass()
 
     def get_stage_mass(self) -> float:
@@ -318,21 +308,21 @@ class RocketLaunch:
     # TODO: ISP variation
     # CAVEAT: This function should not be merged to thrust function, because it may be called multiple times during
     #  RK-4 integration, but mass should be reduced only once.
-    def update_mass(self, standard_gravity, duration=1):
+    def update_mass(self, duration=1):
         """ Updates total rocket mass after burning, depending on gravity and actual staging. """
 
         # Calculate delta m in stage 1
         if self.stage_status == RocketEngineStatus.STAGE_1_BURN:
-            self.stages[0].burn_mass(standard_gravity, duration)
+            self.stages[0].burn_mass(self.central_body.std_gravity, duration)
 
         # Calculate delta m in stage 2
         elif self.stage_status == RocketEngineStatus.STAGE_2_BURN:
-            self.stages[1].burn_mass(standard_gravity, duration)
+            self.stages[1].burn_mass(self.central_body.std_gravity, duration)
 
         # Calculate new total mass
         self.total_mass = self.payload_mass + self.get_stage_mass()
 
-    def launch_ode(self, t, state, mu, drag_const):
+    def launch_ode(self, time, state):
         """ 2nd order ODE of the state-vectors, during launch.
 
         The function returns the second derivative of position vector at a given time (acceleration vector),
@@ -348,36 +338,40 @@ class RocketLaunch:
         v = state[3:6]  # Velocity vector
         mass = self.total_mass  # Mass # TODO: implement mass as member of the state variable
 
-        # TODO: calculate relative velocity for drag calculation
+        # Calculate flight characteristics at the actual step
+        v_relative = self.central_body.get_relative_velocity(state)
+        air_density = self.central_body.get_density(np.linalg.norm(r) - self.central_body.surface_radius)
+        pressure_ratio = air_density / 1.2
+        drag_const = self.drag_constant * air_density / 2
 
-        # TODO: kiemelni a thrust * mass elemet
+        # a_drag = np.zeros(3)
+        a_drag = -(v / np.linalg.norm(v)) * drag_const * v_relative ** 2 / mass
+
+        # Calculate gravity
+        a_gravity = -r * self.central_body.std_gravitational_parameter / np.linalg.norm(r) ** 3
+
         # Calculate thrust
-        if t <= 16:  # Vertical flight until tower is cleared
+        if time < self.flight_program.pitch_maneuver_start:  # Vertical flight until tower is cleared
             a_thrust = self.thrust() / mass * (r / np.linalg.norm(r))
-            L.debug("Vertical flight")
 
         # TODO: implement rotations according to the target orbit, not the 'default'
         # TODO: handle end_limit as variable -> must be calculated somehow
-        elif 16 < t <= 60:  # Initial pitch-over maneuver -> Slight offset of Thrust and Velocity vectors
+        # TODO: calculate V in non-inertial-frame (??), then finish pitch-over early
+        # Initial pitch-over maneuver -> Slight offset of Thrust and Velocity vectors
+        elif self.flight_program.pitch_maneuver_start <= time < self.flight_program.pitch_maneuver_end:
             # a_thrust = self.thrust() / mass * np.dot(mch.rotation_z(-0.05 * m.pi/180), (r / np.linalg.norm(r)))
 
             # FIXME: cleanup, and investigate how this works exactly
             unit_r = r / np.linalg.norm(r)
-            acc_vector = self.thrust() / mass * unit_r
             k_vector = np.cross(unit_r, np.array([1, 0, 0]))
             unit_k = k_vector / np.linalg.norm(k_vector)
-            a_thrust = mch.rodrigues_rotation(acc_vector, unit_k, 0.01 * m.pi/180)
-            L.debug("Pitch-over manuever")
+            a_thrust = mch.rodrigues_rotation(self.thrust() / mass * unit_r, unit_k, 0.01 * m.pi / 180)
 
         else:  # Gravity assist -> Thrust is parallel with velocity
-            # TODO: calculate V in non-inertial-frame (??), then finish pitch-over early
             a_thrust = self.thrust() / mass * (v / np.linalg.norm(v))
-            L.debug("Gravity assist")
 
-        a_gravity = -r * mu / np.linalg.norm(r) ** 3
-        # TODO: calculate V in non-inertial-frame
-        a_drag = np.zeros(3)  # - unit_v * drag_const * np.linalg.norm(v) ** 2 / mass
-        a = a_gravity + a_thrust + a_drag  # 2nd order ODE function (acceleration)
+        # 2nd order ODE function (acceleration)
+        a = a_gravity + a_thrust + a_drag
 
         # TODO: implement timestep based mass calculation
 
@@ -385,69 +379,57 @@ class RocketLaunch:
 
     # TODO: implement timestep =/= 1
     # pylint: disable = too-many-locals
-    def launch(self, planet_loc: PlanetLocation, inclination: float, timestep: float = 1):
+    def launch(self, inclination: float, timestep=1):
         """ Yield rocket's status variables during launch, every second. """
 
         # CALCULATION START
         # Calculations of target orbit
         # TODO: pre-flight checks for inclination limits
         # TODO: implement calculations for desired orbit, and provide defaults for minimal energy orbit
-        launch_azimuth = m.asinh(m.cos(inclination * m.pi/180) / m.cos(planet_loc.latitude * m.pi / 180))
+        # launch_azimuth = m.asinh(m.cos(inclination * m.pi/180) / m.cos(self.central_body.latitude * m.pi / 180))
         # target_velocity =
 
         # Update state vector with initial conditions
-        r_rocket = mch.convert_spherical_to_cartesian_coords(planet_loc.surface_radius,
-                                                             planet_loc.latitude * m.pi / 180,
-                                                             planet_loc.longitude * m.pi / 180)
+        r_rocket = mch.convert_spherical_to_cartesian_coords(self.central_body.surface_radius,
+                                                             self.central_body.latitude * m.pi / 180,
+                                                             self.central_body.longitude * m.pi / 180)
 
-        omega_planet = np.array([0, 0, planet_loc.angular_velocity])  # rad/s
+        omega_planet = np.array([0, 0, self.central_body.angular_velocity])  # rad/s
         self.state = np.concatenate((r_rocket, np.cross(omega_planet, r_rocket)))
         self.acceleration = np.array([0.0, 0.0, 0.0])
         # Yield initial values
         yield 0, self.state, self.acceleration, self.total_mass, 0  # time, state, acc., mass, flight_angle
 
         # TODO: expand this to fully (throttling, payload fairing jettison)
-        i = 0  # Current step
-        while i <= 8000:
+        time = 0  # Current step
+        while time <= 8000:
             # Calculate stage status according to time
-            self.stage_status = self.flight_program.get_engine_status(i)
-
-            # Calculate flight characteristics at the actual step
-            distance_from_surface = np.linalg.norm(self.state[0:3]) - planet_loc.surface_radius
-            # rel_velocity = relative_velocity(self.state)
-            air_density = planet_loc.get_density(distance_from_surface)
-            drag_const = self.drag_constant * air_density / 2
+            self.stage_status = self.flight_program.get_engine_status(time)
 
             # Calculate state-vector and acceleration
             # The ODE is solved for the acceleration vector, which is used as an initial condition for the
             # RK4 numerical integrator function, which solves for the velocity function.
             # Passing not only the acceleration vector, but the velocity vector to the RK4, we can numerically
             # integrate twice with one function-call, thus we get back the full state-vector.
-            self.state, self.acceleration = mch.runge_kutta_4(self.launch_ode, i, self.state, 1,
-                                                              planet_loc.std_gravitational_parameter, drag_const)
+            self.state, self.acceleration = mch.runge_kutta_4(self.launch_ode, time, self.state, 1)
 
             # Calculate new spacecraft mass
-            self.update_mass(planet_loc.std_gravity)
+            self.update_mass()
 
-            # Log new data
+            # Log new data, end-conditions
             # TODO: implement checks for mass, target velocity, etc.
-            altitude_above_surface = np.linalg.norm(self.state[0:3]) - planet_loc.surface_radius
+            altitude_above_surface = np.linalg.norm(self.state[0:3]) - self.central_body.surface_radius
             if altitude_above_surface <= 0:
                 L.warning("WARNING! LITHOBRAKING!")
                 break
-            # L.debug("Rocket state is %s", self.state)
-            # L.debug("Rocket altitude is %s m", altitude_above_surface)
-            # L.debug("Rocket total mass is %s kg", self.total_mass)
-            # L.debug("Air density is %s kg/m3", air_density)
-            # L.debug("Acceleration is %s m/s2", np.linalg.norm(self.acceleration))
 
             # Flight angle
             angle = m.acos(np.dot(self.acceleration, self.state[3:6]) /
                            (np.linalg.norm(self.acceleration) * np.linalg.norm(self.state[3:6])))
 
             # Yield values
-            i += timestep
-            yield i, self.state, self.acceleration, self.total_mass, angle
+            time += timestep
+            yield time, self.state, self.acceleration, self.total_mass, angle
 
 
 def secs_to_mins(total_seconds) -> str:
@@ -472,11 +454,12 @@ def main():
     # https://en.wikipedia.org/wiki/Falcon_9#Design
     first_stage = Stage(25600, 395700, 9, 934e3, [283, 312])
     second_stage = Stage(3900, 92670, 1, 934e3, 348)
-    throttle_map = ([50, 90], [0.8, 0.8])
-    flight_program = RocketFlightProgram(130, 141, 154, 3090, 3390, throttle_map,
+    throttle_map = [[50, 90], [0.8, 0.8]]
+    # TODO: Modelling throttle to 80%
+    flight_program = RocketFlightProgram(130, 141, 514, 3090, 3390, throttle_map,
                                          195, 16, 60, None)
     falcon9 = RocketLaunch("Falcon 9", 15000, 1900, 0.25, 5.2,
-                           [first_stage, second_stage], flight_program)
+                           [first_stage, second_stage], flight_program, cape)
 
     # Launch
     time_data = []
@@ -492,8 +475,7 @@ def main():
     mass_data = []
     angle = []
 
-    # TODO: Modelling throttle to 80%
-    for time, state, a, mass, fpa in falcon9.launch(cape, 28.5, 1):
+    for time, state, a, mass, fpa in falcon9.launch(28.5, 1):
         time_data.append(time)
         rx.append(state[0])
         ry.append(state[1])
