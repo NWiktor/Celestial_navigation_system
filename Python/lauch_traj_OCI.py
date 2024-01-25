@@ -7,7 +7,7 @@ calculates the trajectory of a two-stage rocket launched from surface in Object-
 Libs
 ----
 * Numpy
-* Mathplotlib
+* Matplotlib
 
 Help
 ----
