@@ -114,8 +114,8 @@ class Stage:
     def get_specific_impulse(self, pressure_ratio: float = 0.0):
         """ Returns specific impulse value.
 
-        If the class initiated with a list, for specific impulse, this function can compensate athmospheric pressure
-        change by the pressure ratio: (0.0 is sea-level, 1.0 is vaccum pressure). If instead a float is given, this is
+        If the class initiated with a list, for specific impulse, this function can compensate atmospheric pressure
+        change by the pressure ratio: (0.0 is sea-level, 1.0 is vacuum pressure). If instead a float is given, this is
         omitted.
         """
         if isinstance(self.specific_impulse, int):  # If only one value is given, it is handled as a constant
@@ -159,13 +159,13 @@ class RocketAttitudeStatus(Enum):
     PITCH_PROGRAM = 2
 
 
-# TODO: create detailed lauch-profile function, to model the behavior of the rocket at diffrent stages in flight
+# TODO: create detailed launch-profile function, to model the behavior of the rocket at different stages in flight
 #  e.g.: ISP variation, engine throttle, stage separation, staging, etc.
 class RocketFlightProgram:
-    """ Describes the rocket launch program (staging, engine throttling, roll and pitch manuevers). """
+    """ Describes the rocket launch program (staging, engine throttling, roll and pitch maneuvers). """
 
     def __init__(self, meco, ses_1, seco_1, ses_2, seco_2, throttle_map: tuple, stage_separation, fairing_jettison,
-                 pitch_manuever_start, pitch_manuever_end):
+                 pitch_maneuver_start, pitch_maneuver_end):
         # Staging parameters
         self.meco = meco  # s
         self.ses_1 = ses_1  # s
@@ -177,8 +177,8 @@ class RocketFlightProgram:
         self.fairing_jettison = fairing_jettison  # s
 
         # Attitude control
-        self.pitch_manuever_start = pitch_manuever_start
-        self.pitch_manuever_end = pitch_manuever_end
+        self.pitch_maneuver_start = pitch_maneuver_start
+        self.pitch_maneuver_end = pitch_maneuver_end
 
     def get_engine_status(self, t):
         if t < self.meco:
@@ -198,7 +198,7 @@ class RocketFlightProgram:
         return np.interp(t, self.throttle_map[0], self.throttle_map[1], left=1, right=1)
 
     def get_attitude_status(self, t):
-        if self.pitch_manuever_start <= t < self.pitch_manuever_end:
+        if self.pitch_maneuver_start <= t < self.pitch_maneuver_end:
             return RocketAttitudeStatus.PITCH_PROGRAM
 
 
@@ -333,8 +333,8 @@ class SpaceCraft:
         # TODO: implement timestep =/= 1
         timestep = 1  # s
         ix, iy, iz = mch.convert_spherical_to_cartesian_coords(launch_site.surface_radius,
-                                                            launch_site.latitude * m.pi/180,
-                                                            launch_site.longitude * m.pi/180)
+                                                               launch_site.latitude * m.pi/180,
+                                                               launch_site.longitude * m.pi/180)
 
         r_rocket = np.array([ix, iy, iz])  # m
         angular_v_earth = np.array([0, 0, launch_site.angular_velocity])  # rad/s
@@ -445,7 +445,7 @@ def main():
         vz.append(state[5])
         alt_data.append((np.linalg.norm(state[0:3]) - 6371000) / 1000)  # Altitude in km-s
         vel_data.append(np.linalg.norm(state[3:6]) / 1000)  # Velocity in km/s
-        acc_data.append(np.linalg.norm(a) / 9.82)  # Accceleration in g-s
+        acc_data.append(np.linalg.norm(a) / 9.82)  # Acceleration in g-s
         mass_data.append(mass / 1000)  # Mass in 1000 kg-s
         angle.append(fpa * 180 / m.pi)
 
