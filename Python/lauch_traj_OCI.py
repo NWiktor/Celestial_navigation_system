@@ -92,6 +92,7 @@ class Stage:
     def __init__(self, empty_mass: float, propellant_mass: float, number_of_engines: int, thrust_per_engine: float,
                  specific_impulse: Union[int, list[int]]):
         self._empty_mass = empty_mass  # kg
+        self._propellant_mass0 = propellant_mass  # kg
         self._propellant_mass = propellant_mass  # kg
         self.stage_thrust = thrust_per_engine * number_of_engines
         self.specific_impulse = specific_impulse  # s
@@ -100,11 +101,15 @@ class Stage:
         """ Returns thrust, if there is any fuel left in the stage to generate it. """
         if self._propellant_mass > 0:
             return self.stage_thrust  # N aka kg/m/s
+        L.warning("Fuel tank is empty!")
         return 0.0
 
     def get_mass(self):
         """ Returns the actual total mass of the stage. """
         return self._empty_mass + self._propellant_mass
+
+    def get_propellant_percentage(self):
+        return self._propellant_mass / self._propellant_mass0  # %
 
     def get_specific_impulse(self, pressure_ratio: float = 0.0):
         """ Returns specific impulse value.
@@ -143,6 +148,8 @@ class RocketEngineStatus(Enum):
     STAGE_2_COAST = 20
     STAGE_3_BURN = 3
     STAGE_3_COAST = 30
+    STAGE_4_BURN = 4
+    STAGE_4_COAST = 40
 
 
 class RocketAttitudeStatus(Enum):
@@ -150,26 +157,53 @@ class RocketAttitudeStatus(Enum):
     VERTICAL_FLIGHT = 0
     ROLL_PROGRAM = 1
     PITCH_PROGRAM = 2
-    YAW_PROGRAM = 3
 
 
-class RocketFlightProgram:
-    """  """
-
-    def __init__(self, meco, ses_1, seco_1, ses_2, seco_2, throttle, fairing_jettisom):
-        pass
-
-
-class Orbit:
-    """  """
-
-    def __init__(self):
-        pass
-
-
-# TODO: refactor payload as stage3 ??
 # TODO: create detailed lauch-profile function, to model the behavior of the rocket at diffrent stages in flight
-# e.g.: ISP variation, engine throttle, stage separation, staging, etc.
+#  e.g.: ISP variation, engine throttle, stage separation, staging, etc.
+class RocketFlightProgram:
+    """ Describes the rocket launch program (staging, engine throttling, roll and pitch manuevers). """
+
+    def __init__(self, meco, ses_1, seco_1, ses_2, seco_2, throttle_map: tuple, stage_separation, fairing_jettison,
+                 pitch_manuever_start, pitch_manuever_end):
+        # Staging parameters
+        self.meco = meco  # s
+        self.ses_1 = ses_1  # s
+        self.seco_1 = seco_1  # s
+        self.ses_2 = ses_2  # s
+        self.seco_2 = seco_2  # s
+        self.throttle_map = throttle_map  # second - % mapping
+        self.stage_separation = stage_separation  # s
+        self.fairing_jettison = fairing_jettison  # s
+
+        # Attitude control
+        self.pitch_manuever_start = pitch_manuever_start
+        self.pitch_manuever_end = pitch_manuever_end
+
+    def get_engine_status(self, t):
+        if t < self.meco:
+            return RocketEngineStatus.STAGE_1_BURN
+        if self.meco <= t < self.ses_1:
+            return RocketEngineStatus.STAGE_1_COAST
+        if self.ses_1 <= t < self.seco_1:
+            return RocketEngineStatus.STAGE_2_BURN
+        if self.seco_1 <= t < self.ses_2:
+            return RocketEngineStatus.STAGE_2_COAST
+        if self.ses_2 <= t < self.seco_2:
+            return RocketEngineStatus.STAGE_2_BURN
+        if self.seco_2 <= t:
+            return RocketEngineStatus.STAGE_2_COAST
+
+    def get_throttle(self, t):
+        return np.interp(t, self.throttle_map[0], self.throttle_map[1], left=1, right=1)
+
+    def get_attitude_status(self, t):
+        if self.pitch_manuever_start <= t < self.pitch_manuever_end:
+            return RocketAttitudeStatus.PITCH_PROGRAM
+
+
+#### CODE REFACTORED UNTIL THIS POINT
+
 class SpaceCraft:
     """ Spacecraft class, defined by name, payload mass, drag coefficient and diameter; and stages. """
 
@@ -232,7 +266,6 @@ class SpaceCraft:
         # Calculate new total mass
         self.total_mass = self.payload_mass + self.get_stage_mass()
 
-    # @staticmethod
     def launch_ode(self, t, state, mu, drag_const):
         """ 2nd order ODE of the state-vectors, during launch.
 
