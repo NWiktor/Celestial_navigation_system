@@ -3,7 +3,8 @@
     "name" : "Earth",
     "uuid" : "agasgasga",
     "surface_radius_m" : 6371000,
-    "atm_radius_m" : 22,
-    "angular_ve"
+    "atmosphere_radius_m" : 6371100,
+    "angular_velocity" : 7.292115e-5,
+    "std_gravitational_parameter" : 3.986004418e14
   }
 }
