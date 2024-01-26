@@ -125,7 +125,7 @@ class Stage:
 
     def get_propellant_percentage(self) -> float:
         """ Returns the percentage of fuel left. """
-        return self._propellant_mass / self._propellant_mass0
+        return self._propellant_mass / self._propellant_mass0 * 100
 
     def get_specific_impulse(self, pressure_ratio: float = 0.0) -> float:
         """ Returns specific impulse value.
@@ -144,9 +144,9 @@ class Stage:
         L.warning("Specific impulse is not in the expected format (float or list of floats)!")
         return 0.0
 
-    def burn_mass(self, m_dot: float) -> None:
-        """  """
-        self._propellant_mass = max(0.0, self._propellant_mass + m_dot)
+    def burn_mass(self, mass: float) -> None:
+        """ Burn the given amount of fuel. """
+        self._propellant_mass = max(0.0, self._propellant_mass - abs(mass))
         L.debug("Fuel left: %s", self.get_propellant_percentage())
 
 
@@ -204,13 +204,13 @@ class RocketFlightProgram:
 
         # Stage separation
         if ss_1 is None:
-            self.stage_separation = meco + 3  # s
+            self.ss_1 = meco + 3  # s
         else:
-            self.stage_separation = ss_1  # s
+            self.ss_1 = ss_1  # s
         if ss_2 is None:
-            self.stage_separation = seco_2 + 3  # s
+            self.ss_2 = seco_2 + 3  # s
         else:
-            self.stage_separation = ss_2  # s
+            self.ss_2 = ss_2  # s
 
         # Attitude control
         self.pitch_maneuver_start = pitch_maneuver_start
@@ -251,12 +251,13 @@ class RocketFlightProgram:
         """ Print flight program. """
         L.info("--- FLIGHT PROFILE DATA ---")
         L.info("MAIN ENGINE CUT OFF at T+%s (%s s)", secs_to_mins(self.meco), self.meco)
-        L.info("STAGE SEPARATION at T+%s (%s s)", secs_to_mins(self.stage_separation), self.stage_separation)
+        L.info("STAGE SEPARATION 1 at T+%s (%s s)", secs_to_mins(self.ss_1), self.ss_1)
         L.info("SECOND ENGINE START 1 at T+%s (%s s)", secs_to_mins(self.ses_1), self.ses_1)
         L.info("PAYLOAD FAIRING JETTISON at T+%s (%s s)", secs_to_mins(self.fairing_jettison), self.fairing_jettison)
         L.info("SECOND ENGINE CUT OFF 1 at T+%s (%s s)", secs_to_mins(self.seco_1), self.seco_1)
         L.info("SECOND ENGINE START 2 at T+%s (%s s)", secs_to_mins(self.ses_2), self.ses_2)
         L.info("SECOND ENGINE CUT OFF 2 at T+%s (%s s)", secs_to_mins(self.seco_2), self.seco_2)
+        L.info("STAGE SEPARATION 2 at T+%s (%s s)", secs_to_mins(self.ss_2), self.ss_2)
 
 
 class RocketLaunch:
@@ -283,6 +284,7 @@ class RocketLaunch:
         self.total_mass = self.get_total_mass()  # kg
 
     def get_total_mass(self) -> float:
+        """ Calculates the total mass of the rocket, at any given time. """
         return self.get_stage_mass() + self.fairing_mass + self.payload_mass
 
     def get_stage_mass(self) -> float:
@@ -315,7 +317,7 @@ class RocketLaunch:
 
         return 0
 
-    def launch_ode(self, time, state):
+    def launch_ode(self, time, state, dt):
         """ 2nd order ODE of the state-vectors, during launch.
 
         The function returns the second derivative of position vector at a given time (acceleration vector),
@@ -324,8 +326,8 @@ class RocketLaunch:
         Trick: While passing through the velocity vector unchanged, we can numerically integrate both functions in
         the RK4-solver in one step (this is outside of this functions scope).
 
-        State-vector: rx, ry, rz, vx, vy, vz
-        State-vector_dot: vx, vy, vz, ax, ay, az
+        State-vector: rx, ry, rz, vx, vy, vz, m
+        State-vector_dot: vx, vy, vz, ax, ay, az, m_dot
         """
         r = state[:3]  # Position vector
         v = state[3:6]  # Velocity vector
@@ -334,7 +336,7 @@ class RocketLaunch:
         # Calculate flight characteristics at the actual step
         v_relative = self.central_body.get_relative_velocity(state)
         air_density = self.central_body.get_density(np.linalg.norm(r) - self.central_body.surface_radius)
-        pressure_ratio = air_density / 1.2 # TODO: hardcoded!
+        pressure_ratio = air_density / 1.2  # TODO: hardcoded!
         drag_const = self.drag_constant * air_density / 2
 
         # Calculate aceleration
@@ -360,16 +362,11 @@ class RocketLaunch:
         else:  # Gravity assist -> Thrust is parallel with velocity
             a_thrust = thrust * (v / np.linalg.norm(v))
 
-        # 2nd order ODE function (acceleration)
-        a = a_gravity + a_thrust + a_drag
-
-        # Calculate m_dot
-        dt = 1  # TODO: hardcoded!
+        # Calculate acceleration (v_dot) and m_dot
+        a = a_gravity + a_thrust + a_drag  # 2nd order ODE function (acceleration)
         m_dot = - thrust / (self.get_isp(pressure_ratio) * self.central_body.std_gravity) * dt
         return np.concatenate((v, a, [m_dot]))  # vx, vy, vz, ax, ay, az, m_dot
 
-    # TODO: implement timestep =/= 1
-    # pylint: disable = too-many-locals
     def launch(self, inclination: float, timestep=1):
         """ Yield rocket's status variables during launch, every second. """
 
@@ -390,25 +387,25 @@ class RocketLaunch:
         # Yield initial values
         yield 0, self.state, np.array([0.0, 0.0, 0.0]), 0  # time, state, acc., flight_angle
 
-        # TODO: expand this to fully (throttling, payload fairing jettison)
         time = 0  # Current step
         while time <= 8000:
             # Calculate stage status according to time
             self.stage_status = self.flight_program.get_engine_status(time)
 
-            # Calculate state-vector and acceleration
-            # The ODE is solved for the acceleration vector, which is used as an initial condition for the
-            # RK4 numerical integrator function, which solves for the velocity function.
+            # Calculate state-vector, acceleration and delta_m
+            # The ODE is solved for the acceleration vector and m_dot, which is used as an initial condition for the
+            # RK4 numerical integrator function, which then solves for the velocity function.
             # Passing not only the acceleration vector, but the velocity vector to the RK4, we can numerically
             # integrate twice with one function-call, thus we get back the full state-vector.
-            self.state, acceleration = mch.runge_kutta_4(self.launch_ode, time, self.state, 1)
-
-            # Set new mass
-
-            # TODO: SET NEW MASS FOR STAGES DEPENDING ON THE NEW MASS
-
-            # self._propellant_mass = max(0.0, self._propellant_mass + delta_m)
-            #L.debug("Fuel left: %s", self.get_propellant_percentage())
+            self.state, state_dot = mch.runge_kutta_4(self.launch_ode, time, self.state, timestep, timestep)
+            acceleration = state_dot[3:6]
+            delta_m = state_dot[6]
+            # Set mass for rocket: burn mass, and evaluate staging events
+            # Burn mass from stage
+            if self.stage_status == RocketEngineStatus.STAGE_1_BURN:
+                self.stages[0].burn_mass(delta_m)
+            if self.stage_status == RocketEngineStatus.STAGE_2_BURN:
+                self.stages[1].burn_mass(delta_m)
 
             # Evaluate staging events:
             if time == self.flight_program.fairing_jettison:
@@ -420,13 +417,14 @@ class RocketLaunch:
 
             self.get_total_mass()
 
-            # Log new data, end-conditions
+            # Log new data and end-conditions
             # TODO: implement checks for mass, target velocity, etc.
             altitude_above_surface = np.linalg.norm(self.state[0:3]) - self.central_body.surface_radius
             if altitude_above_surface <= 0:
                 L.warning("WARNING! LITHOBRAKING!")
                 break
 
+            # TODO: Implement angle calculation between position and velocity vector - 90 deg ??
             # Flight angle
             angle = m.acos(np.dot(acceleration, self.state[3:6]) /
                            (np.linalg.norm(acceleration) * np.linalg.norm(self.state[3:6])))
@@ -459,7 +457,7 @@ def main():
     first_stage = Stage(25600, 395700, 9, 934e3, [283, 312])
     second_stage = Stage(3900, 92670, 1, 934e3, 348)
 
-    # TODO: Modelling throttle to 80%
+    # TODO: Modelling throttle to 80% properly, and test it
     throttle_map = [[50, 90], [0.8, 0.8]]
     flight_program = RocketFlightProgram(130, 141, 514, 3090, 3390, throttle_map,
                                          195, 16, 60, None)
@@ -480,7 +478,7 @@ def main():
     mass_data = []
     angle = []
 
-    for time, state, a, mass, fpa in falcon9.launch(28.5, 1):
+    for time, state, acc, fpa in falcon9.launch(28.5, 1):
         time_data.append(time)
         rx.append(state[0])
         ry.append(state[1])
@@ -490,8 +488,8 @@ def main():
         vz.append(state[5])
         alt_data.append((np.linalg.norm(state[0:3]) - 6371000) / 1000)  # Altitude in km-s
         vel_data.append(np.linalg.norm(state[3:6]) / 1000)  # Velocity in km/s
-        acc_data.append(np.linalg.norm(a) / 9.82)  # Acceleration in g-s
-        mass_data.append(mass / 1000)  # Mass in 1000 kg-s
+        acc_data.append(np.linalg.norm(acc) / 9.82)  # Acceleration in g-s
+        mass_data.append(state[6] / 1000)  # Mass in 1000 kg-s
         angle.append(fpa * 180 / m.pi)
 
     # Plotting
@@ -502,18 +500,20 @@ def main():
     fig = plt.figure(layout='tight', figsize=(19, 9.5))
     fig.suptitle("Falcon9 launch from Cape Canaveral")
     ax1 = fig.add_subplot(2, 2, 1)
-    ax1.set_title("Flight altitude")
+    ax1.set_title("Flight profile")
+    ax1.set_xlabel('time (s)')
+    ax1.set_ylabel('flight altitude (km)', color="m")
     ax1.set_xlim(0, len(time_data))
     # ax1.set_ylim(0, 8)
     ax1.plot(time_data, alt_data, color="m")
 
-    ax2 = fig.add_subplot(2, 2, 2)
-    ax2.set_title("Flight path angle")
-    ax2.set_xlim(0, len(time_data))
-    ax2.scatter(time_data, angle, s=0.5)
+    ax2 = ax1.twinx()
+    ax2.set_ylabel('flight path angle (deg)', color="r")
+    # TODO: set limits 90deg to -90deg
+    ax2.scatter(time_data, angle, s=0.5, color="r")
 
-    # Flight velocity and acceleration
-    ax3 = fig.add_subplot(2, 2, 3)
+    # Flight velocity, acceleration
+    ax3 = fig.add_subplot(2, 2, 2)
     ax3.set_title("Flight velocity and acceleration")
     ax3.set_xlabel('time (s)')
     ax3.set_ylabel('acceleration (g)', color="b")
@@ -524,17 +524,23 @@ def main():
 
     ax4 = ax3.twinx()
     ax4.set_ylabel('velocity (km/s)', color="g")
+    ax4.set_ylim(0, 8)
     ax4.plot(time_data, vel_data, color="g")
-    ax3.set_ylim(0, 8)
     ax4.tick_params(axis='y', labelcolor="g")
 
     # Mass
-    # ax1.scatter(time_data, mass_data, s=0.5)
+    ax6 = fig.add_subplot(2, 2, 3)
+    ax6.set_title("Mass")
+    ax6.set_xlabel('time (s)')
+    ax6.set_ylabel('mass (kg)')
+    ax6.set_xlim(0, len(time_data))
+    ax6.set_ylim(0, 1000)
+    ax6.scatter(time_data, mass_data, s=0.5, color="b")
 
     # Plot trajectory in 3D
     ax5 = fig.add_subplot(2, 2, 4, projection='3d')
-    ax5.plot(rx, ry, rz, label="Trajectory", color="m")
     ax5.set_title("Flight trajectory")
+    ax5.plot(rx, ry, rz, label="Trajectory", color="m")
 
     # Plot surface
     u = np.linspace(0, 2 * np.pi, 100)
