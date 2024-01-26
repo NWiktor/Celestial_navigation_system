@@ -21,18 +21,13 @@ Contents
 
 # Standard library imports
 # First import should be the logging module if any!
-import sys
-import datetime
-import time
-import math as m
 
 # Third party imports
 import numpy as np
-import matplotlib.pyplot as plt
 
 # Local application imports
 from logger import MAIN_LOGGER as L
-from modules.time_functions import julian_date, j2000_date
+from kepler_orbit import KeplerOrbit
 
 # Class initializations and global variables
 gravitational_constant = 6.67430 * pow(10, -11)  # m^3 kg-1 s-2
@@ -48,7 +43,7 @@ class CelestialBody:
         self._uuid = uuid  # Unique identifier
         self._mass = mass  # kg
         self._radius = radius  # km ???
-        self._parent_object = None
+        self._parent_object = parent_object
         self._orbit = None
         self._rotation = None
 
@@ -71,7 +66,6 @@ class CelestialBody:
         # Else we add object position + parent object position
         return self._orbit.get_position(j2000_time) + self._parent_object.get_position(j2000_time)
 
-
     def clear(self):
         """ Erases all loaded and existing training data to allow refresh. """
         self.__dict__ = {}
@@ -80,6 +74,15 @@ class CelestialBody:
         return str(self.__class__) + ": " + str(self.__dict__)
 
 
+# TODO: rethink what this does
+class Rotation:
+    """ Creates connection between the inertial and the non-inertial reference frame between the same object. """
+
+    def __init__(self, obliquity_vector, rotation_vector):
+        self.obliquity_vector = obliquity_vector
+        self.rotation_vector = rotation_vector
+
+
 # Include guard
 if __name__ == '__main__':
-    main()
+    pass
