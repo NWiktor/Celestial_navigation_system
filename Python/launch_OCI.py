@@ -27,7 +27,8 @@ from enum import Enum
 # Third party imports
 import numpy as np
 import matplotlib.pyplot as plt
-from modules import ode_solvers as mch
+import modules as mch
+# from modules import ode_solvers as mch
 
 # Local application imports
 from logger import MAIN_LOGGER as L

@@ -1,0 +1,9 @@
+{
+  "Earth" : {
+    "name" : "Earth",
+    "uuid" : "agasgasga",
+    "surface_radius_m" : 6371000,
+    "atm_radius_m" : 22,
+    "angular_ve"
+  }
+}

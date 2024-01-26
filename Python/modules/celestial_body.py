@@ -41,7 +41,7 @@ gravitational_constant = 6.67430 * pow(10, -11)  # m^3 kg-1 s-2
 # Class and function definitions
 
 # TODO: break it to CelestialObject() and Planet() child class ??
-class CelestialObject:
+class CelestialBody:
 
     def __init__(self, name, uuid, mass, radius, parent_object=None):
         self._name = name
