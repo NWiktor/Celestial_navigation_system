@@ -151,7 +151,7 @@ class Rotation:
         pass
 
 
-# TODO: break it to CelestialObject() and Planet() child class ?? 
+# TODO: replace with celestial_body.py
 class CelestialObject:
 
     def __init__(self, name, uuid, mass, radius, parent_object=None):
