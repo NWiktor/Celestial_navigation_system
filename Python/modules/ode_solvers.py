@@ -53,8 +53,8 @@ def runge_kutta_4(func, t0: float, y0, h: float, *args):
     k4 = func(t0 + h, y0 + k3 * h, *args)
 
     # Returns y1 value, which is the approximation of the y(t) solution-function at t1; and k4 which is
-    # the derivative of y1 at t1
-    return y0 + h / 6.0 * (k1 + 2 * k2 + 2 * k3 + k4), k4[3:6]
+    # the derivative of y1 at t1 (to allow access to acc. and m_dot).
+    return y0 + h / 6.0 * (k1 + 2 * k2 + 2 * k3 + k4), k4
 
 
 def convert_spherical_to_cartesian_coords(radius: float, theta: float, phi: float):
