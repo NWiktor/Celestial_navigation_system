@@ -32,16 +32,7 @@ from logger import MAIN_LOGGER as L
 # Class initializations and global variables
 gravitational_constant = 6.67430 * pow(10, -11)  # m^3 kg-1 s-2
 
-
 # Class and function definitions
-
-# TODO: rethink what this does
-class Rotation:
-    """ Creates connection between the inertial and the non-inertial reference frame between the same object. """
-
-    def __init__(self, obliquity_vector, rotation_vector):
-        pass
-
 
 # Main function for module testing
 def main():
