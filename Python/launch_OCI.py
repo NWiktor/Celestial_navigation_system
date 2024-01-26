@@ -117,7 +117,6 @@ class Stage:
         """ Returns thrust, if there is any fuel left in the stage to generate it. """
         if self._propellant_mass > 0:
             return self.stage_thrust  # N aka kg/m/s
-        # L.warning("Fuel tank is empty, no thrust!")
         return 0.0
 
     def get_mass(self) -> float:
@@ -140,15 +139,17 @@ class Stage:
 
         if isinstance(self.specific_impulse, list):
             # If a list is given, linearly interpolating between them by the pressure-ratio
-            return np.interp(pressure_ratio, [0, 1], self.specific_impulse)
+            return float(np.interp(pressure_ratio, [0, 1], self.specific_impulse))
 
         L.warning("Specific impulse is not in the expected format (float or list of floats)!")
         return 0.0
 
-    def burn_mass(self, mass: float) -> None:
-        """ Burn the given amount of fuel. """
+    def burn_mass(self, mass: float, time) -> None:
+        """ Burn the given amount of fuel.
+        Returns the percentage of fuel left in the tanks.
+        """
         self._propellant_mass = max(0.0, self._propellant_mass - abs(mass))
-        L.debug("Fuel left: %s", self.get_propellant_percentage())
+        L.debug("Fuel left %.2f %% at (%s s)", self.get_propellant_percentage(), time)
 
 
 class RocketEngineStatus(Enum):
@@ -237,7 +238,7 @@ class RocketFlightProgram:
 
     def get_throttle(self, t: float) -> float:
         """ Return engine throttling factor (0.0 - 1.0) at a given t time since launch. """
-        return np.interp(t, self.throttle_map[0], self.throttle_map[1], left=1, right=1)
+        return float(np.interp(t, self.throttle_map[0], self.throttle_map[1], left=1, right=1))
 
     def get_attitude_status(self, t: float) -> RocketAttitudeStatus:
         """ Return RocketAttitudeStatus at a given t time since launch. """
@@ -294,7 +295,6 @@ class RocketLaunch:
         for stage in self.stages:
             if stage.onboard:
                 mass += stage.get_mass()
-                print(f"{mass=}")
         return mass
 
     def get_thrust(self) -> float:
@@ -393,7 +393,7 @@ class RocketLaunch:
         yield 0, self.state, np.array([0.0, 0.0, 0.0]), 90  # time, state, acc., flight_angle
 
         time = 0  # Current step
-        while time <= 1000:
+        while time <= 6000:
             # Calculate stage status according to time
             self.stage_status = self.flight_program.get_engine_status(time)
 
@@ -408,9 +408,9 @@ class RocketLaunch:
             # Set mass for rocket: burn mass, and evaluate staging events
             # Burn mass from stage
             if self.stage_status == RocketEngineStatus.STAGE_1_BURN:
-                self.stages[0].burn_mass(state_dot[6])
+                self.stages[0].burn_mass(state_dot[6], time)
             if self.stage_status == RocketEngineStatus.STAGE_2_BURN:
-                self.stages[1].burn_mass(state_dot[6])
+                self.stages[1].burn_mass(state_dot[6], time)
 
             # Evaluate staging events, and refresh state-vector to remove excess mass
             if time == self.flight_program.fairing_jettison:
@@ -463,8 +463,8 @@ def main():
     second_stage = Stage(3900-1900, 92670, 1, 934e3, 348)
 
     # TODO: Modelling throttle to 80% properly, and test it
-    throttle_map = [[50, 90], [0.99, 0.99]]
-    flight_program = RocketFlightProgram(130, 141, 514, 3090, 3390, throttle_map,
+    throttle_map = [[47, 57, 67, 77, 87], [0.9, 0.8, 0.8, 0.8, 0.9]]
+    flight_program = RocketFlightProgram(145, 156, 514, 3090, 3390, throttle_map,
                                          195, 16, 60, None, None)
     falcon9 = RocketLaunch("Falcon 9", 15000, 1900, 0.25, 5.2,
                            [first_stage, second_stage], flight_program, cape)
@@ -513,7 +513,7 @@ def main():
 
     ax2 = ax1.twinx()
     ax2.set_ylabel('flight altitude (km)', color="m")
-    ax1.set_ylim(-90, 90)
+    # ax1.set_ylim(0, 90)
     ax2.plot(time_data, alt_data, color="m")
 
     # Flight velocity, acceleration
@@ -522,13 +522,13 @@ def main():
     ax3.set_xlabel('time (s)')
     ax3.set_ylabel('acceleration (g)', color="b")
     ax3.set_xlim(0, len(time_data))
-    ax3.set_ylim(0, 8)
+    ax3.set_ylim(0, 10)
     ax3.scatter(time_data, acc_data, s=0.5, color="b")
     ax3.tick_params(axis='y', labelcolor="b")
 
     ax4 = ax3.twinx()
     ax4.set_ylabel('velocity (km/s)', color="g")
-    ax4.set_ylim(0, 8)
+    ax4.set_ylim(0, 10)
     ax4.plot(time_data, vel_data, color="g")
     ax4.tick_params(axis='y', labelcolor="g")
 
