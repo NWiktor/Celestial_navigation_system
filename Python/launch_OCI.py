@@ -28,7 +28,7 @@ from enum import Enum
 import numpy as np
 import matplotlib.pyplot as plt
 # import modules as mch
-from modules import ode_solvers as mch
+from modules import math_functions as mch
 
 # Local application imports
 from logger import MAIN_LOGGER as L
@@ -360,9 +360,9 @@ class RocketLaunch:
         elif self.flight_program.pitch_maneuver_start <= time < self.flight_program.pitch_maneuver_end:
             # FIXME: cleanup, and investigate how this works exactly
             unit_r = r / np.linalg.norm(r)
-            k_vector = np.cross(unit_r, np.array([1, 0, 0]))
-            unit_k = k_vector / np.linalg.norm(k_vector)
-            a_thrust = mch.rodrigues_rotation(thrust * unit_r, unit_k, 0.01 * m.pi / 180)
+            orbital_plane_vector = np.cross(unit_r, np.array([1, 0, 0]))
+            unit_opv = mch.unit_vector(orbital_plane_vector)
+            a_thrust = mch.rodrigues_rotation(thrust * unit_r, unit_opv, 0.01 * m.pi / 180)
 
         else:  # Gravity assist -> Thrust is parallel with velocity
             a_thrust = thrust * (v / np.linalg.norm(v))
@@ -432,7 +432,7 @@ class RocketLaunch:
 
             # TODO: Implement angle calculation between position and velocity vector - 90 deg ??
             # Flight path angle
-            fpa = m.acos(np.dot(self.state[0:3], self.state[3:6]) / (np.linalg.norm(self.state[0:3]) * np.linalg.norm(self.state[3:6]))) * 180 / m.pi
+            fpa = mch.angle_vector(self.state[0:3], self.state[3:6])
 
             # Yield values
             time += timestep
@@ -466,7 +466,7 @@ def main():
     throttle_map = [[47, 57, 67, 77, 87], [0.9, 0.8, 0.8, 0.8, 0.9]]
     flight_program = RocketFlightProgram(145, 156, 514, 3090, 3390, throttle_map,
                                          195, 16, 60, None, None)
-    falcon9 = RocketLaunch("Falcon 9", 15000, 1900, 0.25, 5.2,
+    falcon9 = RocketLaunch("Falcon 9", 20000, 1900, 0.25, 5.2,
                            [first_stage, second_stage], flight_program, cape)
 
     # Launch
