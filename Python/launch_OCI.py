@@ -393,7 +393,7 @@ class RocketLaunch:
         yield 0, self.state, np.array([0.0, 0.0, 0.0])  # time, state, acc.
 
         time = 0  # Current step
-        while time <= 6000:
+        while time <= 16000:
             # Calculate stage status according to time
             self.stage_status = self.flight_program.get_engine_status(time)
 
@@ -459,10 +459,10 @@ def main():
     second_stage = Stage(3900-1900, 92670, 1, 934e3, 348)
 
     # TODO: Modelling throttle to 80% properly, and test it
-    throttle_map = [[70, 80, 81, 150, 4000], [0.8, 0.8, 1.0, 0.85, 0.85]]
+    throttle_map = [[70, 80, 81, 150, 550, 3000, 3500], [0.8, 0.8, 1.0, 0.88, 0.88, 0.1, 0.1]]
     flight_program = RocketFlightProgram(145, 156, 514, 3090, 3390, throttle_map,
-                                         195, 16, 75, None, None)
-    falcon9 = RocketLaunch("Falcon 9", 20000, 1900, 0.25, 5.2,
+                                         195, 16, 60, None, None)
+    falcon9 = RocketLaunch("Falcon 9", 15000, 1900, 0.25, 5.2,
                            [first_stage, second_stage], flight_program, cape)
 
     # Launch
