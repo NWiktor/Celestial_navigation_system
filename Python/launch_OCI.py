@@ -390,7 +390,7 @@ class RocketLaunch:
         omega_planet = np.array([0, 0, self.central_body.angular_velocity])  # rad/s
         self.state = np.concatenate((r_rocket, np.cross(omega_planet, r_rocket), [self.total_mass]))
         # Yield initial values
-        yield 0, self.state, np.array([0.0, 0.0, 0.0]), 90  # time, state, acc., flight_angle
+        yield 0, self.state, np.array([0.0, 0.0, 0.0])  # time, state, acc.
 
         time = 0  # Current step
         while time <= 6000:
@@ -430,13 +430,9 @@ class RocketLaunch:
                 L.warning("WARNING! LITHOBRAKING!")
                 break
 
-            # TODO: Implement angle calculation between position and velocity vector - 90 deg ??
-            # Flight path angle
-            fpa = mch.angle_vector(self.state[0:3], self.state[3:6])
-
             # Yield values
             time += timestep
-            yield time, self.state, acceleration, fpa
+            yield time, self.state, acceleration
 
 
 def secs_to_mins(total_seconds) -> str:
@@ -463,9 +459,9 @@ def main():
     second_stage = Stage(3900-1900, 92670, 1, 934e3, 348)
 
     # TODO: Modelling throttle to 80% properly, and test it
-    throttle_map = [[47, 57, 67, 77, 87], [0.9, 0.8, 0.8, 0.8, 0.9]]
+    throttle_map = [[70, 80, 81, 150, 4000], [0.8, 0.8, 1.0, 0.85, 0.85]]
     flight_program = RocketFlightProgram(145, 156, 514, 3090, 3390, throttle_map,
-                                         195, 16, 60, None, None)
+                                         195, 16, 75, None, None)
     falcon9 = RocketLaunch("Falcon 9", 20000, 1900, 0.25, 5.2,
                            [first_stage, second_stage], flight_program, cape)
 
@@ -481,9 +477,8 @@ def main():
     vel_data = []
     acc_data = []
     mass_data = []
-    angle = []
 
-    for time, state, acc, fpa in falcon9.launch(28.5, 1):
+    for time, state, acc, in falcon9.launch(28.5, 1):
         time_data.append(time)
         rx.append(state[0])
         ry.append(state[1])
@@ -495,7 +490,6 @@ def main():
         vel_data.append(np.linalg.norm(state[3:6]) / 1000)  # Velocity in km/s
         acc_data.append(np.linalg.norm(acc) / 9.82)  # Acceleration in g-s
         mass_data.append(state[6] / 1000)  # Mass in 1000 kg-s
-        angle.append(fpa)
 
     # Plotting
     # TODO: implement colormap for each stage of the flight
@@ -507,14 +501,9 @@ def main():
     ax1 = fig.add_subplot(2, 2, 1)
     ax1.set_title("Flight profile")
     ax1.set_xlabel('time (s)')
-    ax1.set_ylabel('flight path angle (deg)', color="r")
-    ax1.set_xlim(0, len(time_data))
-    ax1.plot(time_data, angle, color="r")
-
-    ax2 = ax1.twinx()
-    ax2.set_ylabel('flight altitude (km)', color="m")
+    ax1.set_ylabel('flight altitude (km)', color="m")
     # ax1.set_ylim(0, 90)
-    ax2.plot(time_data, alt_data, color="m")
+    ax1.plot(time_data, alt_data, color="m")
 
     # Flight velocity, acceleration
     ax3 = fig.add_subplot(2, 2, 2)
@@ -562,9 +551,9 @@ def main():
     ax5.plot([0, rx[0]], [0, ry[0]], [0, rz[0]], label="launch", color="w")  # Launch site
 
     # Velocity vector at given pos
-    pos = 0
-    ax5.plot([rx[pos], rx[pos]+vx[pos]*10000], [ry[pos], ry[pos]+vy[pos]*10000],
-             [rz[pos], rz[pos]+vz[pos]*10000], label="start_v", color="c")
+    # pos = 0
+    # ax5.plot([rx[pos], rx[pos]+vx[pos]*10000], [ry[pos], ry[pos]+vy[pos]*10000],
+    #          [rz[pos], rz[pos]+vz[pos]*10000], label="start_v", color="c")
 
     plt.show()
 
