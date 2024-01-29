@@ -57,6 +57,15 @@ def j2000_date(year, month, day, hour, minute, second=0):
     return j2000
 
 
+def secs_to_mins(total_seconds) -> str:
+    """ Formats seconds to HH:MM:SS format. """
+    total_minutes, seconds = divmod(total_seconds, 60)
+    hours, minutes = divmod(total_minutes, 60)
+    if hours == 0:
+        return f"{minutes:02d}:{seconds:02d}"
+    return f"{hours}:{minutes:02d}:{seconds:02d}"
+
+
 # Include guard
 if __name__ == '__main__':
     julian_date(2024, 1, 1, 13, 26, 34)
