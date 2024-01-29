@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-#!/usr/bin/python3
+# !/usr/bin/python3
 
 """ Logger modul for other programs/apps.
 
@@ -46,8 +46,8 @@ LOG_FILENAME = "main.txt"
 MAIN_LOGGER = None
 LOG_FILE = os.path.join(initdir, LOG_DIRPATH, LOG_FILENAME)
 FORMATTER = logging.Formatter(
-'%(asctime)s %(module)s [%(levelname)s] : %(message)s',
-datefmt='%Y/%m/%d %H:%M:%S')
+    '%(asctime)s %(module)s [%(levelname)s] : %(message)s',
+    datefmt='%Y/%m/%d %H:%M:%S')
 
 # If logging folder is missing, create it
 if not os.path.isdir(os.path.join(initdir, LOG_DIRPATH)):
@@ -66,11 +66,11 @@ MAIN_LOGGER.addHandler(console_handler)
 file_handler = RotatingFileHandler(LOG_FILE, maxBytes=0, backupCount=5)
 file_handler.setLevel(logging.INFO)
 file_handler.setFormatter(FORMATTER)
-file_handler.doRollover() # Rolls log at each start
+file_handler.doRollover()  # Rolls log at each start
 MAIN_LOGGER.addHandler(file_handler)
 MAIN_LOGGER.info("Main logger created!")
 
 
-## Modul-teszt
+# Modul-teszt
 if __name__ == "__main__":
     pass
