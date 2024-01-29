@@ -91,7 +91,7 @@ class KeplerOrbit:
 
     # TODO: validate function
     def calculate_orbital_period(self, mass1, mass2=0):
-        """ Calculate orbital period from keplerian elements  """
+        """ Calculate orbital period from keplerian elements. """
         # Converting km to m in semimajor axis, and convert seconds to days
         self.orbital_period = 2 * m.pi * m.sqrt(pow(self.semimajor_axis * 1000, 3)
                                                 / ((mass1 + mass2) * gravitational_constant)) / 86400
@@ -133,6 +133,19 @@ class KeplerOrbit:
 
     def __str__(self):
         return str(self.__class__) + ": " + str(self.__dict__)
+
+
+# TODO: expand class with simplified functions
+class CircularOrbit(KeplerOrbit):
+    """ Simplified child of the KeplerOrbit class, where eccentricity is zero, thus the orbit is circular.
+
+    The function takes 5 parameters
+    """
+
+    def __init__(self, radius, inclination, longitude_of_ascending_node, argument_of_periapsis,
+                 mean_anomaly_at_epoch):
+        super().__init__(0, radius, inclination, longitude_of_ascending_node, argument_of_periapsis,
+                         mean_anomaly_at_epoch)
 
 
 # Include guard
