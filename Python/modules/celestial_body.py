@@ -34,9 +34,19 @@ gravitational_constant = 6.67430 * pow(10, -11)  # m^3 kg-1 s-2
 
 
 # Class and function definitions
+# TODO: rethink what this does
+class Rotation:
+    """ Creates connection between the inertial and the non-inertial reference frame between the same object. """
 
-# TODO: break it to CelestialObject() and Planet() child class ??
+    def __init__(self, obliquity_vector, rotation_vector):
+        self.obliquity_vector = obliquity_vector
+        self.rotation_vector = rotation_vector
+
+
+# TODO: break it to Planet(), Asteriod() child class ??
+# TODO: merge with PlanetLocation class, or make it CelestialBody's children
 class CelestialBody:
+    """ Class for celestial bodies (planet, moon, asteroid, etc.). """
 
     def __init__(self, name, uuid, mass, radius, parent_object=None):
         self._name = name
@@ -48,16 +58,16 @@ class CelestialBody:
         self._rotation = None
 
     def set_orbit(self, parent_object, orbit: KeplerOrbit):
-        # Relate a Kepler orbit, defined in the parent star inertial reference frame
+        """ Set a Kepler orbit to the object, defined in the parent object inertial reference frame. """
         self._parent_object = parent_object
         self._orbit = orbit
 
     def set_rotation(self, rotation: Rotation):
-        # Define object rotation, in the parent star inertial reference frame
+        """ Define object rotation, in the parent object inertial reference frame. """
         self._rotation = rotation
 
-    def get_position(self, j2000_time):
-        """  """
+    def get_position(self, j2000_time: float):
+        """ Returns a 3D position vector of the object at a given time, since epoch. """
 
         # If parent object is not defined
         if self._parent_object is None or self._orbit is None:
@@ -66,21 +76,8 @@ class CelestialBody:
         # Else we add object position + parent object position
         return self._orbit.get_position(j2000_time) + self._parent_object.get_position(j2000_time)
 
-    def clear(self):
-        """ Erases all loaded and existing training data to allow refresh. """
-        self.__dict__ = {}
-
     def __str__(self):
         return str(self.__class__) + ": " + str(self.__dict__)
-
-
-# TODO: rethink what this does
-class Rotation:
-    """ Creates connection between the inertial and the non-inertial reference frame between the same object. """
-
-    def __init__(self, obliquity_vector, rotation_vector):
-        self.obliquity_vector = obliquity_vector
-        self.rotation_vector = rotation_vector
 
 
 # Include guard
