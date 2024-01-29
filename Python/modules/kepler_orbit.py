@@ -60,8 +60,8 @@ class KeplerOrbit:
         self.calculate_rotational_matrix()
 
     def calculate_rotational_matrix(self):
-        """ Calculates the rotational matrix between the inertial reference frame
-        and the orbital coordinate system.
+        """ Calculates the rotational matrix (Euler rotation 3-1-3 (Z-X-Z)) between the orbital plane and the
+        inertial reference frame.
         """
         loan = self.longitude_of_ascending_node * m.pi / 180
         aop = self.argument_of_periapsis * m.pi / 180
