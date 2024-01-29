@@ -40,6 +40,7 @@ def angle_vector(vector_a, vector_b) -> float:
     return m.acos(np.dot(vector_a, vector_b) /
                   (np.linalg.norm(vector_a) * np.linalg.norm(vector_b))) * 180 / m.pi
 
+
 def runge_kutta_4(func, t0: float, y0, h: float, *args):
     """ The fourth-order Runge-Kutta method approximates the solution (function) of a first-order ODE.
 
