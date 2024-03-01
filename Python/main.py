@@ -26,7 +26,7 @@ Contents
 import matplotlib.pyplot as plt
 
 # Local application imports
-import modules as mch
+import utils as mch
 from logger import MAIN_LOGGER as L
 
 # Class initializations and global variables
