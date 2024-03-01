@@ -27,9 +27,7 @@ from enum import Enum
 # Third party imports
 import numpy as np
 import matplotlib.pyplot as plt
-# import modules as mch
-from modules import math_functions as mch
-from modules import time_functions as tmf
+from utils import *
 
 # Local application imports
 from logger import MAIN_LOGGER as L
@@ -253,15 +251,15 @@ class RocketFlightProgram:
     def print_program(self):
         """ Print flight program. """
         L.info("--- FLIGHT PROFILE DATA ---")
-        L.info("MAIN ENGINE CUT OFF at T+%s (%s s)", tmf.secs_to_mins(self.meco), self.meco)
-        L.info("STAGE SEPARATION 1 at T+%s (%s s)", tmf.secs_to_mins(self.ss_1), self.ss_1)
-        L.info("SECOND ENGINE START 1 at T+%s (%s s)", tmf.secs_to_mins(self.ses_1), self.ses_1)
-        L.info("PAYLOAD FAIRING JETTISON at T+%s (%s s)", tmf.secs_to_mins(self.fairing_jettison),
+        L.info("MAIN ENGINE CUT OFF at T+%s (%s s)", secs_to_mins(self.meco), self.meco)
+        L.info("STAGE SEPARATION 1 at T+%s (%s s)", secs_to_mins(self.ss_1), self.ss_1)
+        L.info("SECOND ENGINE START 1 at T+%s (%s s)", secs_to_mins(self.ses_1), self.ses_1)
+        L.info("PAYLOAD FAIRING JETTISON at T+%s (%s s)", secs_to_mins(self.fairing_jettison),
                self.fairing_jettison)
-        L.info("SECOND ENGINE CUT OFF 1 at T+%s (%s s)", tmf.secs_to_mins(self.seco_1), self.seco_1)
-        L.info("SECOND ENGINE START 2 at T+%s (%s s)", tmf.secs_to_mins(self.ses_2), self.ses_2)
-        L.info("SECOND ENGINE CUT OFF 2 at T+%s (%s s)", tmf.secs_to_mins(self.seco_2), self.seco_2)
-        L.info("STAGE SEPARATION 2 at T+%s (%s s)", tmf.secs_to_mins(self.ss_2), self.ss_2)
+        L.info("SECOND ENGINE CUT OFF 1 at T+%s (%s s)", secs_to_mins(self.seco_1), self.seco_1)
+        L.info("SECOND ENGINE START 2 at T+%s (%s s)", secs_to_mins(self.ses_2), self.ses_2)
+        L.info("SECOND ENGINE CUT OFF 2 at T+%s (%s s)", secs_to_mins(self.seco_2), self.seco_2)
+        L.info("STAGE SEPARATION 2 at T+%s (%s s)", secs_to_mins(self.ss_2), self.ss_2)
 
 
 class RocketLaunch:
@@ -364,8 +362,8 @@ class RocketLaunch:
             # FIXME: cleanup, and investigate how this works exactly
             unit_r = r / np.linalg.norm(r)
             orbital_plane_vector = np.cross(unit_r, np.array([1, 0, 0]))
-            unit_opv = mch.unit_vector(orbital_plane_vector)
-            a_thrust = mch.rodrigues_rotation(thrust * unit_r, unit_opv, 0.01 * m.pi / 180)
+            unit_opv = unit_vector(orbital_plane_vector)
+            a_thrust = rodrigues_rotation(thrust * unit_r, unit_opv, 0.01 * m.pi / 180)
 
         else:  # Gravity assist -> Thrust is parallel with velocity
             a_thrust = thrust * (v / np.linalg.norm(v))
@@ -386,7 +384,7 @@ class RocketLaunch:
         # target_velocity = 0
 
         # Update state vector with initial conditions
-        r_rocket = mch.convert_spherical_to_cartesian_coords(self.central_body.surface_radius,
+        r_rocket = convert_spherical_to_cartesian_coords(self.central_body.surface_radius,
                                                              self.central_body.latitude * m.pi / 180,
                                                              self.central_body.longitude * m.pi / 180)
 
@@ -405,7 +403,7 @@ class RocketLaunch:
             # RK4 numerical integrator function, which then solves for the velocity function.
             # Passing not only the acceleration vector, but the velocity vector to the RK4, we can numerically
             # integrate twice with one function-call, thus we get back the full state-vector.
-            self.state, state_dot = mch.runge_kutta_4(self.launch_ode, time, self.state, timestep, timestep)
+            self.state, state_dot = runge_kutta_4(self.launch_ode, time, self.state, timestep, timestep)
             acceleration = state_dot[3:6]
 
             # Set mass for rocket: burn mass, and evaluate staging events
