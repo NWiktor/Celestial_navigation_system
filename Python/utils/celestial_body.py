@@ -110,12 +110,13 @@ class Atmosphere:
         self.model_name = model_name
         self.atmosphere_limit_m = atmosphere_limit_m  # Upper limit, lower is always zero
 
-    def apply_limits(self, altitude):
+    # TODO: remove this function
+    def apply_limits(self, altitude) -> int:
         """ Checks if given value is within range of the valid atmospheric model. Returns the applicable value. """
         return min(max(0, altitude), self.atmosphere_limit_m)
 
     # pylint: disable = unused-argument
-    def atmospheric_model(self, altitude) -> tuple(float):
+    def atmospheric_model(self, altitude) -> tuple[float, float, float]:
         """ Returns the pressure, temperature, density values.
         Placeholder function for override by child.
         """
@@ -140,7 +141,7 @@ class EarthAtmosphere(Atmosphere):
     def __init__(self):
         super().__init__("standard atmosphere", 120000)
 
-    def atmospheric_model(self, altitude: float) -> float:
+    def atmospheric_model(self, altitude: float) -> tuple[float, float, float]:
         """ Returns the pressure, temperature, density values of the atmosphere depending on the altitude measured
         from sea level. Calculation is based ont the standard atmosphere model, which has three separate zones.
         """
