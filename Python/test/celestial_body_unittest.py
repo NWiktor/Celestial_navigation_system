@@ -1,7 +1,6 @@
 import unittest
 import matplotlib.pyplot as plt
-
-from Python.utils.celestial_body import EarthAtmosphere
+from Python.utils import EarthAtmosphere
 
 
 class TestEarthAtmosphere(unittest.TestCase):
