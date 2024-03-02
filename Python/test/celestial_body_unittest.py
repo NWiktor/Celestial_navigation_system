@@ -5,8 +5,6 @@ from Python.utils import EarthAtmosphere
 
 class TestEarthAtmosphere(unittest.TestCase):
 
-    atmosphere = EarthAtmosphere()
-
     def test_limits(self):
         self.assertEqual(True, False, "add assertion here")
 
@@ -19,7 +17,7 @@ class TestEarthAtmosphere(unittest.TestCase):
         pres = []
         rho = []
         for i in range(0, 100_000):
-            data = atmosphere.atmospheric_model(i)
+            data = EarthAtmosphere().atmospheric_model(i)
             alt.append(i)
             tmp.append(data[0])
             pres.append(data[1])
