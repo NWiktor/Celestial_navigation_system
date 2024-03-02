@@ -37,7 +37,7 @@ from logging.handlers import RotatingFileHandler
 # NOTE: Wihtout this, the .exe file not works!
 if getattr(sys, 'frozen', False):
     initdir = os.path.dirname(sys.executable)
-elif __file__:
+else:
     initdir = os.path.dirname(__file__)
 
 # Set defaults
