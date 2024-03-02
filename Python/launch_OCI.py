@@ -30,7 +30,7 @@ import matplotlib.pyplot as plt
 from utils import *
 
 # Local application imports
-from logger import MAIN_LOGGER as L
+from logger_setup import MAIN_LOGGER as L
 
 
 @dataclass
