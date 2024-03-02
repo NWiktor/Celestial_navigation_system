@@ -22,13 +22,13 @@ Contents
 # Standard library imports
 # First import should be the logging module if any!
 import math as m
+import logging
+logger = logging.getLogger(__name__)
 
 # Third party imports
 import numpy as np
 
 # Local application imports
-# from logger import MAIN_LOGGER as L
-
 
 def unit_vector(vector) -> np.array:
     """  """
@@ -58,6 +58,7 @@ def runge_kutta_4(func, t0: float, y0, h: float, *args):
     https://lpsa.swarthmore.edu/NumInt/NumIntFourth.html
     https://www.youtube.com/watch?v=TzX6bg3Kc0E&list=PLOIRBaljOV8hBJS4m6brpmUrncqkyXBjB&index=5
     """
+    logging.info("ahahaha")
     k1 = func(t0, y0, *args)
     k2 = func(t0 + 0.5 * h, y0 + 0.5 * k1 * h, *args)
     k3 = func(t0 + 0.5 * h, y0 + 0.5 * k2 * h, *args)

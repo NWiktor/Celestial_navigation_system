@@ -22,11 +22,11 @@ Contents
 # Standard library imports
 # First import should be the logging module if any!
 import datetime
-
+import logging
 # Third party imports
 
 # Local application imports
-from logger import MAIN_LOGGER as L
+# from logger_setup import MAIN_LOGGER as L
 
 # Class initializations and global variables
 
@@ -42,7 +42,7 @@ def julian_date(year, month, day, hour, minute, second=0):
     """
     jdn = datetime.date(year, month, day).toordinal() + 1721424.5
     jd_ = jdn + hour/24 + minute/1440 + second/86400
-    L.debug(f"Julian date number of {year}-{month:02d}-{day:02d} {hour:02d}:{minute:02d}:{second:02d} is: {jd_}")
+    logging.debug(f"Julian date number of {year}-{month:02d}-{day:02d} {hour:02d}:{minute:02d}:{second:02d} is: {jd_}")
     return jd_
 
 
@@ -53,7 +53,7 @@ def j2000_date(year, month, day, hour, minute, second=0):
     """
     julian_d = julian_date(year, month, day, hour, minute, second)
     j2000 = 2000 + (julian_d - 2451545.0) / 365.25
-    L.debug(f"J2000 date of {year}-{month:02d}-{day:02d} {hour:02d}:{minute:02d}:{second:02d} is: {j2000}")
+    logging.debug(f"J2000 date of {year}-{month:02d}-{day:02d} {hour:02d}:{minute:02d}:{second:02d} is: {j2000}")
     return j2000
 
 
@@ -68,5 +68,4 @@ def secs_to_mins(total_seconds) -> str:
 
 # Include guard
 if __name__ == '__main__':
-    julian_date(2024, 1, 1, 13, 26, 34)
-    j2000_date(2000, 1, 1, 12, 00)
+    pass

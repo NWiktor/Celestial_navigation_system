@@ -27,10 +27,10 @@ from enum import Enum
 # Third party imports
 import numpy as np
 import matplotlib.pyplot as plt
-from utils import *
 
 # Local application imports
-from logger_setup import MAIN_LOGGER as L
+from common.logger_setup import MAIN_LOGGER as L
+from utils import secs_to_mins, convert_spherical_to_cartesian_coords, runge_kutta_4, unit_vector, rodrigues_rotation
 
 
 @dataclass
@@ -529,7 +529,7 @@ def plot(rocketlaunch: RocketLaunch, inclination):
 
 
 # Include guard
-if __name__ == '__main__':
+def main():
     """ Example SpaceX Falcon 9 launch demonstrating the use of the PlanetLocation, Stage and RocketLaunch classes.
     
     The function calculates and plots flight parameters during and after liftoff.
@@ -559,3 +559,8 @@ if __name__ == '__main__':
 
     # Plot launch
     plot(falcon9, 28.5)
+
+
+# Include guard
+if __name__ == '__main__':
+    main()

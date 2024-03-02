@@ -18,6 +18,9 @@ running.
 
 Help
 ----
+* https://www.youtube.com/watch?v=9L77QExPmI0&t=3s
+* https://github.com/mCodingLLC/VideosSampleCode/blob/master/videos/135_modern_\
+logging/logging_configs/2-stderr-json-file.json
 * https://www.toptal.com/python/in-depth-python-logging
 * https://stackoverflow.com/questions/15727420/using-logging-in-multiple-modules
 * https://stackoverflow.com/questions/404744/determining-application-path-in-a-python-\
@@ -28,9 +31,11 @@ Contents
 """
 
 
-import logging
+import logging.config
 import os
 import sys
+import json
+import pathlib
 from logging.handlers import RotatingFileHandler
 
 
@@ -45,29 +50,37 @@ LOG_DIRPATH = "log/"
 LOG_FILENAME = "main.txt"
 MAIN_LOGGER = None
 LOG_FILE = os.path.join(initdir, LOG_DIRPATH, LOG_FILENAME)
-FORMATTER = logging.Formatter(
-    '%(asctime)s %(module)s [%(levelname)s] : %(message)s',
-    datefmt='%Y/%m/%d %H:%M:%S')
+# FORMATTER = logging.Formatter(
+#     '%(asctime)s %(module)s [%(levelname)s] : %(message)s',
+#     datefmt='%Y/%m/%d %H:%M:%S')
 
 # If logging folder is missing, create it
 if not os.path.isdir(os.path.join(initdir, LOG_DIRPATH)):
     os.mkdir(os.path.join(initdir, LOG_DIRPATH))
 
 # Initializes logger for all the modules
-MAIN_LOGGER = logging.getLogger("Main")
-MAIN_LOGGER.setLevel(logging.DEBUG)
-# Console handler
-console_handler = logging.StreamHandler(sys.stdout)
-console_handler.setLevel(logging.DEBUG)
-console_handler.setFormatter(FORMATTER)
-MAIN_LOGGER.addHandler(console_handler)
+MAIN_LOGGER = logging.getLogger("cns_main")  # Eddig OK
 
-# File handler, no upper limit, max. 5 run is logged
-file_handler = RotatingFileHandler(LOG_FILE, maxBytes=0, backupCount=5)
-file_handler.setLevel(logging.INFO)
-file_handler.setFormatter(FORMATTER)
-file_handler.doRollover()  # Rolls log at each start
-MAIN_LOGGER.addHandler(file_handler)
+config_file = pathlib.Path("common\logging_config.json")
+with open(config_file, "r") as f:
+    config = json.load(f)
+logging.config.dictConfig(config)
+
+
+####
+# MAIN_LOGGER.setLevel(logging.DEBUG)
+# # Console handler
+# console_handler = logging.StreamHandler(sys.stdout)
+# console_handler.setLevel(logging.DEBUG)
+# console_handler.setFormatter(FORMATTER)
+# MAIN_LOGGER.addHandler(console_handler)
+#
+# # File handler, no upper limit, max. 5 run is logged
+# file_handler = RotatingFileHandler(LOG_FILE, maxBytes=0, backupCount=5)
+# file_handler.setLevel(logging.INFO)
+# file_handler.setFormatter(FORMATTER)
+# file_handler.doRollover()  # Rolls log at each start
+# MAIN_LOGGER.addHandler(file_handler)
 MAIN_LOGGER.info("Main logger created!")
 
 

@@ -27,7 +27,7 @@ import matplotlib.pyplot as plt
 
 # Local application imports
 import utils as mch
-from logger import MAIN_LOGGER as L
+from logger_setup import MAIN_LOGGER as L
 
 # Class initializations and global variables
 gravitational_constant = 6.67430 * pow(10, -11)  # m^3 kg-1 s-2

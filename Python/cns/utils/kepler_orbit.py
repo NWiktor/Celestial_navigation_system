@@ -23,12 +23,13 @@ Contents
 # Standard library imports
 # First import should be the logging module if any!
 import math as m
+import logging
 
 # Third party imports
 import numpy as np
 
 # Local application imports
-from logger import MAIN_LOGGER as L
+# from logger import MAIN_LOGGER as L
 
 # Class initializations and global variables
 gravitational_constant = 6.67430e-11  # m^3 kg^-1 s^-2
@@ -95,7 +96,7 @@ class KeplerOrbit:
         # Converting km to m in semimajor axis, and convert seconds to days
         self.orbital_period = 2 * m.pi * m.sqrt(pow(self.semimajor_axis * 1000, 3)
                                                 / ((mass1 + mass2) * gravitational_constant)) / 86400
-        L.debug("Orbital period is %s", self.orbital_period)
+        logging.debug("Orbital period is %s", self.orbital_period)
         self.calculate_mean_angular_motion()
 
     def get_position(self, j2000_time):
@@ -104,7 +105,7 @@ class KeplerOrbit:
         """
         # Calculate mean anomaly at J2000, in deg
         mean_anomaly = (self.mean_anomaly_at_epoch + (self.mean_angular_motion * j2000_time)) % 360
-        L.debug("Mean anomaly is %s°", mean_anomaly)
+        logging.debug("Mean anomaly is %s°", mean_anomaly)
 
         # Calculate eccentric anomaly according to:
         # https://space.stackexchange.com/questions/55356/how-to-find-eccentric-anomaly-by-mean-anomaly
@@ -118,7 +119,7 @@ class KeplerOrbit:
             if abs(eca1 - eca0) > 0.0000001:
                 eca0 = eca1
             else:
-                L.debug("Eccentric anomaly is %s rad, found at %s. iteration.", eca1, i)
+                logging.debug("Eccentric anomaly is %s rad, found at %s. iteration.", eca1, i)
                 break
 
         # Calculate state variables (position and velocity) in orbital plane
