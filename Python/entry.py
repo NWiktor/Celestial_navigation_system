@@ -1,8 +1,9 @@
 import json
 import logging
-import log.logger_setup
+import common.logger_setup
 import common.launch_OCI
 
+common.logger_setup.config_logger()
 
 with open("database/config_settings.json", "r", encoding="utf-8") as f:
     config = json.load(f)

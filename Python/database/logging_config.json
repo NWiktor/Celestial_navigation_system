@@ -18,7 +18,7 @@
             "class": "logging.handlers.RotatingFileHandler",
             "level": "INFO",
             "formatter": "detailed",
-            "filename": "log/main.txt",
+            "filename": ">>overriden_by_script<<",
             "maxBytes": 0,
             "backupCount": 5
         }
