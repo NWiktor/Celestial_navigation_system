@@ -3,8 +3,8 @@
     "disable_existing_loggers": false,
     "formatters": {
         "detailed": {
-            "format": "%(asctime)s %(module)s [%(levelname)s] : %(message)s",
-            "datefmt": "%Y-%m-%dT %H:%M:%S%z"
+            "format": "%(asctime)s [%(module)s] [%(levelname)s] : %(message)s",
+            "datefmt": "%Y-%m-%d %H:%M:%S%z"
         }
     },
     "handlers": {
@@ -17,8 +17,8 @@
         "file": {
             "class": "logging.handlers.RotatingFileHandler",
             "level": "INFO",
-            "formatter": "log/main.txt",
-            "filename": "xxxx",
+            "formatter": "detailed",
+            "filename": "log/main.txt",
             "maxBytes": 0,
             "backupCount": 5
         }

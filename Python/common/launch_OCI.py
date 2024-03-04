@@ -29,7 +29,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Local application imports
-from common.logger_setup import MAIN_LOGGER as L
+from log.logger_setup import MAIN_LOGGER as L
 from utils import secs_to_mins, convert_spherical_to_cartesian_coords, runge_kutta_4, unit_vector, rodrigues_rotation
 
 
