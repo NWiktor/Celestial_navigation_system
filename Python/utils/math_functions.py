@@ -20,13 +20,15 @@ Contents
 """
 
 # Standard library imports
-# First import should be the logging module if any!
 import math as m
 import logging
-logger = logging.getLogger(__name__)
-import numpy as np
+
 # Third party imports
+import numpy as np
+
 # Local application imports
+
+logger = logging.getLogger(__name__)
 
 
 def unit_vector(vector) -> np.array:
