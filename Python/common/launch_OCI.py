@@ -19,6 +19,8 @@ Contents
 
 # Standard library imports
 # First import should be the logging module if any!
+import logging
+logger = logging.getLogger(__name__)
 from dataclasses import dataclass
 import math as m
 from typing import Union
@@ -29,7 +31,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Local application imports
-from log.logger_setup import MAIN_LOGGER as L
 from utils import secs_to_mins, convert_spherical_to_cartesian_coords, runge_kutta_4, unit_vector, rodrigues_rotation
 
 
@@ -52,13 +53,13 @@ class PlanetLocation:
     # pylint: disable = unused-argument
     def get_density(self, altitude) -> float:
         """ Placeholder function for override by child. """
-        L.error("Missing function!")
+        logger.error("Missing function!")
         return 0.0
 
     # pylint: disable = unused-argument
     def get_pressure(self, altitude) -> float:
         """ Placeholder function for override by child. """
-        L.error("Missing function!")
+        logger.error("Missing function!")
         return 0.0
 
     def get_relative_velocity(self, state: np.array) -> float:
@@ -140,7 +141,7 @@ class Stage:
             # If a list is given, linearly interpolating between them by the pressure-ratio
             return float(np.interp(pressure_ratio, [0, 1], self.specific_impulse))
 
-        L.warning("Specific impulse is not in the expected format (float or list of floats)!")
+        logger.warning("Specific impulse is not in the expected format (float or list of floats)!")
         return 0.0
 
     def burn_mass(self, mass: float, time) -> None:
@@ -148,7 +149,7 @@ class Stage:
         Returns the percentage of fuel left in the tanks.
         """
         self._propellant_mass = max(0.0, self._propellant_mass - abs(mass))
-        L.debug("Fuel left %.2f %% at (%s s)", self.get_propellant_percentage(), time)
+        logger.debug("Fuel left %.2f %% at (%s s)", self.get_propellant_percentage(), time)
 
 
 class RocketEngineStatus(Enum):
@@ -250,16 +251,16 @@ class RocketFlightProgram:
 
     def print_program(self):
         """ Print flight program. """
-        L.info("--- FLIGHT PROFILE DATA ---")
-        L.info("MAIN ENGINE CUT OFF at T+%s (%s s)", secs_to_mins(self.meco), self.meco)
-        L.info("STAGE SEPARATION 1 at T+%s (%s s)", secs_to_mins(self.ss_1), self.ss_1)
-        L.info("SECOND ENGINE START 1 at T+%s (%s s)", secs_to_mins(self.ses_1), self.ses_1)
-        L.info("PAYLOAD FAIRING JETTISON at T+%s (%s s)", secs_to_mins(self.fairing_jettison),
-               self.fairing_jettison)
-        L.info("SECOND ENGINE CUT OFF 1 at T+%s (%s s)", secs_to_mins(self.seco_1), self.seco_1)
-        L.info("SECOND ENGINE START 2 at T+%s (%s s)", secs_to_mins(self.ses_2), self.ses_2)
-        L.info("SECOND ENGINE CUT OFF 2 at T+%s (%s s)", secs_to_mins(self.seco_2), self.seco_2)
-        L.info("STAGE SEPARATION 2 at T+%s (%s s)", secs_to_mins(self.ss_2), self.ss_2)
+        logger.info("--- FLIGHT PROFILE DATA ---")
+        logger.info("MAIN ENGINE CUT OFF at T+%s (%s s)", secs_to_mins(self.meco), self.meco)
+        logger.info("STAGE SEPARATION 1 at T+%s (%s s)", secs_to_mins(self.ss_1), self.ss_1)
+        logger.info("SECOND ENGINE START 1 at T+%s (%s s)", secs_to_mins(self.ses_1), self.ses_1)
+        logger.info("PAYLOAD FAIRING JETTISON at T+%s (%s s)", secs_to_mins(self.fairing_jettison),
+                    self.fairing_jettison)
+        logger.info("SECOND ENGINE CUT OFF 1 at T+%s (%s s)", secs_to_mins(self.seco_1), self.seco_1)
+        logger.info("SECOND ENGINE START 2 at T+%s (%s s)", secs_to_mins(self.ses_2), self.ses_2)
+        logger.info("SECOND ENGINE CUT OFF 2 at T+%s (%s s)", secs_to_mins(self.seco_2), self.seco_2)
+        logger.info("STAGE SEPARATION 2 at T+%s (%s s)", secs_to_mins(self.ss_2), self.ss_2)
 
 
 class RocketLaunch:
@@ -428,7 +429,7 @@ class RocketLaunch:
             # TODO: implement checks for mass, target velocity, etc.
             altitude_above_surface = np.linalg.norm(self.state[0:3]) - self.central_body.surface_radius
             if altitude_above_surface <= 0:
-                L.warning("WARNING! LITHOBRAKING!")
+                logger.warning("WARNING! LITHOBRAKING!")
                 break
 
             # Yield values
