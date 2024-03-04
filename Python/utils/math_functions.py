@@ -24,11 +24,10 @@ Contents
 import math as m
 import logging
 logger = logging.getLogger(__name__)
-
-# Third party imports
 import numpy as np
-
+# Third party imports
 # Local application imports
+
 
 def unit_vector(vector) -> np.array:
     """  """
@@ -89,9 +88,9 @@ def rotation_z(angle: float):
                      [0, 0, 1]])
 
 
-# ReST syntax generates 'invalid-escape-sequence' warning
-# pylint: disable = anomalous-backslash-in-string
 def rodrigues_rotation(vector_v, vector_k, theta):
+    # ReST syntax generates 'invalid-escape-sequence' warning
+    # pylint: disable = anomalous-backslash-in-string
     """Implements Rodrigues rotation.
 
     Calculates the rotated V vector (V\ :sub:`rot`\), based on Rodrigues
