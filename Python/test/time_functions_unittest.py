@@ -1,6 +1,6 @@
 # pylint: disable = missing-module-docstring
 import unittest
-from Python.utils import time_functions as tf
+from utils import time_functions as tf
 
 
 # pylint: disable = missing-class-docstring

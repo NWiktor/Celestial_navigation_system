@@ -26,11 +26,9 @@ import logging
 # Third party imports
 
 # Local application imports
-# from logger_setup import MAIN_LOGGER as L
 
 # Class initializations and global variables
-
-# Class and function definitions
+logger = logging.getLogger(__name__)
 
 
 def julian_date(year, month, day, hour, minute, second=0):

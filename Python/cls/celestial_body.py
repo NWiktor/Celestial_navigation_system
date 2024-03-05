@@ -27,7 +27,7 @@ import math as m
 import numpy as np
 
 # Local application imports
-from utils.kepler_orbit import KeplerOrbit
+from cls.kepler_orbit import KeplerOrbit
 
 # Class initializations and global variables
 gravitational_constant: float = 6.67430 * pow(10, -11)  # m^3 kg-1 s-2

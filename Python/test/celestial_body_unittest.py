@@ -1,18 +1,23 @@
 # pylint: disable = missing-module-docstring
 import unittest
 import matplotlib.pyplot as plt
-from Python.utils import EarthAtmosphere
+from cls import EarthAtmosphere
 
 
 class TestEarthAtmosphere(unittest.TestCase):
-    """ aaaa """
+    """ Unittest functions for EarthAtmosphere class. """
+
+    @classmethod
+    def setUpClass(self):
+        self.atm = EarthAtmosphere()
 
     def test_apply_limits(self):
         """ Test for put of limit values. """
 
-        test_class = EarthAtmosphere()
-
-        self.assertEqual(test_class.apply_limits(-2), 0, "Should be zero for negativ values!")
+        self.assertEqual(self.atm.apply_limits(-2), 0, "Should be zero for negativ values!")
+        self.assertEqual(self.atm.apply_limits(0), 0, "Should be zero for 0!")
+        self.assertEqual(self.atm.apply_limits(120000), 120000, "Should be 120000 for 120000!")
+        self.assertEqual(self.atm.apply_limits(120001), 120000, "Should be 120000 for values higher than 120000!")
 
 
 def test_plot_atmosphere():
@@ -60,7 +65,9 @@ def test_plot_atmosphere():
     ax3.scatter(alt, rho, s=0.5, color="g")
     ax3.tick_params(axis='y', labelcolor="g")
 
+    plt.show()
+
 
 if __name__ == '__main__':
-    unittest.main()
-    test_plot_atmosphere()
+    unittest.main(exit=False)
+    # test_plot_atmosphere()
