@@ -69,5 +69,5 @@ def test_plot_atmosphere():
 
 
 if __name__ == '__main__':
-    unittest.main(exit=False)
+    unittest.main()
     # test_plot_atmosphere()
