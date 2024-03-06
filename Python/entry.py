@@ -2,6 +2,7 @@ import json
 import logging
 import common.logger_setup
 import common.launch_OCI
+import cls.atmosphere
 
 common.logger_setup.config_logger()
 
@@ -17,4 +18,5 @@ __version__: str = (f"{config['program_build']}."
 logging.info("Program version: %s, %s", __version__, __author__)
 
 # Start main
-common.launch_OCI.main()
+# common.launch_OCI.main()
+cls.atmosphere.plot_atmosphere()
