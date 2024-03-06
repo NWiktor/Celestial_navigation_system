@@ -21,7 +21,6 @@ Contents
 
 # Standard library imports
 import logging
-import math as m
 import numpy as np
 
 # Local application imports

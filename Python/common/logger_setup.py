@@ -8,7 +8,7 @@ the root logger by the 'logging_config.json' file.
 
 **IMPORTANT: THE DEFAULT TWO HANDLER MUST BE UNCHANGED!**
 The 'file' handler filepath is programatically modified to match the indented location independent of the
-install location. Also, the 'file' handler executes a rollover at every start. When modifying the config file,
+installation location. Also, the 'file' handler executes a rollover at every start. When modifying the config file,
 this two handler and their order must be unchanged because it is hardcoded in this script.
 
 **EVERY MODUL WITHIN THIS PROJECT SCOPE

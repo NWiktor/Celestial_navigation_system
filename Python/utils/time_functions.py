@@ -20,11 +20,9 @@ Contents
 """
 
 # Standard library imports
-# First import should be the logging module if any!
 import datetime
 import logging
 # Third party imports
-
 # Local application imports
 
 # Class initializations and global variables
