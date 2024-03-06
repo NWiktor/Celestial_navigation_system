@@ -52,6 +52,18 @@ LOG_DIRNAME = "log"
 LOG_PATH = os.path.join(INITDIR, LOG_DIRNAME, LOG_FILENAME)
 
 
+class FilterFontManager(logging.Filter):
+    """ Disable matplotlib.font_manager logs. """
+    def filter(self, record) -> bool:
+        return record.name != "matplotlib.font_manager"
+
+
+class FilterPngImagePlugin(logging.Filter):
+    """ Disable PIL.PngImagePlugin logs. """
+    def filter(self, record) -> bool:
+        return record.name != "PIL.PngImagePlugin"
+
+
 def config_logger():
     """ Configures root logger using the predefined config file.
     Every child logger will inherit the root logger configs, so no need to do that every time.
