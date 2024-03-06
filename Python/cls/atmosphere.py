@@ -103,8 +103,8 @@ class EarthAtmosphere(Atmosphere):
 
         # Calculate air density and return values
         air_density = pressure / (0.2869 * (temperature + 273.1))
-        logging.debug("Atmospheric temp.: %.6f (K), pres.: %.6f (kPa) and air density: %.6f (kg/m3) @  %s (m)",
-                      temperature, pressure, air_density, altitude)
+        logger.debug("Atmospheric temp.: %.6f (C°), pres.: %.6f (kPa) and air density: %.6f (kg/m3) @ %s (m)",
+                     temperature, pressure, air_density, altitude)
         return temperature, pressure, air_density
 
 
@@ -166,8 +166,39 @@ class EarthAtmosphereUS1976(Atmosphere):
 
         # Calculate air density and return values
         air_density = pressure / (0.2869 * temperature)
-        logging.debug("Atmospheric temp.: %.6f (K), pres.: %.6f (kPa) and air density: %.6f (kg/m3) @  %s (m)",
-                      temperature, pressure, air_density, altitude)
+        logger.debug("Atmospheric temp.: %.6f (K), pres.: %.6f (kPa) and air density: %.6f (kg/m3) @ %s (m)",
+                     temperature, pressure, air_density, altitude)
+        return temperature, pressure, air_density
+
+
+class MarsAtmosphere(Atmosphere):
+    """  Standard model of Mars Atmosphere according to NASA:
+    https://www.grc.nasa.gov/www/k-12/airplane/atmosmrm.html
+    """
+
+    def __init__(self):
+        super().__init__("Standard Martian atmosphere, NASA", 0, 60000)
+
+    def _atmospheric_model(self, altitude: float) -> tuple[float, float, float]:
+        """ Returns the temperature, pressure, density values of the atmosphere depending on the altitude measured
+        from surface level. Calculation uses two separate zones (layers) and based on measurements made by the
+        Mars Global Surveyor in April 1996.
+        """
+        temperature = -31  # C°
+        pressure = 0.7  # kPa
+
+        if 0 < altitude <= 7000:  # Troposhere
+            temperature = -31 - 0.000998 * altitude
+            pressure = 0.699 * m.exp(-0.00009 * altitude)
+
+        elif 7000 < altitude:  # Upper stratosphere
+            temperature = -23.4 - 0.00222 * altitude
+            pressure = 0.699 * m.exp(-0.00009 * altitude)
+
+        # Calculate air density and return values
+        air_density = pressure / (0.1921 * (temperature + 273.1))
+        logger.debug("Atmospheric temp.: %.6f (C°), pres.: %.6f (kPa) and air density: %.6f (kg/m3) @ %s (m)",
+                     temperature, pressure, air_density, altitude)
         return temperature, pressure, air_density
 
 
@@ -215,7 +246,8 @@ def plot_atmosphere(model):
 
 
 def module_test():
-    plot_atmosphere(EarthAtmosphereUS1976())
+    # plot_atmosphere(EarthAtmosphereUS1976())
+    plot_atmosphere(MarsAtmosphere())
 
 
 # Include guard
