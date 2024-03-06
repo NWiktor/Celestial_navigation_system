@@ -1,6 +1,5 @@
 # pylint: disable = missing-module-docstring
 import unittest
-import matplotlib.pyplot as plt
 from cls import EarthAtmosphere
 
 
@@ -22,4 +21,3 @@ class TestEarthAtmosphere(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-    # test_plot_atmosphere()
