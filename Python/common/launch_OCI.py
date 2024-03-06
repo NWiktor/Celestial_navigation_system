@@ -20,7 +20,6 @@ Contents
 # Standard library imports
 # First import should be the logging module if any!
 import logging
-logger = logging.getLogger(__name__)
 from dataclasses import dataclass
 import math as m
 from typing import Union
@@ -32,6 +31,8 @@ import matplotlib.pyplot as plt
 
 # Local application imports
 from utils import secs_to_mins, convert_spherical_to_cartesian_coords, runge_kutta_4, unit_vector, rodrigues_rotation
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass

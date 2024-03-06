@@ -20,16 +20,16 @@ Contents
 """
 
 # Standard library imports
-# First import should be the logging module if any!
-
-# Third party imports
+import logging
 import math as m
 import numpy as np
 
 # Local application imports
 from cls.kepler_orbit import KeplerOrbit
+from cls.atmosphere import Atmosphere
 
 # Class initializations and global variables
+logger = logging.getLogger(__name__)
 gravitational_constant: float = 6.67430 * pow(10, -11)  # m^3 kg-1 s-2
 
 
@@ -45,68 +45,6 @@ gravitational_constant: float = 6.67430 * pow(10, -11)  # m^3 kg-1 s-2
 
 # TODO: break it to Planet(), Asteriod() child class ??
 # TODO: merge with PlanetLocation class, or make it CelestialBody's children
-class Atmosphere:
-    """ Baseclass for a generic atmospheric model. """
-
-    def __init__(self, model_name, atmosphere_limit_m: int):
-        self.model_name = model_name
-        self.atmosphere_limit_m = atmosphere_limit_m  # Upper limit, lower is always zero
-
-    # TODO: remove this function
-    def apply_limits(self, altitude) -> int:
-        """ Checks if given value is within range of the valid atmospheric model. Returns the applicable value. """
-        return min(max(0, altitude), self.atmosphere_limit_m)
-
-    # pylint: disable = unused-argument
-    # @override
-    def atmospheric_model(self, altitude) -> tuple[float, float, float]:
-        """ Returns the pressure, temperature, density values. """
-        return 0.0, 0.0, 0.0
-
-    def get_pressure(self, altitude) -> float:
-        """ Returns the pressure at a given altitude. """
-        return self.atmospheric_model(altitude)[0]
-
-    def get_temperature(self, altitude) -> float:
-        """ Returns the temperature at a given altitude. """
-        return self.atmospheric_model(altitude)[1]
-
-    def get_density(self, altitude) -> float:
-        """ Returns the density at a given altitude. """
-        return self.atmospheric_model(altitude)[2]
-
-
-class EarthAtmosphere(Atmosphere):
-    """  Standard model of Earth Atmosphere according to NASA:
-    https://www.grc.nasa.gov/www/k-12/airplane/atmosmet.html
-    """
-
-    def __init__(self):
-        super().__init__("standard atmosphere", 120000)
-
-    def atmospheric_model(self, altitude: float) -> tuple[float, float, float]:
-        """ Returns the pressure, temperature, density values of the atmosphere depending on the altitude measured
-        from sea level. Calculation is based on the standard atmosphere model, which has three separate zones.
-        """
-        alt = self.apply_limits(altitude)
-        temperature = 0.0
-        pressure = 0.0
-
-        if 0 <= altitude < 11000:  # Troposhere
-            temperature = 15.04 - 0.00649 * alt
-            pressure = 101.29 * pow((temperature + 273.1) / 288.08, 5.256)
-
-        elif 11000 <= altitude < 25000:  # Lower stratosphere
-            temperature = -56.46
-            pressure = 22.65 * m.exp(1.73 - 0.000157 * alt)
-
-        elif 25000 <= altitude:  # Upper stratosphere
-            temperature = -131.21 + 0.00299 * alt
-            pressure = 2.488 * pow((temperature + 273.1) / 216.6, -11.388)
-
-        # Calculate air density and return values
-        air_density = pressure / (0.2869 * (temperature + 273.1))
-        return pressure, temperature, air_density
 
 
 class CelestialBody:
