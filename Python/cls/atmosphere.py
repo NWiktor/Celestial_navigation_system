@@ -103,8 +103,8 @@ class EarthAtmosphere(Atmosphere):
 
         # Calculate air density and return values
         air_density = pressure / (0.2869 * (temperature + 273.1))
-        logging.debug("Atmospheric temp.: %s (K), pres.: %s (kPa) and air density: %s (kg/m3).",
-                      temperature, pressure, air_density)
+        logging.debug("Atmospheric temp.: %.6f (K), pres.: %.6f (kPa) and air density: %.6f (kg/m3) @  %s (m)",
+                      temperature, pressure, air_density, altitude)
         return temperature, pressure, air_density
 
 
@@ -166,12 +166,12 @@ class EarthAtmosphereUS1976(Atmosphere):
 
         # Calculate air density and return values
         air_density = pressure / (0.2869 * temperature)
-        logging.debug("Atmospheric temp.: %s (K), pres.: %s (kPa) and air density: %s (kg/m3).",
-                      temperature, pressure, air_density)
+        logging.debug("Atmospheric temp.: %.6f (K), pres.: %.6f (kPa) and air density: %.6f (kg/m3) @  %s (m)",
+                      temperature, pressure, air_density, altitude)
         return temperature, pressure, air_density
 
 
-def plot_atmosphere(model, testheight):
+def plot_atmosphere(model):
     """ Plot pressure, temperature and density data of the given model, to check its validity. """
 
     alt = []
@@ -184,9 +184,6 @@ def plot_atmosphere(model, testheight):
         tmp.append(data[0])
         pres.append(data[1])
         rho.append(data[2])
-
-    temp = model.get_atm_params(testheight)
-    logging.debug("Atmospheric temp.: %s (K), pres.: %s (kPa) and air density: %s (kg/m3).", temp[0], temp[1], temp[2])
 
     # Plotting
     plt.style.use('_mpl-gallery')
@@ -217,6 +214,10 @@ def plot_atmosphere(model, testheight):
     plt.show()
 
 
+def module_test():
+    plot_atmosphere(EarthAtmosphereUS1976())
+
+
 # Include guard
 if __name__ == '__main__':
-    plot_atmosphere(EarthAtmosphereUS1976(), 86000)
+    pass

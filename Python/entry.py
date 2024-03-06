@@ -19,4 +19,4 @@ logging.info("Program version: %s, %s", __version__, __author__)
 
 # Start main
 # common.launch_OCI.main()
-cls.atmosphere.plot_atmosphere()
+cls.atmosphere.module_test()
