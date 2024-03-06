@@ -4,5 +4,5 @@
 
 # Class imports
 from cls.celestial_body import CelestialBody
-from cls.atmosphere import Atmosphere, EarthAtmosphere
+from cls.atmosphere import Atmosphere, EarthAtmosphereUS1976
 from cls.kepler_orbit import KeplerOrbit

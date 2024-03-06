@@ -37,9 +37,10 @@ universal_gas_constant = 8.3144598  # N·m/(mol·K)
 class Atmosphere:
     """ Baseclass for a generic atmospheric model. """
 
-    def __init__(self, model_name, atmosphere_limit_m: int):
+    def __init__(self, model_name, atm_lower_limit_m: int, atm_upper_limit_m: int):
         self.model_name = model_name
-        self.atmosphere_limit_m = atmosphere_limit_m  # Upper limit, lower is always zero
+        self.atm_lower_limit_m = atm_lower_limit_m  # Lower limit
+        self.atm_upper_limit_m = atm_upper_limit_m  # Upper limit
 
     def _apply_limits(self, altitude) -> int:
         """ If the given value is out of range of the valid atmospheric model, returns the applicable value.
@@ -47,7 +48,7 @@ class Atmosphere:
         When the altitude smaller than 0, there is solid ground, no atmosphere; this case should be handled
         anyway elsewhere. When altitude is above range, there is space (no pressure, no atmosphere).
         """
-        return min(max(0, altitude), self.atmosphere_limit_m)
+        return min(max(self.atm_lower_limit_m, altitude), self.atm_upper_limit_m)
 
     # pylint: disable = unused-argument
     # @override
@@ -78,7 +79,7 @@ class EarthAtmosphere(Atmosphere):
     """
 
     def __init__(self):
-        super().__init__("Standard atmosphere, simplified, NASA", 30000)
+        super().__init__("Standard atmosphere, simplified, NASA", 0, 30000)
 
     def _atmospheric_model(self, altitude: float) -> tuple[float, float, float]:
         """ Returns the temperature, pressure, density values of the atmosphere depending on the altitude measured
@@ -102,6 +103,8 @@ class EarthAtmosphere(Atmosphere):
 
         # Calculate air density and return values
         air_density = pressure / (0.2869 * (temperature + 273.1))
+        logging.debug("Atmospheric temp.: %s (K), pres.: %s (kPa) and air density: %s (kg/m3).",
+                      temperature, pressure, air_density)
         return temperature, pressure, air_density
 
 
@@ -111,7 +114,7 @@ class EarthAtmosphereUS1976(Atmosphere):
     """
 
     def __init__(self):
-        super().__init__("US. standard atmosphere, 1976", 100000)
+        super().__init__("US. standard atmosphere, 1976", 0, 100000)
 
     def _atmospheric_model(self, altitude: float) -> tuple[float, float, float]:
         """ Returns the temperature, pressure, density values of the atmosphere depending on the altitude measured
@@ -168,21 +171,21 @@ class EarthAtmosphereUS1976(Atmosphere):
         return temperature, pressure, air_density
 
 
-def plot_atmosphere():
-    """ Plot pressure, temperature and density data to check atmospher model. """
+def plot_atmosphere(model, testheight):
+    """ Plot pressure, temperature and density data of the given model, to check its validity. """
 
     alt = []
     tmp = []
     pres = []
     rho = []
     for i in range(0, 10000):
-        data = EarthAtmosphereUS1976().get_atm_params(i * 10)
+        data = model.get_atm_params(i * 10)
         alt.append(i*10)
         tmp.append(data[0])
         pres.append(data[1])
         rho.append(data[2])
 
-    temp = EarthAtmosphereUS1976().get_atm_params(86000)
+    temp = model.get_atm_params(testheight)
     logging.debug("Atmospheric temp.: %s (K), pres.: %s (kPa) and air density: %s (kg/m3).", temp[0], temp[1], temp[2])
 
     # Plotting
@@ -197,7 +200,6 @@ def plot_atmosphere():
     ax1.plot(alt, tmp, color="m")
     ax1.tick_params(axis='y', labelcolor="m")
 
-    # Flight velocity, acceleration
     ax2 = fig.add_subplot(2, 2, 2)
     ax2.set_title("Pressure")
     ax2.set_xlabel('altitude (m)')
@@ -205,7 +207,6 @@ def plot_atmosphere():
     ax2.plot(alt, pres, color="b")
     ax2.tick_params(axis='y', labelcolor="b")
 
-    # Flight velocity, acceleration
     ax3 = fig.add_subplot(2, 2, 3)
     ax3.set_title("Air density")
     ax3.set_xlabel('altitude (m)')
@@ -218,4 +219,4 @@ def plot_atmosphere():
 
 # Include guard
 if __name__ == '__main__':
-    plot_atmosphere()
+    plot_atmosphere(EarthAtmosphereUS1976(), 86000)
