@@ -26,8 +26,6 @@ import logging
 # Third party imports
 import numpy as np
 
-# Local application imports
-
 # Class initializations and global variables
 logger = logging.getLogger(__name__)
 
@@ -37,8 +35,8 @@ def unit_vector(vector) -> np.array:
     return vector / np.linalg.norm(vector)
 
 
-def angle_vector(vector_a, vector_b) -> float:
-    """ Returns the angle between teo vectors. """
+def angle_of_vectors(vector_a, vector_b) -> float:
+    """ Returns the angle between two vectors. """
     return m.acos(np.dot(vector_a, vector_b) /
                   (np.linalg.norm(vector_a) * np.linalg.norm(vector_b))) * 180 / m.pi
 
