@@ -64,7 +64,7 @@ class CelestialBody:
 
         # Phisycal properties
         self.mass_kg = mass_kg
-        self.outer_radius_m = outer_radius_m
+        self.outer_radius_m = outer_radius_m  # For 'visualization' only
         self.std_gravitational_parameter = 0.0  # m^3/s^2
 
         # Properties to be set by function
@@ -127,8 +127,9 @@ class Planet(CelestialBody):
 
 
 class Asteroid(CelestialBody):
-    def __init__(self, *args):
+    def __init__(self, *args, type: AsteriodType):
         super().__init__(*args)
+        self.type = type
 
 
 class Sun(CelestialBody):
