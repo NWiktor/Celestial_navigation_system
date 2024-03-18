@@ -1,19 +1,19 @@
 # -*- coding: utf-8 -*-
 # !/usr/bin/python3
 
-""" Summary of this code file goes here. The purpose of this module can be
-expanded in multiple sentences. Below a short free-text summary of the included
-classes and functions to give an overview. More detailed summary of the
-functions can be provided inside the function's body.
+""" This module describes the abstract Atmosphere class, and different atmospheric models (e.g. Earth and Mars).
 
 Libs
 ----
-* some_module - This is used for imported, non-standard modules, to help track
-    dependencies. Summary is not needed.
+* Matplotlib - for data visualization and test
 
 Help
 ----
-* https://en.wikipedia.org/wiki/Truncated_icosahedron
+* https://www.grc.nasa.gov/www/k-12/airplane/atmosmet.html
+* https://www.digitaldutch.com/atmoscalc/US_Standard_Atmosphere_1976.pdf
+* https://en.wikipedia.org/wiki/Barometric_formula
+* http://www.luizmonteiro.com/StdAtm.aspx
+* https://www.grc.nasa.gov/www/k-12/airplane/atmosmrm.html
 
 Contents
 --------
