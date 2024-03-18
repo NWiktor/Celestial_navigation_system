@@ -21,7 +21,7 @@ Contents
 
 # Standard library imports
 import logging
-from enum import Enum
+from enum import Enum, StrEnum
 import numpy as np
 
 # Local application imports
@@ -35,11 +35,64 @@ gravitational_constant: float = 6.67430 * pow(10, -11)  # m^3 kg-1 s-2
 
 
 # Class and function definitions
-class AsteriodType(Enum):
-    """ Describes the status of the rocket engine during liftoff. """
-    C_TYPE = 0  # Carbonaceous
-    M_TYPE = 1  # Metal type
-    S_TYPE = 2  # Silicone type
+class AsteriodType(StrEnum):
+    """ Describes the asteroid by composition. """
+    CARBON = "Carbon"
+    METAL = "Metal"
+    SILICONE = "Silicone"
+
+
+class TemperatureClass(StrEnum):
+    """ Stellar classification by its surface temperature.
+
+    https://en.wikipedia.org/wiki/Stellar_classification
+    """
+    O = "O"
+    B = "B"
+    A = "A"
+    F = "F"
+    G = "G"
+    K = "K"
+    M = "M"
+
+
+class LuminosityClass(StrEnum):
+    """ Stellar classification by its luminosity.
+
+    https://en.wikipedia.org/wiki/Stellar_classification
+    """
+    Iap = "Ia+"  # Hypergiant
+    Ia = "Ia"  # Supergiant
+    Iab = "Iab"  # Intermediate supergiant
+    Ib = "Ib"  # Less-luminous Supergiant
+    II = "II"  # Bright giant
+    III = "III"  # Giant
+    IV = "IV"  # Sub-giant
+    V = "V"  # Main-sequence star (dwarf)
+    VI = "VI"  # Subdwarf
+    VII = "VII"  # Subdwarf
+
+
+class MorganKeenanSystem:
+    """ Morgan–Keenan stellar classification system. """
+
+    def __init__(self, temp: TemperatureClass, rel_temp: float, lum: LuminosityClass):
+        self._rel_temp = rel_temp
+        self.stellar_class = f"{temp.value}{rel_temp:.1f}{lum.value}"
+
+    @property
+    def rel_temp(self):
+        return self._rel_temp
+
+    @rel_temp.setter
+    def rel_temp(self, value):
+        if 0 <= value < 10:
+            self._rel_temp = value
+        else:
+            raise ValueError('Value must be within 0-10')
+
+    def __str__(self) -> str:
+        return self.stellar_class
 
 
 class CelestialBodyRotationVector:
@@ -127,9 +180,9 @@ class Planet(CelestialBody):
 
 
 class Asteroid(CelestialBody):
-    def __init__(self, *args, type: AsteriodType):
+    def __init__(self, *args, asteroid_type: AsteriodType):
         super().__init__(*args)
-        self.type = type
+        self.asteroid_type = asteroid_type
 
 
 class Sun(CelestialBody):
@@ -143,4 +196,5 @@ class CelestialBodyLocation:
 
 # Include guard
 if __name__ == '__main__':
-    pass
+    sun = MorganKeenanSystem(TemperatureClass.G, 2, LuminosityClass.V)
+    print(sun)
