@@ -21,7 +21,7 @@ Contents
 
 # Standard library imports
 import logging
-from enum import Enum, StrEnum
+from enum import StrEnum
 import numpy as np
 
 # Local application imports
@@ -188,8 +188,10 @@ class Asteroid(CelestialBody):
 
 
 class Star(CelestialBody):
-    def __init__(self, *args, stellar_class: SpectralClass):
+    def __init__(self, *args, std_gravity, surface_radius_m, stellar_class: SpectralClass):
         super().__init__(*args)
+        self.surface_radius_m = surface_radius_m  # m
+        self.std_gravity = std_gravity  # m/s^2
         self.stellar_class = stellar_class
 
 
