@@ -40,7 +40,6 @@ universal_gas_constant = 8.3144598  # N·m/(mol·K)
 # Simulate detumbling
 
 
-
 class Attitude:
     """ Baseclass for a generic atmospheric model. """
 
@@ -78,9 +77,6 @@ class Attitude:
     def get_density(self, altitude) -> float:
         """ Returns the density at a given altitude. """
         return self._atmospheric_model(altitude)[2]
-
-
-
 
 
 def plot_atmosphere(model):
