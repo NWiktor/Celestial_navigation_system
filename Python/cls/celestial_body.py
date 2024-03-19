@@ -73,12 +73,14 @@ class LuminosityClass(StrEnum):
     VII = "VII"  # Subdwarf
 
 
-class MorganKeenanSystem:
-    """ Morgan–Keenan stellar classification system. """
+class SpectralClass:
+    """ Spectral class according to the Morgan–Keenan-Kellman (MKK) stellar classification system. """
 
-    def __init__(self, temp: TemperatureClass, rel_temp: float, lum: LuminosityClass):
-        self._rel_temp = rel_temp
-        self.stellar_class = f"{temp.value}{rel_temp:.1f}{lum.value}"
+    def __init__(self, temp_class: TemperatureClass, rel_temp: float, lum_class: LuminosityClass):
+        self.temp_class = temp_class
+        self.rel_temp = rel_temp
+        self.lum_class = lum_class
+        self.stellar_class = f"{self.temp_class.value}{self.rel_temp}{self.lum_class.value}"
 
     @property
     def rel_temp(self):
@@ -87,9 +89,9 @@ class MorganKeenanSystem:
     @rel_temp.setter
     def rel_temp(self, value):
         if 0 <= value < 10:
-            self._rel_temp = value
+            self._rel_temp = f"{value:.4g}"
         else:
-            raise ValueError('Value must be within 0-10')
+            raise ValueError("Value must be within 0-10!")
 
     def __str__(self) -> str:
         return self.stellar_class
@@ -185,9 +187,10 @@ class Asteroid(CelestialBody):
         self.asteroid_type = asteroid_type
 
 
-class Sun(CelestialBody):
-    def __init__(self, *args):
+class Star(CelestialBody):
+    def __init__(self, *args, stellar_class: SpectralClass):
         super().__init__(*args)
+        self.stellar_class = stellar_class
 
 
 class CelestialBodyLocation:
@@ -196,5 +199,5 @@ class CelestialBodyLocation:
 
 # Include guard
 if __name__ == '__main__':
-    sun = MorganKeenanSystem(TemperatureClass.G, 2, LuminosityClass.V)
+    sun = SpectralClass(TemperatureClass.G, 2, LuminosityClass.V)
     print(sun)
