@@ -33,6 +33,13 @@ standard_gravity = 9.80665  # m/s2
 air_molar_mass = 0.028964425278793993  # kg/mol
 universal_gas_constant = 8.3144598  # N·m/(mol·K)
 
+# Euler angles -> each represents an angular speed
+# base CS (OCI) rotated
+# create a randomly rotating CS
+# create function to apply torques (or angles) to stabilize randomly rotating CS
+# Simulate detumbling
+
+
 
 class Attitude:
     """ Baseclass for a generic atmospheric model. """
