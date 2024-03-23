@@ -22,7 +22,9 @@ Contents
 # Standard library imports
 import logging
 import math as m
+from enum import Enum
 import matplotlib.pyplot as plt
+import numpy as np
 
 # Local application imports
 
@@ -36,13 +38,25 @@ logger = logging.getLogger(__name__)
 # Simulate detumbling
 
 
-class Attitude:
-    """ Baseclass for a generic atmospheric model. """
+class Axes(Enum):
+    """ Relate indeces to axes. """
+    X = 0
+    Y = 1
+    Z = 2
 
-    def __init__(self, model_name, atm_lower_limit_m: int, atm_upper_limit_m: int):
-        self.model_name = model_name
-        self.atm_lower_limit_m = atm_lower_limit_m  # Lower limit
-        self.atm_upper_limit_m = atm_upper_limit_m  # Upper limit
+
+class DefCS:
+    pass
+
+
+class CoordinateSystemState:
+    """ Coordinate system state defined by Euler rotations from the default CS. """
+
+    def __init__(self, name: str, order: str, euler_angles: np.array, angular_velocity: np.array):
+        self.name = name
+        self.order = order  # i.e.: XYZ or ZXZ
+        self.euler_angles = euler_angles
+        self.angular_velocity = angular_velocity
 
 
 def plot_atmosphere(model):
