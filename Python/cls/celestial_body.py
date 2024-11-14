@@ -42,74 +42,34 @@ class AsteriodType(StrEnum):
     SILICONE = "Silicone"
 
 
-class TemperatureClass(StrEnum):
-    """ Stellar classification by its surface temperature.
+class Component:
 
-    https://en.wikipedia.org/wiki/Stellar_classification
-    """
-    O_class = "O"
-    B = "B"
-    A = "A"
-    F = "F"
-    G = "G"
-    K = "K"
-    M = "M"
-    W = "W"  # Wolf–Rayet star
-    S = "S"  # S-type star
-    C = "C"  # Carbon star
-    D = "D"  # White dwarf
-    L = "L"  # L-dwarf
-    T = "T"  # T-dwarf
-    Y = "Y"  # Y-dwarf
+    def __init__(self, material: str, percentage: float):
+        self.material = material
+        self.percentage = percentage
 
 
-class LuminosityClass(StrEnum):
-    """ Stellar classification by its luminosity.
+class Composition:
 
-    https://en.wikipedia.org/wiki/Stellar_classification
-    """
-    Iap = "Ia+"  # Hypergiant
-    Ia = "Ia"  # Supergiant
-    Iab = "Iab"  # Intermediate supergiant
-    Ib = "Ib"  # Less-luminous Supergiant
-    II = "II"  # Bright giant
-    III = "III"  # Giant
-    IV = "IV"  # Sub-giant
-    V = "V"  # Main-sequence star (dwarf)
-    VI = "VI"  # Subdwarf
-    VII = "VII"  # Subdwarf
+    def __init__(self, composition: list[Component]):
+        self.composition = composition
 
+    def validate_composition(self):
+        total = 0.0
+        for component in self.composition:
+            total += component.percentage
 
-class SpectralClass:
-    """ Spectral class according to the Morgan–Keenan-Kellman (MKK) stellar
-    classification system.
-    """
-
-    def __init__(self, temp_class: TemperatureClass, rel_temp: float,
-                 lum_class: LuminosityClass):
-        self.temp_class = temp_class
-        self.rel_temp = rel_temp
-        self.lum_class = lum_class
-        self.stellar_class = f"{self.temp_class.value}{self.rel_temp}{self.lum_class.value}"
-
-    @property
-    def rel_temp(self):
-        return self._rel_temp
-
-    @rel_temp.setter
-    def rel_temp(self, value):
-        if 0 <= value < 10:
-            self._rel_temp = f"{value:.4g}"
+        if total < 100.0:
+            self.composition.append(Component("Other", 100.0-total))
+        elif total > 100.0:
+            print("Wrong data")
         else:
-            raise ValueError("Value must be within 0-10!")
-
-    def __str__(self) -> str:
-        return self.stellar_class
+            print("Data is valid")
 
 
 class CelestialBodyRotationVector:
-    """ Defines a rotation vector (pseudovector) of a celestial body in
-    inertial frame.
+    """ Defines a rotation vector (pseudovector) of a celestial body in an
+    inertial frame of reference (same where the orbit is defined).
 
     Precession is omitted.
     """
@@ -122,22 +82,26 @@ class CelestialBodyRotationVector:
         self.angular_velocity_rad_per_s: float = unit_vector(rotation_vector)
 
 
-# TODO: Create children objects for the inner planets
+# TODO: Create children objects for the inner planets ??
 # TODO: merge with PlanetLocation class, or make it CelestialBody's children
 class CelestialBody:
     """ Class for celestial bodies (planet / moon, asteroid, sun). """
 
     def __init__(self, uuid: str, name: str, mass_kg: float,
-                 outer_radius_m: float):
+                 other_names: list[str] = None,
+                 composition: Composition = None):
         self.uuid = uuid  # Unique identifier
         self.name = name  # Name of CB
+        self.other_names = other_names
+        self.composition = composition
 
         # Phisycal properties
         self.mass_kg = mass_kg
-        self.outer_radius_m = outer_radius_m  # For 'visualization' only
         self.std_gravitational_parameter = 0.0  # m^3/s^2
 
         # Properties to be set by function
+        # NOTE: Orbit and rotational vector is defined in the same
+        #  inertial reference frame
         self.parent_object = None
         self.orbit = None
         self.rotation = None
@@ -157,11 +121,14 @@ class CelestialBody:
         """
         self.rotation = rotation
 
+    # TODO: This is valid for a given object-pair, this value is only universal
+    # for objects with zero mass.
     def set_std_gravitational_param(self, mass2_kg: float = 0.0):
         """ Sets standard gravitational parameter using the CB's own mass, and
-        the given M2 value.
+        the given M2 value. By default
         """
-        self.std_gravitational_parameter = gravitational_constant * (self.mass_kg + mass2_kg)  # m^3/s^2
+        self.std_gravitational_parameter = (gravitational_constant
+                                            * (self.mass_kg + mass2_kg))  # m^3/s^2
 
     # def get_relative_velocity(self, state: np.array) -> float:
     #     """ Returns the speed of the rocket relative to the atmosphere.
@@ -188,45 +155,63 @@ class CelestialBody:
 
 class Planet(CelestialBody):
     """  """
-    def __init__(self, *args, std_gravity, surface_radius_m):
+    def __init__(self, *args, std_gravity: float, surface_radius_m: float):
         super().__init__(*args)
         self.surface_radius_m = surface_radius_m  # m
         self.std_gravity = std_gravity  # m/s^2
         self.atmosphere = None
 
+        # Setters
+        self.outer_radius_m = None
+        self.set_outer_radius_m()
+
     def set_atmosphere(self, atmosphere: Atmosphere):
         """ Set an Atmosphere object to the Celestial body. """
         self.atmosphere = atmosphere
+        self.set_outer_radius_m()
+
+    def set_outer_radius_m(self):
+        """ Sets outer radius as the sum of surface radius and athmospheric
+        thickness (if defined).
+        """
+        if self.atmosphere is not None:
+            self.outer_radius_m = (
+                self.surface_radius_m + self.atmosphere.atm_upper_limit_m
+            )
+        else:
+            self.outer_radius_m = self.surface_radius_m
 
 
+# TODO: refactor with Planetlocation
+class CelestialBodyLocation:
+
+    def __init__(self, celestial_body: CelestialBody):
+        pass
+
+
+class CelestialBodyVisual:
+
+    def __init__(self, celestial_body: CelestialBody, radius: int,
+                 color: tuple[int, int, int]):
+        self.celestial_body = celestial_body
+        self.radius = radius  # For 'visualization' only
+        self.color = color
+
+        pass
+
+
+# TODO: Move to diffrent module
 class Asteroid(CelestialBody):
     def __init__(self, *args, asteroid_type: AsteriodType):
         super().__init__(*args)
         self.asteroid_type = asteroid_type
 
 
-class Star(CelestialBody):
-    def __init__(self, *args, std_gravity, surface_radius_m,
-                 stellar_class: SpectralClass):
+class Comet(CelestialBody):
+    def __init__(self, *args):
         super().__init__(*args)
-        self.surface_radius_m = surface_radius_m  # m
-        self.std_gravity = std_gravity  # m/s^2
-        self.stellar_class = stellar_class
-
-
-class CelestialBodyLocation:
-    # ezmiez???
-    pass
 
 
 # Include guard
 if __name__ == '__main__':
-    sun = SpectralClass(TemperatureClass.G, 2, LuminosityClass.V)
-    print(sun)
-    pollux = SpectralClass(TemperatureClass.K, 0, LuminosityClass.III)
-    print(pollux)
-    print(pollux.temp_class)
-    print(pollux.rel_temp)
-    randomstar = SpectralClass(TemperatureClass.W, 9.123456789,
-                               LuminosityClass.Iab)
-    print(randomstar)
+    pass
