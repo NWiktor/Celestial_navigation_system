@@ -31,11 +31,12 @@ logger = logging.getLogger(__name__)
 
 
 class Stage:
-    """ Rocket stage class, defined by empty mass, propellant mass, number of engines,
-    engine thrust and specific impulse.
+    """ Rocket stage class, defined by empty mass, propellant mass, number of
+    engines, engine thrust and specific impulse.
     """
 
-    def __init__(self, empty_mass: float, propellant_mass: float, number_of_engines: int, thrust_per_engine: float,
+    def __init__(self, empty_mass: float, propellant_mass: float,
+                 number_of_engines: int, thrust_per_engine: float,
                  specific_impulse: Union[float, list[float]]):
         self._empty_mass = empty_mass  # kg
         self._propellant_mass0 = propellant_mass  # kg
@@ -45,7 +46,9 @@ class Stage:
         self.onboard = True
 
     def get_thrust(self) -> float:
-        """ Returns thrust, if there is any fuel left in the stage to generate it. """
+        """ Returns thrust, if there is any fuel left in the stage to generate
+        it.
+        """
         if self._propellant_mass > 0:
             return self.stage_thrust  # N aka kg/m/s
         return 0.0
@@ -61,18 +64,26 @@ class Stage:
     def get_specific_impulse(self, pressure_ratio: float = 0.0) -> float:
         """ Returns specific impulse value.
 
-        If the class initiated with a list, for specific impulse, this function can compensate atmospheric pressure
-        change by the pressure ratio: (0.0 is sea-level, 1.0 is vacuum pressure). If instead a float is given, this is
-        omitted.
+        If the class initiated with a list for specific impulse, this function
+        can compensate atmospheric pressure change by the pressure ratio: (0.0
+        is sea-level, 1.0 is vacuum pressure). If instead a float is given, this
+        is omitted.
         """
-        if isinstance(self.specific_impulse, int):  # If only one value is given, it is handled as a constant
+        # If only one value is given, it is handled as a constant
+        if isinstance(self.specific_impulse, int):
             return self.specific_impulse
 
+        # If a list is given, linear interpolation is used
         if isinstance(self.specific_impulse, list):
-            # If a list is given, linearly interpolating between them by the pressure-ratio
-            return float(np.interp(pressure_ratio, [0, 1], self.specific_impulse))
+            return float(
+                    np.interp(
+                        pressure_ratio,
+                        [0, 1], self.specific_impulse
+                    )
+            )
 
-        logger.warning("Specific impulse is not in the expected format (float or list of floats)!")
+        logger.warning("Specific impulse is not in the expected format (float"
+                       "or list of floats)!")
         return 0.0
 
     def burn_mass(self, mass: float, time) -> None:
@@ -80,7 +91,8 @@ class Stage:
         Returns the percentage of fuel left in the tanks.
         """
         self._propellant_mass = max(0.0, self._propellant_mass - abs(mass))
-        logger.debug("Fuel left %.2f %% at (%s s)", self.get_propellant_percentage(), time)
+        logger.debug("Fuel left %.2f %% at (%s s)",
+                     self.get_propellant_percentage(), time)
 
 
 class RocketEngineStatus(Enum):
@@ -97,7 +109,9 @@ class RocketEngineStatus(Enum):
 
 
 class RocketAttitudeStatus(Enum):
-    """ Describes the status of the rocket attitude control programs during liftoff. """
+    """ Describes the status of the rocket attitude control programs during
+    liftoff.
+    """
     VERTICAL_FLIGHT = 0
     ROLL_PROGRAM = 1
     PITCH_PROGRAM = 2

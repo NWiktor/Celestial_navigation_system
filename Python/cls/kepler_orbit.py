@@ -41,7 +41,8 @@ class KeplerOrbit:
     In order to initialize, the six orbital element must be defined.
     """
 
-    def __init__(self, eccentricity, semimajor_axis, inclination, longitude_of_ascending_node, argument_of_periapsis,
+    def __init__(self, eccentricity, semimajor_axis, inclination,
+                 longitude_of_ascending_node, argument_of_periapsis,
                  mean_anomaly_at_epoch):
 
         # Keplerian elements
@@ -61,8 +62,8 @@ class KeplerOrbit:
         self.calculate_rotational_matrix()
 
     def calculate_rotational_matrix(self):
-        """ Calculates the rotational matrix (Euler rotation 3-1-3 (Z-X-Z)) between the orbital plane and the
-        inertial reference frame.
+        """ Calculates the rotational matrix (Euler rotation 3-1-3 (Z-X-Z))
+        between the orbital plane and the inertial reference frame.
         """
         loan = self.longitude_of_ascending_node * m.pi / 180
         aop = self.argument_of_periapsis * m.pi / 180
@@ -84,8 +85,8 @@ class KeplerOrbit:
         self.mean_angular_motion = 360 / self.orbital_period
 
     def set_orbital_period(self, orbital_period: float) -> None:
-        """ Set the value of orbital period attribute directly (from external source),
-        and calculates mean angular motion.
+        """ Set the value of orbital period attribute directly (from external
+        source), and calculates mean angular motion.
         """
         self.orbital_period = orbital_period  # 24 * 60 * 60 seconds aka 1 solar day
         self.calculate_mean_angular_motion()
@@ -138,15 +139,16 @@ class KeplerOrbit:
 
 # TODO: expand class with simplified functions
 class CircularOrbit(KeplerOrbit):
-    """ Simplified child of the KeplerOrbit class, where eccentricity is zero, thus the orbit is circular.
+    """ Simplified child of the KeplerOrbit class, where eccentricity is zero,
+    thus the orbit is circular.
 
     The function takes 5 parameters
     """
 
-    def __init__(self, radius, inclination, longitude_of_ascending_node, argument_of_periapsis,
-                 mean_anomaly_at_epoch):
-        super().__init__(0, radius, inclination, longitude_of_ascending_node, argument_of_periapsis,
-                         mean_anomaly_at_epoch)
+    def __init__(self, radius, inclination, longitude_of_ascending_node,
+                 argument_of_periapsis, mean_anomaly_at_epoch):
+        super().__init__(0, radius, inclination, longitude_of_ascending_node,
+                         argument_of_periapsis, mean_anomaly_at_epoch)
 
 
 # Include guard
