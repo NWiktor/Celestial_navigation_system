@@ -21,12 +21,12 @@ Contents
 
 # Standard library imports
 import logging
-from enum import StrEnum
 import numpy as np
 
 # Local application imports
 from cls.kepler_orbit import KeplerOrbit
 from cls.atmosphere import Atmosphere
+from cls.celestial_body_utils import Composition, AsteriodType
 from utils import unit_vector, angle_of_vectors
 
 # Class initializations and global variables
@@ -35,53 +35,6 @@ gravitational_constant: float = 6.67430 * pow(10, -11)  # m^3 kg-1 s-2
 
 
 # Class and function definitions
-class AsteriodType(StrEnum):
-    """ Describes the asteroid by composition. """
-    CARBON = "Carbon"
-    METAL = "Metal"
-    SILICONE = "Silicone"
-
-
-class Component:
-
-    def __init__(self, material: str, percentage: float):
-        self.material = material
-        self.percentage = percentage
-
-
-class Composition:
-
-    def __init__(self, composition: list[Component]):
-        self.composition = composition
-
-    def validate_composition(self):
-        total = 0.0
-        for component in self.composition:
-            total += component.percentage
-
-        if total < 100.0:
-            self.composition.append(Component("Other", 100.0-total))
-        elif total > 100.0:
-            print("Wrong data")
-        else:
-            print("Data is valid")
-
-
-class CelestialBodyRotationVector:
-    """ Defines a rotation vector (pseudovector) of a celestial body in an
-    inertial frame of reference (same where the orbit is defined).
-
-    Precession is omitted.
-    """
-
-    def __init__(self, rotation_vector: np.array):
-        self.rotation_vector: np.array = rotation_vector
-        self.axial_tilt: float = angle_of_vectors(
-                np.array([0.0, 0.0, 1.0]),
-                rotation_vector)  # rad
-        self.angular_velocity_rad_per_s: float = unit_vector(rotation_vector)
-
-
 # TODO: Create children objects for the inner planets ??
 # TODO: merge with PlanetLocation class, or make it CelestialBody's children
 class CelestialBody:
@@ -104,7 +57,9 @@ class CelestialBody:
         #  inertial reference frame
         self.parent_object = None
         self.orbit = None
-        self.rotation = None
+        self.rotation_vector = None
+        self.axial_tilt = None
+        self.angular_velocity_rad_per_s = None
 
         # Calculate params
         self.set_std_gravitational_param()
@@ -115,11 +70,17 @@ class CelestialBody:
         self.parent_object = parent_object
         self.orbit = orbit
 
-    def set_rotation(self, rotation: CelestialBodyRotationVector):
+    def set_rotation_params(self, rotation_vector: np.array):
         """ Set a rotation vector, which describes the celestial body rotation
         in the parent object inertial reference frame.
+
+        Also calculates axial tilt and angular velocity.
         """
-        self.rotation = rotation
+        self.rotation_vector = rotation_vector
+        self.axial_tilt: float = angle_of_vectors(
+                np.array([0.0, 0.0, 1.0]),
+                rotation_vector)  # rad
+        self.angular_velocity_rad_per_s: float = unit_vector(rotation_vector)
 
     # TODO: This is valid for a given object-pair, this value is only universal
     # for objects with zero mass.
@@ -153,6 +114,30 @@ class CelestialBody:
         return str(self.__class__) + ": " + str(self.__dict__)
 
 
+# TODO: refactor Planetlocation to Launchlocation,
+#  only to collect launch relevant data
+class CelestialBodyLocation:
+
+    def __init__(self, celestial_body: CelestialBody, location_name: str,
+                 latitude: float, longitude: float):
+        self.celestial_body = celestial_body
+        self.name = location_name
+        self.latitude = latitude
+        self.longitude = longitude
+
+
+class CelestialBodyVisual:
+
+    def __init__(self, celestial_body: CelestialBody, radius: int,
+                 color: tuple[int, int, int]):
+        self.celestial_body = celestial_body
+        self.radius = radius  # For 'visualization' only
+        self.color = color
+
+        pass
+
+
+# TODO: Move to diffrent module
 class Planet(CelestialBody):
     """  """
     def __init__(self, *args, std_gravity: float, surface_radius_m: float):
@@ -182,25 +167,6 @@ class Planet(CelestialBody):
             self.outer_radius_m = self.surface_radius_m
 
 
-# TODO: refactor with Planetlocation
-class CelestialBodyLocation:
-
-    def __init__(self, celestial_body: CelestialBody):
-        pass
-
-
-class CelestialBodyVisual:
-
-    def __init__(self, celestial_body: CelestialBody, radius: int,
-                 color: tuple[int, int, int]):
-        self.celestial_body = celestial_body
-        self.radius = radius  # For 'visualization' only
-        self.color = color
-
-        pass
-
-
-# TODO: Move to diffrent module
 class Asteroid(CelestialBody):
     def __init__(self, *args, asteroid_type: AsteriodType):
         super().__init__(*args)
