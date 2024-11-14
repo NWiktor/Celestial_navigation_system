@@ -47,7 +47,7 @@ class TemperatureClass(StrEnum):
 
     https://en.wikipedia.org/wiki/Stellar_classification
     """
-    O = "O"
+    O_class = "O"
     B = "B"
     A = "A"
     F = "F"
@@ -116,7 +116,9 @@ class CelestialBodyRotationVector:
 
     def __init__(self, rotation_vector: np.array):
         self.rotation_vector: np.array = rotation_vector
-        self.axial_tilt: float = angle_of_vectors(np.array([0.0, 0.0, 1.0]), rotation_vector)  # rad
+        self.axial_tilt: float = angle_of_vectors(
+                np.array([0.0, 0.0, 1.0]),
+                rotation_vector)  # rad
         self.angular_velocity_rad_per_s: float = unit_vector(rotation_vector)
 
 
@@ -125,7 +127,8 @@ class CelestialBodyRotationVector:
 class CelestialBody:
     """ Class for celestial bodies (planet / moon, asteroid, sun). """
 
-    def __init__(self, uuid: str, name: str, mass_kg: float, outer_radius_m: float):
+    def __init__(self, uuid: str, name: str, mass_kg: float,
+                 outer_radius_m: float):
         self.uuid = uuid  # Unique identifier
         self.name = name  # Name of CB
 
