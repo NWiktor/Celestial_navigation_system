@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 # !/usr/bin/python3
 
-""" This module contains all relevant class and function for orbit propagation around a celestial body. The module
-calculates the trajectory of a two-stage rocket launched from surface in Object-Centered Inertial reference frame (OCI).
+""" This module contains all relevant class and function for orbit propagation
+around a celestial body. The module calculates the trajectory of a two-stage
+rocket launched from surface in Object-Centered Inertial reference frame (OCI).
 
 Libs
 ----
@@ -30,18 +31,21 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Local application imports
-from utils import secs_to_mins, convert_spherical_to_cartesian_coords, runge_kutta_4, unit_vector, rodrigues_rotation
+from utils import (secs_to_mins, convert_spherical_to_cartesian_coords,
+                   runge_kutta_4, unit_vector, rodrigues_rotation)
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class PlanetLocation:
-    """ Launch site class, given by longitude, latitude, surface radius (where the site is located),
-    atmospheric density via the get_density function, gravity and gravitational parameter.
+    """ Launch site class, given by longitude, latitude, surface radius (where
+    the site is located), atmospheric density via the get_density function,
+    gravity and gravitational parameter.
     """
 
-    def __init__(self, name, latitude: float, longitude: float, surface_radius: float, angular_velocity: float,
+    def __init__(self, name, latitude: float, longitude: float,
+                 surface_radius: float, angular_velocity: float,
                  std_gravity, std_gravitational_parameter):
         self.name = name
         self.latitude = latitude
@@ -532,7 +536,8 @@ def plot(rocketlaunch: RocketLaunch, inclination):
 
 # Include guard
 def main():
-    """ Example SpaceX Falcon 9 launch demonstrating the use of the PlanetLocation, Stage and RocketLaunch classes.
+    """ Example SpaceX Falcon 9 launch demonstrating the use of the
+    PlanetLocation, Stage and RocketLaunch classes.
     
     The function calculates and plots flight parameters during and after liftoff.
 
