@@ -54,6 +54,13 @@ class TemperatureClass(StrEnum):
     G = "G"
     K = "K"
     M = "M"
+    W = "W"  # Wolf–Rayet star
+    S = "S"  # S-type star
+    C = "C"  # Carbon star
+    D = "D"  # White dwarf
+    L = "L"  # L-dwarf
+    T = "T"  # T-dwarf
+    Y = "Y"  # Y-dwarf
 
 
 class LuminosityClass(StrEnum):
@@ -74,13 +81,23 @@ class LuminosityClass(StrEnum):
 
 
 class SpectralClass:
-    """ Spectral class according to the Morgan–Keenan-Kellman (MKK) stellar classification system. """
+    """ Spectral class according to the Morgan–Keenan-Kellman (MKK) stellar
+    classification system.
+    """
 
-    def __init__(self, temp_class: TemperatureClass, rel_temp: float, lum_class: LuminosityClass):
-        self.temp_class = temp_class
-        self.rel_temp = rel_temp
-        self.lum_class = lum_class
-        self.stellar_class = f"{self.temp_class.value}{self.rel_temp}{self.lum_class.value}"
+    def __init__(self, temp_class: TemperatureClass, rel_temp: float,
+                 lum_class: LuminosityClass, spectral_class: str = None):
+        if spectral_class is not None:  # Override option
+            self.temp_class = None
+            self.rel_temp = None
+            self.lum_class = None
+            self.stellar_class = spectral_class
+
+        else:
+            self.temp_class = temp_class
+            self.rel_temp = rel_temp
+            self.lum_class = lum_class
+            self.stellar_class = f"{self.temp_class.value}{self.rel_temp}{self.lum_class.value}"
 
     @property
     def rel_temp(self):
@@ -98,14 +115,16 @@ class SpectralClass:
 
 
 class CelestialBodyRotationVector:
-    """ Defines a rotation vector (pseudovector) of a celestial body in inertial frame.
+    """ Defines a rotation vector (pseudovector) of a celestial body in
+    inertial frame.
+
     Precession is omitted.
     """
 
     def __init__(self, rotation_vector: np.array):
         self.rotation_vector: np.array = rotation_vector
         self.axial_tilt: float = angle_of_vectors(np.array([0.0, 0.0, 1.0]), rotation_vector)  # rad
-        self.angular_velocity_rad_per_s: float = unit_vector(rotation_vector)  # rad/s
+        self.angular_velocity_rad_per_s: float = unit_vector(rotation_vector)
 
 
 # TODO: Create children objects for the inner planets
@@ -131,18 +150,21 @@ class CelestialBody:
         self.set_std_gravitational_param()
 
     def set_orbit(self, parent_object, orbit: KeplerOrbit):
-        """ Set a Kepler orbit to the object, defined in the parent object inertial reference frame. """
+        """ Set a Kepler orbit to the object, defined in the parent object
+        inertial reference frame. """
         self.parent_object = parent_object
         self.orbit = orbit
 
     def set_rotation(self, rotation: CelestialBodyRotationVector):
-        """ Set a rotation vector, which describes the celestial body rotation in the parent object
-        inertial reference frame.
+        """ Set a rotation vector, which describes the celestial body rotation
+        in the parent object inertial reference frame.
         """
         self.rotation = rotation
 
     def set_std_gravitational_param(self, mass2_kg: float = 0.0):
-        """ Sets standard gravitational parameter using the CB's own mass, and the given M2 value. """
+        """ Sets standard gravitational parameter using the CB's own mass, and
+        the given M2 value.
+        """
         self.std_gravitational_parameter = gravitational_constant * (self.mass_kg + mass2_kg)  # m^3/s^2
 
     # def get_relative_velocity(self, state: np.array) -> float:
@@ -188,7 +210,8 @@ class Asteroid(CelestialBody):
 
 
 class Star(CelestialBody):
-    def __init__(self, *args, std_gravity, surface_radius_m, stellar_class: SpectralClass):
+    def __init__(self, *args, std_gravity, surface_radius_m,
+                 stellar_class: SpectralClass):
         super().__init__(*args)
         self.surface_radius_m = surface_radius_m  # m
         self.std_gravity = std_gravity  # m/s^2
