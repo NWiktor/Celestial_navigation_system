@@ -86,18 +86,11 @@ class SpectralClass:
     """
 
     def __init__(self, temp_class: TemperatureClass, rel_temp: float,
-                 lum_class: LuminosityClass, spectral_class: str = None):
-        if spectral_class is not None:  # Override option
-            self.temp_class = None
-            self.rel_temp = None
-            self.lum_class = None
-            self.stellar_class = spectral_class
-
-        else:
-            self.temp_class = temp_class
-            self.rel_temp = rel_temp
-            self.lum_class = lum_class
-            self.stellar_class = f"{self.temp_class.value}{self.rel_temp}{self.lum_class.value}"
+                 lum_class: LuminosityClass):
+        self.temp_class = temp_class
+        self.rel_temp = rel_temp
+        self.lum_class = lum_class
+        self.stellar_class = f"{self.temp_class.value}{self.rel_temp}{self.lum_class.value}"
 
     @property
     def rel_temp(self):
@@ -219,6 +212,7 @@ class Star(CelestialBody):
 
 
 class CelestialBodyLocation:
+    # ezmiez???
     pass
 
 
@@ -226,3 +220,10 @@ class CelestialBodyLocation:
 if __name__ == '__main__':
     sun = SpectralClass(TemperatureClass.G, 2, LuminosityClass.V)
     print(sun)
+    pollux = SpectralClass(TemperatureClass.K, 0, LuminosityClass.III)
+    print(pollux)
+    print(pollux.temp_class)
+    print(pollux.rel_temp)
+    randomstar = SpectralClass(TemperatureClass.W, 9.123456789,
+                               LuminosityClass.Iab)
+    print(randomstar)
