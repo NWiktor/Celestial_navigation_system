@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 # !/usr/bin/python3
 
-""" This module describes the abstract Atmosphere class, and different atmospheric models (e.g. Earth and Mars).
+""" This module describes the abstract Atmosphere class, and different
+atmospheric models (e.g. Earth and Mars).
 
 Libs
 ----
@@ -43,10 +44,12 @@ class Atmosphere:
         self.atm_upper_limit_m = atm_upper_limit_m  # Upper limit
 
     def _apply_limits(self, altitude) -> int:
-        """ If the given value is out of range of the valid atmospheric model, returns the applicable value.
-        This function is needed to in case an iterative calculation accidentally runs through the limits.
-        When the altitude smaller than 0, there is solid ground, no atmosphere; this case should be handled
-        anyway elsewhere. When altitude is above range, there is space (no pressure, no atmosphere).
+        """ If the given value is out of range of the valid atmospheric model,
+        returns the applicable value. This function is needed to in case an
+        iterative calculation accidentally runs through the limits.
+        When the altitude smaller than 0, there is solid ground, no atmosphere;
+        this case should be handled anyway elsewhere. When altitude is above
+        range, there is space (no pressure, no atmosphere).
         """
         return min(max(self.atm_lower_limit_m, altitude), self.atm_upper_limit_m)
 
@@ -57,7 +60,9 @@ class Atmosphere:
         return 0.0, 0.0, 0.0
 
     def get_atm_params(self, altitude) -> tuple[float, float, float]:
-        """ Enforces the atmospheric model limits, and returns the temperature, pressure, density values. """
+        """ Enforces the atmospheric model limits, and returns the temperature,
+        pressure, density values.
+        """
         return self._atmospheric_model(self._apply_limits(altitude))
 
     def get_temperature(self, altitude) -> float:
@@ -82,9 +87,10 @@ class EarthAtmosphere(Atmosphere):
         super().__init__("Standard atmosphere, simplified, NASA", 0, 30000)
 
     def _atmospheric_model(self, altitude: float) -> tuple[float, float, float]:
-        """ Returns the temperature, pressure, density values of the atmosphere depending on the altitude measured
-        from sea level. Calculation is loosely based on the US. standard atmosphere model (1976), and uses three
-        separate zones (layers).
+        """ Returns the temperature, pressure, density values of the atmosphere
+        depending on the altitude measured from sea level. Calculation is
+        loosely based on the US. standard atmosphere model (1976), and uses
+        three separate zones (layers).
         """
         temperature = 0.0
         pressure = 0.0
@@ -117,9 +123,10 @@ class EarthAtmosphereUS1976(Atmosphere):
         super().__init__("US. standard atmosphere, 1976", 0, 100000)
 
     def _atmospheric_model(self, altitude: float) -> tuple[float, float, float]:
-        """ Returns the temperature, pressure, density values of the atmosphere depending on the altitude measured
-        from sea level. Calculation is based on the US. standard atmosphere model (1976),
-        which has seven separate zones.
+        """ Returns the temperature, pressure, density values of the atmosphere
+        depending on the altitude measured from sea level. Calculation is based
+        on the US. standard atmosphere model (1976), which has seven separate
+        zones.
 
         https://en.wikipedia.org/wiki/Barometric_formula
         http://www.luizmonteiro.com/StdAtm.aspx
@@ -180,8 +187,9 @@ class MarsAtmosphere(Atmosphere):
         super().__init__("Standard Martian atmosphere, NASA", 0, 60000)
 
     def _atmospheric_model(self, altitude: float) -> tuple[float, float, float]:
-        """ Returns the temperature, pressure, density values of the atmosphere depending on the altitude measured
-        from surface level. Calculation uses two separate zones (layers) and based on measurements made by the
+        """ Returns the temperature, pressure, density values of the atmosphere
+        depending on the altitude measured from surface level. Calculation uses
+        two separate zones (layers) and based on measurements made by the
         Mars Global Surveyor in April 1996.
         """
         temperature = -31  # C°
@@ -202,8 +210,10 @@ class MarsAtmosphere(Atmosphere):
         return temperature, pressure, air_density
 
 
-def plot_atmosphere(model):
-    """ Plot pressure, temperature and density data of the given model, to check its validity. """
+def plot_atmosphere(model: Atmosphere):
+    """ Plot pressure, temperature and density data of the given model,
+    to check its validity.
+    """
 
     alt = []
     tmp = []
@@ -220,7 +230,7 @@ def plot_atmosphere(model):
     plt.style.use('_mpl-gallery')
 
     fig = plt.figure(layout='tight', figsize=(19, 9.5))
-    fig.suptitle("Atmospheric parameters")
+    fig.suptitle(f"Atmospheric parameters ({model.__class__.__name__})")
     ax1 = fig.add_subplot(2, 2, 1)
     ax1.set_title("Temperature")
     ax1.set_xlabel('altitude (m)')
@@ -236,9 +246,9 @@ def plot_atmosphere(model):
     ax2.tick_params(axis='y', labelcolor="b")
 
     ax3 = fig.add_subplot(2, 2, 3)
-    ax3.set_title("Air density")
+    ax3.set_title("Atmospheric density")
     ax3.set_xlabel('altitude (m)')
-    ax3.set_ylabel('air density (kg/m3)', color="g")
+    ax3.set_ylabel('atmospheric density (kg/m3)', color="g")
     ax3.plot(alt, rho, color="g")
     ax3.tick_params(axis='y', labelcolor="g")
 
