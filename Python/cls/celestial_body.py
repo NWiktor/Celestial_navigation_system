@@ -1,15 +1,12 @@
 # -*- coding: utf-8 -*-
 # !/usr/bin/python3
 
-""" Summary of this code file goes here. The purpose of this module can be
-expanded in multiple sentences. Below a short free-text summary of the included
-classes and functions to give an overview. More detailed summary of the
-functions can be provided inside the function's body.
+""" CelestialBody baseclass for describing different celestial bodies. Specified
+classes can be inherited from this.
 
 Libs
 ----
-* some_module - This is used for imported, non-standard modules, to help track
-    dependencies. Summary is not needed.
+* Numpy
 
 Help
 ----
@@ -38,7 +35,7 @@ gravitational_constant: float = 6.67430 * pow(10, -11)  # m^3 kg-1 s-2
 # TODO: Create children objects for the inner planets ??
 # TODO: merge with PlanetLocation class, or make it CelestialBody's children
 class CelestialBody:
-    """ Class for celestial bodies (planet / moon, asteroid, sun). """
+    """ Class for celestial bodies (planet, moon, asteroid, sun, etc.). """
 
     def __init__(self, uuid: str, name: str, mass_kg: float,
                  other_names: list[str] = None,
@@ -83,14 +80,15 @@ class CelestialBody:
         self.angular_velocity_rad_per_s: float = unit_vector(rotation_vector)
 
     # TODO: This is valid for a given object-pair, this value is only universal
-    # for objects with zero mass.
+    #  for objects with zero mass.
     def set_std_gravitational_param(self, mass2_kg: float = 0.0):
         """ Sets standard gravitational parameter using the CB's own mass, and
         the given M2 value. By default
         """
-        self.std_gravitational_parameter = (gravitational_constant
-                                            * (self.mass_kg + mass2_kg))  # m^3/s^2
+        self.std_gravitational_parameter = (
+                gravitational_constant * (self.mass_kg + mass2_kg))  # m^3/s^2
 
+    # TODO: rework this !!!
     # def get_relative_velocity(self, state: np.array) -> float:
     #     """ Returns the speed of the rocket relative to the atmosphere.
     #
@@ -116,6 +114,7 @@ class CelestialBody:
 
 # TODO: refactor Planetlocation to Launchlocation,
 #  only to collect launch relevant data
+# TODO: obsolete
 class CelestialBodyLocation:
 
     def __init__(self, celestial_body: CelestialBody, location_name: str,
@@ -126,15 +125,17 @@ class CelestialBodyLocation:
         self.longitude = longitude
 
 
+# TODO: rework when the time comes
 class CelestialBodyVisual:
+    """ Abstract class for visual / graphical representation of the
+    CelestialBody.
+    """
 
     def __init__(self, celestial_body: CelestialBody, radius: int,
                  color: tuple[int, int, int]):
         self.celestial_body = celestial_body
         self.radius = radius  # For 'visualization' only
         self.color = color
-
-        pass
 
 
 # TODO: Move to diffrent module
