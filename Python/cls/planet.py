@@ -8,7 +8,8 @@ Libs
 
 Help
 ----
-* https://en.wikipedia.org/wiki/Truncated_icosahedron
+* https://en.wikipedia.org/wiki/Earth%27s_rotation
+* https://en.wikipedia.org/wiki/Density_of_air
 
 Contents
 --------
@@ -111,9 +112,11 @@ class LaunchSite(PlanetLocation):
         and substracts it from the rocket's speed in inertial frame, then takes
         the norm of the resulting vector.
         """
-        return np.linalg.norm(
-            state[3:6] - np.cross(np.array([0, 0, self.angular_velocity]),
-                                  state[0:3]))
+        return float(np.linalg.norm(
+                state[3:6] - np.cross(
+                        np.array([0, 0, self.angular_velocity]),
+                        state[0:3]
+                )))
 
     def get_surface_velocity(self):
         """ Placeholder func. """
