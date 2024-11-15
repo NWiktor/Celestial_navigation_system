@@ -26,6 +26,7 @@ import math as m
 import matplotlib.pyplot as plt
 
 # Local application imports
+from cls.celestial_body_utils import Composition, Component
 
 # Class initializations and global variables
 logger = logging.getLogger(__name__)
@@ -33,15 +34,39 @@ gravitational_constant: float = 6.67430 * pow(10, -11)  # m^3 kg-1 s-2
 standard_gravity = 9.80665  # m/s2
 air_molar_mass = 0.028964425278793993  # kg/mol
 universal_gas_constant = 8.3144598  # N·m/(mol·K)
+EarthAthmosphericComposition = Composition([
+    Component("Nitrogen", 78.084, "N2"),
+    Component("Oxygen", 20.946, "O2"),
+    Component("Argon", 0.9340, "Ar")
+    # Component("Carbon-dioxid", 0.0417, "CO2"),
+    # Component("Neon", 0.001818, "Ne"),
+    # Component("Helium", 0.000524, "He"),
+    # Component("Methane", 0.000191, "CH4"),
+    # Component("Krypton", 0.000114, "Kr")
+    ],
+    source="https://en.wikipedia.org/wiki/Atmosphere_of_Earth")
+
+MarsAthmosphericComposition = Composition([
+    Component("Carbon-dioxid", 94.9, "CO2"),
+    Component("Nitrogen", 2.8, "N2"),
+    Component("Argon", 2.0, "Ar"),
+    Component("Oxygen", 0.174, "O2"),
+    Component("Carbon-monoxid", 0.0747, "CO"),
+    Component("Water vapour", 0.03, "H2O")
+    ],
+    source=["https://en.wikipedia.org/wiki/Atmosphere_of_Mars",
+            "https://www.sciencedirect.com/topics/earth-and-planetary-sciences/martian-atmosphere"])
 
 
 class Atmosphere:
     """ Baseclass for a generic atmospheric model. """
 
-    def __init__(self, model_name, atm_lower_limit_m: int, atm_upper_limit_m: int):
+    def __init__(self, model_name: str, atm_lower_limit_m: int,
+                 atm_upper_limit_m: int):
         self.model_name = model_name
         self.atm_lower_limit_m = atm_lower_limit_m  # Lower limit
         self.atm_upper_limit_m = atm_upper_limit_m  # Upper limit
+        self.composition = None
 
     def _apply_limits(self, altitude) -> int:
         """ If the given value is out of range of the valid atmospheric model,
@@ -51,7 +76,8 @@ class Atmosphere:
         this case should be handled anyway elsewhere. When altitude is above
         range, there is space (no pressure, no atmosphere).
         """
-        return min(max(self.atm_lower_limit_m, altitude), self.atm_upper_limit_m)
+        return min(max(self.atm_lower_limit_m, altitude),
+                   self.atm_upper_limit_m)
 
     # pylint: disable = unused-argument
     # @override
@@ -77,6 +103,14 @@ class Atmosphere:
         """ Returns the density at a given altitude. """
         return self._atmospheric_model(altitude)[2]
 
+    def set_composition(self, composition: Composition) -> None:
+        """ Sets the chemical composition of the atmosphere. """
+        self.composition = composition
+
+    def get_composition(self) -> Composition:
+        """ Returns the chemical composition of the atmosphere. """
+        return self.composition
+
 
 class EarthAtmosphere(Atmosphere):
     """  Standard model of Earth Atmosphere according to NASA:
@@ -84,7 +118,9 @@ class EarthAtmosphere(Atmosphere):
     """
 
     def __init__(self):
-        super().__init__("Standard atmosphere, simplified, NASA", 0, 30000)
+        super().__init__("Standard atmosphere, simplified, NASA",
+                         0, 30000)
+        self.set_composition(EarthAthmosphericComposition)
 
     def _atmospheric_model(self, altitude: float) -> tuple[float, float, float]:
         """ Returns the temperature, pressure, density values of the atmosphere
@@ -109,7 +145,8 @@ class EarthAtmosphere(Atmosphere):
 
         # Calculate air density and return values
         air_density = pressure / (0.2869 * (temperature + 273.1))
-        logger.debug("Atmospheric temp.: %.6f (C°), pres.: %.6f (kPa) and air density: %.6f (kg/m3) @ %s (m)",
+        logger.debug("Atmospheric temp.: %.6f (C°), pres.: %.6f (kPa) and"
+                     "air density: %.6f (kg/m3) @ %s (m)",
                      temperature, pressure, air_density, altitude)
         return temperature, pressure, air_density
 
@@ -120,7 +157,9 @@ class EarthAtmosphereUS1976(Atmosphere):
     """
 
     def __init__(self):
-        super().__init__("US. standard atmosphere, 1976", 0, 100000)
+        super().__init__("US. standard atmosphere, 1976",
+                         0, 100000)
+        self.set_composition(EarthAthmosphericComposition)
 
     def _atmospheric_model(self, altitude: float) -> tuple[float, float, float]:
         """ Returns the temperature, pressure, density values of the atmosphere
@@ -141,7 +180,8 @@ class EarthAtmosphereUS1976(Atmosphere):
 
         elif 11000 < altitude <= 20000:  # Tropopause
             temperature = 216.65
-            pressure = 22.632 * m.exp(-0.03416265012915032 * (altitude - 11000) / 216.65)
+            pressure = 22.632 * m.exp(-0.03416265012915032
+                                      * (altitude - 11000) / 216.65)
 
         elif 20000 < altitude <= 32000:  # Lower stratosphere
             temperature = 216.65 + 0.001 * (altitude - 20000)
@@ -153,7 +193,8 @@ class EarthAtmosphereUS1976(Atmosphere):
 
         elif 47000 < altitude <= 51000:  # Stratopause
             temperature = 270.65
-            pressure = 0.11091 * m.exp(-0.03416265012915032 * (altitude - 47000) / 270.65)
+            pressure = 0.11091 * m.exp(-0.03416265012915032
+                                       * (altitude - 47000) / 270.65)
 
         elif 51000 < altitude <= 71000:  # Lower mesosphere
             temperature = 270.65 - 0.0028 * (altitude - 51000)
@@ -173,7 +214,8 @@ class EarthAtmosphereUS1976(Atmosphere):
 
         # Calculate air density and return values
         air_density = pressure / (0.2869 * temperature)
-        logger.debug("Atmospheric temp.: %.6f (K), pres.: %.6f (kPa) and air density: %.6f (kg/m3) @ %s (m)",
+        logger.debug("Atmospheric temp.: %.6f (K), pres.: %.6f (kPa) and"
+                     "air density: %.6f (kg/m3) @ %s (m)",
                      temperature, pressure, air_density, altitude)
         return temperature, pressure, air_density
 
@@ -184,7 +226,9 @@ class MarsAtmosphere(Atmosphere):
     """
 
     def __init__(self):
-        super().__init__("Standard Martian atmosphere, NASA", 0, 60000)
+        super().__init__("Standard Martian atmosphere, NASA",
+                         0, 60000)
+        self.set_composition(MarsAthmosphericComposition)
 
     def _atmospheric_model(self, altitude: float) -> tuple[float, float, float]:
         """ Returns the temperature, pressure, density values of the atmosphere
@@ -205,7 +249,8 @@ class MarsAtmosphere(Atmosphere):
 
         # Calculate air density and return values
         air_density = pressure / (0.1921 * (temperature + 273.1))
-        logger.debug("Atmospheric temp.: %.6f (C°), pres.: %.6f (kPa) and air density: %.6f (kg/m3) @ %s (m)",
+        logger.debug("Atmospheric temp.: %.6f (C°), pres.: %.6f (kPa) and"
+                     "athmospheric density: %.6f (kg/m3) @ %s (m)",
                      temperature, pressure, air_density, altitude)
         return temperature, pressure, air_density
 
@@ -230,7 +275,7 @@ def plot_atmosphere(model: Atmosphere):
     plt.style.use('_mpl-gallery')
 
     fig = plt.figure(layout='tight', figsize=(19, 9.5))
-    fig.suptitle(f"Atmospheric parameters ({model.__class__.__name__})")
+    fig.suptitle(f"Atmospheric parameters ({model.model_name})")
     ax1 = fig.add_subplot(2, 2, 1)
     ax1.set_title("Temperature")
     ax1.set_xlabel('altitude (m)')
@@ -255,11 +300,9 @@ def plot_atmosphere(model: Atmosphere):
     plt.show()
 
 
-def module_test():
-    # plot_atmosphere(EarthAtmosphereUS1976())
-    plot_atmosphere(MarsAtmosphere())
-
-
 # Include guard
 if __name__ == '__main__':
-    pass
+    # plot_atmosphere(EarthAtmosphereUS1976())
+    for comp in MarsAthmosphericComposition.get_composition():
+        print(comp)
+    # plot_atmosphere(MarsAtmosphere())
