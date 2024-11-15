@@ -21,7 +21,6 @@ Contents
 # Standard library imports
 # First import should be the logging module if any!
 import logging
-from dataclasses import dataclass
 import math as m
 
 # Third party imports
@@ -34,73 +33,6 @@ from utils import (secs_to_mins, convert_spherical_to_cartesian_coords,
 from cls import Stage, RocketAttitudeStatus, RocketEngineStatus
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class PlanetLocation:
-    """ Launch site class, given by longitude, latitude, surface radius (where
-    the site is located), atmospheric density via the get_density function,
-    gravity and gravitational parameter.
-    """
-
-    def __init__(self, name, latitude: float, longitude: float,
-                 surface_radius: float, angular_velocity: float,
-                 std_gravity, std_gravitational_parameter):
-        self.name = name
-        self.latitude = latitude
-        self.longitude = longitude
-        self.surface_radius = surface_radius  # m
-        self.angular_velocity = angular_velocity  # rad/s
-        self.std_gravity = std_gravity  # m/s^2
-        self.std_gravitational_parameter = std_gravitational_parameter  # m^3/s^2
-
-    # pylint: disable = unused-argument
-    def get_density(self, altitude) -> float:
-        """ Placeholder function for override by child. """
-        logger.error("Missing function!")
-        return 0.0
-
-    # pylint: disable = unused-argument
-    def get_pressure(self, altitude) -> float:
-        """ Placeholder function for override by child. """
-        logger.error("Missing function!")
-        return 0.0
-
-    def get_relative_velocity(self, state: np.array) -> float:
-        """ Returns the speed of the rocket relative to the atmosphere.
-
-        The atmosphere of the planet is modelled as static (no winds). The function calculates the atmospheric
-        velocity (in inertial ref. frame), and substracts it from the rocket's speed in inertial frame, then takes
-        the norm of the resulting vector.
-        """
-        return np.linalg.norm(state[3:6] - np.cross(np.array([0, 0, self.angular_velocity]), state[0:3]))
-
-    def get_surface_velocity(self):
-        """ Placeholder func. """
-
-
-@dataclass
-class EarthLocation(PlanetLocation):
-    """ Launch site class for locations on Earth's surface.
-
-    https://en.wikipedia.org/wiki/Earth%27s_rotation
-    https://en.wikipedia.org/wiki/Density_of_air
-    """
-
-    def __init__(self, name, latitude: float, longitude: float):
-        super().__init__(f"{name}, Earth", latitude, longitude, 6371000, 7.292115e-5,
-                         9.80665, 3.986004418e14)
-
-    def get_density(self, altitude: float) -> float:
-        """ Approximates air density in function of height on Earth, measured from sea level. """
-        if 0 <= altitude <= 120000:
-            return 1.204 * m.exp(-altitude / 10400)
-        return 0.0
-
-    # TODO: implement functionality
-    def get_pressure(self, altitude: float) -> float:
-        altitude += 1
-        return 0.0
 
 
 class RocketFlightProgram:
