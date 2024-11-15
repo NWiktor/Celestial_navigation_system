@@ -23,7 +23,6 @@ Contents
 import logging
 from dataclasses import dataclass
 import math as m
-from typing import Union
 
 # Third party imports
 import numpy as np
