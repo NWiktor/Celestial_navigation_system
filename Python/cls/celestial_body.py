@@ -22,7 +22,6 @@ import numpy as np
 
 # Local application imports
 from cls.kepler_orbit import KeplerOrbit
-from cls.atmosphere import Atmosphere
 from cls.celestial_body_utils import Composition, AsteriodType
 from utils import unit_vector, angle_of_vectors
 
@@ -112,19 +111,6 @@ class CelestialBody:
         return str(self.__class__) + ": " + str(self.__dict__)
 
 
-# TODO: refactor Planetlocation to Launchlocation,
-#  only to collect launch relevant data
-# TODO: obsolete
-class CelestialBodyLocation:
-
-    def __init__(self, celestial_body: CelestialBody, location_name: str,
-                 latitude: float, longitude: float):
-        self.celestial_body = celestial_body
-        self.name = location_name
-        self.latitude = latitude
-        self.longitude = longitude
-
-
 # TODO: rework when the time comes
 class CelestialBodyVisual:
     """ Abstract class for visual / graphical representation of the
@@ -136,36 +122,6 @@ class CelestialBodyVisual:
         self.celestial_body = celestial_body
         self.radius = radius  # For 'visualization' only
         self.color = color
-
-
-# TODO: Move to diffrent module
-class Planet(CelestialBody):
-    """  """
-    def __init__(self, *args, std_gravity: float, surface_radius_m: float):
-        super().__init__(*args)
-        self.surface_radius_m = surface_radius_m  # m
-        self.std_gravity = std_gravity  # m/s^2
-        self.atmosphere = None
-
-        # Setters
-        self.outer_radius_m = None
-        self.set_outer_radius_m()
-
-    def set_atmosphere(self, atmosphere: Atmosphere):
-        """ Set an Atmosphere object to the Celestial body. """
-        self.atmosphere = atmosphere
-        self.set_outer_radius_m()
-
-    def set_outer_radius_m(self):
-        """ Sets outer radius as the sum of surface radius and athmospheric
-        thickness (if defined).
-        """
-        if self.atmosphere is not None:
-            self.outer_radius_m = (
-                self.surface_radius_m + self.atmosphere.atm_upper_limit_m
-            )
-        else:
-            self.outer_radius_m = self.surface_radius_m
 
 
 class Asteroid(CelestialBody):
