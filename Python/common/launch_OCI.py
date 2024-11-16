@@ -30,7 +30,8 @@ import matplotlib.pyplot as plt
 # Local application imports
 from utils import (secs_to_mins, convert_spherical_to_cartesian_coords,
                    runge_kutta_4, unit_vector, rodrigues_rotation)
-from cls import Stage, RocketAttitudeStatus, RocketEngineStatus
+from cls import (Earth, LaunchSite, KeplerOrbit, Stage, RocketAttitudeStatus,
+                 RocketEngineStatus)
 
 logger = logging.getLogger(__name__)
 
@@ -104,8 +105,11 @@ class RocketFlightProgram:
         return RocketEngineStatus.STAGE_2_COAST
 
     def get_throttle(self, t: float) -> float:
-        """ Return engine throttling factor (0.0 - 1.0) at a given t time since launch. """
-        return float(np.interp(t, self.throttle_program[0], self.throttle_program[1], left=1, right=1))
+        """ Return engine throttling factor (0.0 - 1.0) at a given t time since
+        launch.
+        """
+        return float(np.interp(t, self.throttle_program[0],
+                               self.throttle_program[1], left=1, right=1))
 
     def get_attitude_status(self, t: float) -> RocketAttitudeStatus:
         """ Return RocketAttitudeStatus at a given t time since launch. """
@@ -119,36 +123,48 @@ class RocketFlightProgram:
     def print_program(self):
         """ Print flight program. """
         logger.info("--- FLIGHT PROFILE DATA ---")
-        logger.info("MAIN ENGINE CUT OFF at T+%s (%s s)", secs_to_mins(self.meco), self.meco)
-        logger.info("STAGE SEPARATION 1 at T+%s (%s s)", secs_to_mins(self.ss_1), self.ss_1)
-        logger.info("SECOND ENGINE START 1 at T+%s (%s s)", secs_to_mins(self.ses_1), self.ses_1)
-        logger.info("PAYLOAD FAIRING JETTISON at T+%s (%s s)", secs_to_mins(self.fairing_jettison),
+        logger.info("MAIN ENGINE CUT OFF at T+%s (%s s)",
+                    secs_to_mins(self.meco), self.meco)
+        logger.info("STAGE SEPARATION 1 at T+%s (%s s)",
+                    secs_to_mins(self.ss_1), self.ss_1)
+        logger.info("SECOND ENGINE START 1 at T+%s (%s s)",
+                    secs_to_mins(self.ses_1), self.ses_1)
+        logger.info("PAYLOAD FAIRING JETTISON at T+%s (%s s)",
+                    secs_to_mins(self.fairing_jettison),
                     self.fairing_jettison)
-        logger.info("SECOND ENGINE CUT OFF 1 at T+%s (%s s)", secs_to_mins(self.seco_1), self.seco_1)
-        logger.info("SECOND ENGINE START 2 at T+%s (%s s)", secs_to_mins(self.ses_2), self.ses_2)
-        logger.info("SECOND ENGINE CUT OFF 2 at T+%s (%s s)", secs_to_mins(self.seco_2), self.seco_2)
-        logger.info("STAGE SEPARATION 2 at T+%s (%s s)", secs_to_mins(self.ss_2), self.ss_2)
+        logger.info("SECOND ENGINE CUT OFF 1 at T+%s (%s s)",
+                    secs_to_mins(self.seco_1), self.seco_1)
+        logger.info("SECOND ENGINE START 2 at T+%s (%s s)",
+                    secs_to_mins(self.ses_2), self.ses_2)
+        logger.info("SECOND ENGINE CUT OFF 2 at T+%s (%s s)",
+                    secs_to_mins(self.seco_2), self.seco_2)
+        logger.info("STAGE SEPARATION 2 at T+%s (%s s)",
+                    secs_to_mins(self.ss_2), self.ss_2)
 
 
 class RocketLaunch:
-    """ RocketLaunch class, defined by name, payload mass, drag coefficient and diameter; and stages. """
+    """ RocketLaunch class, defined by name, payload mass, drag coefficient and
+    diameter; and stages.
+    """
 
     def __init__(self, name: str, payload_mass: float, fairing_mass: float,
                  coefficient_of_drag: float, diameter: float,
                  stages: list[Stage], flightprogram: RocketFlightProgram,
-                 central_body: PlanetLocation):
+                 target_orbit: KeplerOrbit, launchsite: LaunchSite):
         self.name = name
         self.stage_status = RocketEngineStatus.STAGE_0
         self.stages = stages
         self.flightprogram = flightprogram
-        self.central_body = central_body
+        self.target_orbit = target_orbit
+        self.launchsite = launchsite
+        # self.central_body = central_body
 
         # Physical properties
         # Drag coefficient (-) times cross-sectional area of rocket (m2)
         self.drag_constant = coefficient_of_drag * (m.pi * pow(diameter, 2) / 4)
 
-        # State variables / dynamic vectors and mass
-        self.state = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])  # m, m/s and kg
+        # State variables / dynamic vectors and mass (m, m/s and kg)
+        self.state = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
         # Mass properties
         self.payload_mass = payload_mass  # kg
@@ -168,8 +184,9 @@ class RocketLaunch:
         return mass
 
     def get_thrust(self) -> float:
-        """ Calculates actual thrust (force) of the rocket, depending on actual staging. """
-
+        """ Calculates actual thrust (force) of the rocket, depending on actual
+        staging.
+        """
         if self.stage_status == RocketEngineStatus.STAGE_1_BURN:
             return self.stages[0].get_thrust()
 
@@ -179,27 +196,30 @@ class RocketLaunch:
         return 0
 
     def get_isp(self, pressure_ratio: float) -> float:
-        """ Calculates actual specific impulse of the rocket, depending on actual staging. """
-
+        """ Calculates actual specific impulse of the rocket, depending on
+        actual staging.
+        """
         if self.stage_status == RocketEngineStatus.STAGE_1_BURN:
             return self.stages[0].get_specific_impulse(pressure_ratio)
 
         if self.stage_status == RocketEngineStatus.STAGE_2_BURN:
             return self.stages[1].get_specific_impulse(pressure_ratio)
 
-        # NOTE: when engine is not generating thrust, isp is not valid, but 1 is
-        # returned to avoid ZeroDivisionError and NaN values
+        # NOTE: when engine is not generating thrust, isp is not valid, but 1
+        #  is returned to avoid ZeroDivisionError and NaN values
         return 1
 
     # pylint: disable = too-many-locals
     def launch_ode(self, time, state, dt):
         """ 2nd order ODE of the state-vectors, during launch.
 
-        The function returns the second derivative of position vector at a given time (acceleration vector),
-        using the position (r) and velocity (v) vectors. All values represent the same time.
+        The function returns the second derivative of position vector at a given
+        time (acceleration vector), using the position (r) and velocity (v)
+        vectors. All values represent the same time.
 
-        Trick: While passing through the velocity vector unchanged, we can numerically integrate both functions in
-        the RK4-solver in one step (this is outside of this functions scope).
+        Trick: While passing through the velocity vector unchanged, we can
+        numerically integrate both functions in the RK4-solver in one step (this
+        is outside of this functions scope).
 
         State-vector: rx, ry, rz, vx, vy, vz, m
         State-vector_dot: vx, vy, vz, ax, ay, az, m_dot
@@ -209,15 +229,17 @@ class RocketLaunch:
         mass = state[6]  # Mass
 
         # Calculate flight characteristics at the actual step
-        v_relative = self.central_body.get_relative_velocity(state)
-        air_density = self.central_body.get_density(np.linalg.norm(r) - self.central_body.surface_radius)
+        v_relative = self.launchsite.get_relative_velocity(state)
+        air_density = self.launchsite.get_density(
+            np.linalg.norm(r) - self.launchsite.surface_radius)
         pressure_ratio = air_density / 1.204  # TODO: hardcoded!
         drag_const = self.drag_constant * air_density / 2
 
         # Calculate aceleration
         # Calculate drag and gravity
         a_drag = -(v / np.linalg.norm(v)) * drag_const * v_relative ** 2 / mass
-        a_gravity = -r * self.central_body.std_gravitational_parameter / np.linalg.norm(r) ** 3
+        a_gravity = (-r * self.launchsite.std_gravitational_parameter
+                     / np.linalg.norm(r) ** 3)
 
         # Calculate thrust
         thrust_force = self.get_thrust() * self.flightprogram.get_throttle(time)
@@ -227,20 +249,24 @@ class RocketLaunch:
         if time < self.flightprogram.pitch_maneuver_start:
             a_thrust = thrust * (r / np.linalg.norm(r))
 
-        # Initial pitch-over maneuver -> Slight offset of Thrust and Velocity vectors
-        elif self.flightprogram.pitch_maneuver_start <= time < self.flightprogram.pitch_maneuver_end:
+        # Initial pitch-over maneuver -> Slight offset of Thrust and Velocity
+        # vectors
+        elif (self.flightprogram.pitch_maneuver_start <= time
+              < self.flightprogram.pitch_maneuver_end):
             # FIXME: cleanup, and investigate how this works exactly
             unit_r = r / np.linalg.norm(r)
             orbital_plane_vector = np.cross(unit_r, np.array([1, 0, 0]))
             unit_opv = unit_vector(orbital_plane_vector)
-            a_thrust = rodrigues_rotation(thrust * unit_r, unit_opv, 0.01 * m.pi / 180)
+            a_thrust = rodrigues_rotation(
+                thrust * unit_r, unit_opv, 0.01 * m.pi / 180)
 
         else:  # Gravity assist -> Thrust is parallel with velocity
             a_thrust = thrust * (v / np.linalg.norm(v))
 
         # Calculate acceleration (v_dot) and m_dot
-        a = a_gravity + a_thrust + a_drag  # 2nd order ODE function (acceleration)
-        m_dot = - thrust_force / (self.get_isp(pressure_ratio) * self.central_body.std_gravity) * dt
+        a = a_gravity + a_thrust + a_drag  # 2nd order ODE function (acc.)
+        m_dot = - thrust_force / (self.get_isp(pressure_ratio)
+                                  * self.launchsite.std_gravity) * dt
         return np.concatenate((v, a, [m_dot]))  # vx, vy, vz, ax, ay, az, m_dot
 
     def launch(self, inclination: float, simulation_time, timestep=1):
@@ -249,17 +275,23 @@ class RocketLaunch:
         # CALCULATION START
         # Calculations of target orbit
         # TODO: pre-flight checks for inclination limits
-        # TODO: implement calculations for desired orbit, and provide defaults for minimal energy orbit
-        launch_azimuth = m.asinh(m.cos(inclination * m.pi/180) / m.cos(self.central_body.latitude * m.pi / 180))
+        # TODO: implement calculations for desired orbit, and provide defaults
+        #  for minimal energy orbit
+        launch_azimuth = m.asinh(m.cos(inclination * m.pi/180)
+                                 / m.cos(self.launchsite.latitude * m.pi / 180))
         # target_velocity = 0
 
         # Update state vector with initial conditions
-        r_rocket = convert_spherical_to_cartesian_coords(self.central_body.surface_radius,
-                                                             self.central_body.latitude * m.pi / 180,
-                                                             self.central_body.longitude * m.pi / 180)
+        r_rocket = convert_spherical_to_cartesian_coords(
+            self.launchsite.surface_radius,
+            self.launchsite.latitude * m.pi / 180,
+            self.launchsite.longitude * m.pi / 180
+        )
 
-        omega_planet = np.array([0, 0, self.central_body.angular_velocity])  # rad/s
-        self.state = np.concatenate((r_rocket, np.cross(omega_planet, r_rocket), [self.total_mass]))
+        omega_planet = np.array([0, 0, self.launchsite.angular_velocity])  # rad/s
+        self.state = np.concatenate(
+            (r_rocket, np.cross(omega_planet, r_rocket), [self.total_mass])
+        )
         # Yield initial values
         yield 0, self.state, np.array([0.0, 0.0, 0.0])  # time, state, acc.
 
@@ -269,11 +301,15 @@ class RocketLaunch:
             self.stage_status = self.flightprogram.get_engine_status(time)
 
             # Calculate state-vector, acceleration and delta_m
-            # The ODE is solved for the acceleration vector and m_dot, which is used as an initial condition for the
-            # RK4 numerical integrator function, which then solves for the velocity function.
-            # Passing not only the acceleration vector, but the velocity vector to the RK4, we can numerically
-            # integrate twice with one function-call, thus we get back the full state-vector.
-            self.state, state_dot = runge_kutta_4(self.launch_ode, time, self.state, timestep, timestep)
+            # NOTE: The ODE is solved for the acceleration vector and m_dot,
+            #  which is used as an initial condition for the RK4 numerical
+            #  integrator function, which then solves for the velocity function.
+            #  Passing not only the acceleration vector, but the velocity vector
+            #  to the RK4, we can numerically integrate twice with one
+            #  function-call, thus we get back the full state-vector.
+            self.state, state_dot = runge_kutta_4(
+                self.launch_ode, time, self.state, timestep, timestep
+            )
             acceleration = state_dot[3:6]
 
             # Set mass for rocket: burn mass, and evaluate staging events
@@ -283,7 +319,8 @@ class RocketLaunch:
             if self.stage_status == RocketEngineStatus.STAGE_2_BURN:
                 self.stages[1].burn_mass(state_dot[6], time)
 
-            # Evaluate staging events, and refresh state-vector to remove excess mass
+            # Evaluate staging events, and refresh state-vector to
+            # remove excess mass
             if time == self.flightprogram.fairing_jettison:
                 self.fairing_mass = 0
                 self.state[6] = self.get_total_mass()
@@ -296,7 +333,8 @@ class RocketLaunch:
 
             # Log new data and end-conditions
             # TODO: implement checks for mass, target velocity, etc.
-            altitude_above_surface = np.linalg.norm(self.state[0:3]) - self.central_body.surface_radius
+            altitude_above_surface = (np.linalg.norm(self.state[0:3])
+                                      - self.launchsite.surface_radius)
             if altitude_above_surface <= 0:
                 logger.warning("WARNING! LITHOBRAKING!")
                 break
@@ -323,8 +361,9 @@ def plot(rocketlaunch: RocketLaunch, inclination):
     vel_data = []
     acc_data = []
     mass_data = []
-    cbsr = rocketlaunch.central_body.surface_radius
-    plot_title = rocketlaunch.name + " launch from " + rocketlaunch.central_body.name
+    cbsr = rocketlaunch.launchsite.surface_radius
+    plot_title = (f"{rocketlaunch.name} launch from"
+                  f" {rocketlaunch.launchsite.name}")
 
     for time, state, acc, in rocketlaunch.launch(inclination, 16000, 1):
         time_data.append(time)
@@ -334,10 +373,10 @@ def plot(rocketlaunch: RocketLaunch, inclination):
         vx.append(state[3])
         vy.append(state[4])
         vz.append(state[5])
-        alt_data.append((np.linalg.norm(state[0:3]) - cbsr) / 1000)  # Altitude in km-s
-        vel_data.append(np.linalg.norm(state[3:6]) / 1000)  # Velocity in km/s
-        acc_data.append(np.linalg.norm(acc) / 9.82)  # Acceleration in g-s
-        mass_data.append(state[6] / 1000)  # Mass in 1000 kg-s
+        alt_data.append((np.linalg.norm(state[0:3]) - cbsr) / 1000)  # Alt. - km
+        vel_data.append(np.linalg.norm(state[3:6]) / 1000)  # Velocity - km/s
+        acc_data.append(np.linalg.norm(acc) / 9.82)  # Acceleration - g
+        mass_data.append(state[6] / 1000)  # Mass - 1000 kg
 
     # Plotting
     plt.style.use('_mpl-gallery')
@@ -393,7 +432,8 @@ def plot(rocketlaunch: RocketLaunch, inclination):
     ax5.plot([0, cbsr * 1.1], [0, 0], [0, 0], label="x axis", color="r")
     ax5.plot([0, 0], [0, cbsr * 1.1], [0, 0], label="y axis", color="g")
     ax5.plot([0, 0], [0, 0], [0, cbsr * 1.1], label="z axis", color="b")
-    ax5.plot([0, rx[0]], [0, ry[0]], [0, rz[0]], label="launch", color="w")  # Launch site
+    # Launch site:
+    ax5.plot([0, rx[0]], [0, ry[0]], [0, rz[0]], label="launch", color="w")
 
     plt.show()
 
@@ -401,9 +441,10 @@ def plot(rocketlaunch: RocketLaunch, inclination):
 # Include guard
 def main():
     """ Example SpaceX Falcon 9 launch demonstrating the use of the
-    PlanetLocation, Stage and RocketLaunch classes.
+    LaunchSite, Stage and RocketLaunch classes.
     
-    The function calculates and plots flight parameters during and after liftoff.
+    The function calculates and plots flight parameters during and after
+    liftoff.
 
     Falcon 9 flight data sources:
     * https://aerospaceweb.org/question/aerodynamics/q0231.shtml
@@ -412,21 +453,27 @@ def main():
     """
 
     # Launch-site
-    cape_canaveral = EarthLocation("Cape Canaveral", 28.3127, -80.3903)
+    cape_canaveral = LaunchSite(Earth(), "Cape Canaveral", 28.3127, -80.3903)
+    # cape_canaveral = EarthLocation("Cape Canaveral", 28.3127, -80.3903)
 
     # Falcon9 hardware specs:  # 2nd stage empty mass minus payload fairing
     first_stage = Stage(25600, 395700, 9, 934e3, [312, 283])
     second_stage = Stage(2000, 92670, 1, 934e3, 348)
 
     # TODO: Modelling throttle to 80% properly, and test it
-    throttle_map = [[70, 80, 81, 150, 550, 3000, 3500], [0.8, 0.8, 1.0, 0.88, 0.88, 0.1, 0.1]]
-    flight_program = RocketFlightProgram(145, 156, 514, 3090, 3390, throttle_map,
-                                         195, 16, 60, None, None)
+    throttle_map = [[70, 80, 81, 150, 550, 3000, 3500],
+                    [0.8, 0.8, 1.0, 0.88, 0.88, 0.1, 0.1]]
+    flight_program = RocketFlightProgram(145, 156, 514,
+                                         3090, 3390, throttle_map,
+                                         195, 16,
+                                         60, None, None)
     # TargetOrbit
-    # targetorbit = KeplerOrbit
+    targetorbit = None  # KeplerOrbit()
 
-    falcon9 = RocketLaunch("Falcon 9", 15000, 1900, 0.25, 5.2,
-                           [first_stage, second_stage], flight_program, cape_canaveral)
+    falcon9 = RocketLaunch("Falcon 9", 15000, 1900,
+                           0.25, 5.2,
+                           [first_stage, second_stage],
+                           flight_program, targetorbit, cape_canaveral)
 
     # Plot launch
     plot(falcon9, 28.5)
