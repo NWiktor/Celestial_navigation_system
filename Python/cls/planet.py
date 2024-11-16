@@ -10,6 +10,7 @@ Help
 ----
 * https://en.wikipedia.org/wiki/Earth%27s_rotation
 * https://en.wikipedia.org/wiki/Density_of_air
+* https://en.wikipedia.org/wiki/Earth
 
 Contents
 --------
@@ -21,12 +22,24 @@ from enum import StrEnum
 import numpy as np
 
 # Local application imports
-from cls.atmosphere import Atmosphere
+from cls.atmosphere import Atmosphere, EarthAtmosphereUS1976
 from cls.celestial_body import CelestialBody
+from cls.celestial_body_utils import Component, Composition
 
 # Class initializations and global variables
 logger = logging.getLogger(__name__)
-gravitational_constant: float = 6.67430 * pow(10, -11)  # m^3 kg-1 s-2
+
+EarthCoreComposition = Composition([
+    Component("Iron", 32.1, "Fe"),
+    Component("Oxygen", 30.1, "O"),
+    Component("Silicon", 15.1, "Si"),
+    Component("Magnesium", 13.9, "Mg"),
+    Component("Sulfur", 2.9, "S"),
+    Component("Nickel", 1.8, "Ni"),
+    Component("Calcium", 1.5, "Ca"),
+    Component("Aluminium", 1.4, "Al")],
+    source="https://en.wikipedia.org/wiki/Earth"
+)
 
 
 class PlanetType(StrEnum):
@@ -41,9 +54,10 @@ class PlanetType(StrEnum):
 # Class and function definitions
 class Planet(CelestialBody):
 
-    def __init__(self, *args, planettype: PlanetType, std_gravity: float,
+    def __init__(self, uuid, name, mass_kg, other_names, composition,
+                 planettype: PlanetType, std_gravity: float,
                  surface_radius_m: float):
-        super().__init__(*args)
+        super().__init__(uuid, name, mass_kg, other_names, composition)
         self.planettype = planettype
         self.surface_radius_m = surface_radius_m  # m
         self.std_gravity = std_gravity  # m/s^2
@@ -86,8 +100,8 @@ class PlanetLocation:
 class LaunchSite(PlanetLocation):
     """ Class for representing a launch-site on a planet. """
 
-    def __init__(self, *args):
-        super().__init__(*args)
+    def __init__(self, planet, location_name, latitude, longitude):
+        super().__init__(planet, location_name, latitude, longitude)
 
         self.surface_radius = self.planet.surface_radius_m
         self.angular_velocity = self.planet.angular_velocity_rad_per_s
@@ -120,6 +134,21 @@ class LaunchSite(PlanetLocation):
 
     def get_surface_velocity(self):
         """ Placeholder func. """
+
+
+class Earth(Planet):
+    def __init__(self):
+        super().__init__("0001", "Earth", 5.972e24,
+                         None, EarthCoreComposition,
+                         PlanetType.TERRESTIAL,
+                         9.80665, 6_371_000)
+        self.set_atmosphere(EarthAtmosphereUS1976())
+        self.set_outer_radius_m()
+        self.set_std_gravitational_param()
+        # self.set_orbit()
+        # self.set_rotation_params()
+        # TODO: replace direct access with setter function above
+        self.angular_velocity_rad_per_s = 7.292115e-5
 
 
 # Include guard
