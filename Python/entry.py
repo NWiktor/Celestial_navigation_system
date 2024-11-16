@@ -19,5 +19,5 @@ logging.info("Program version: %s, %s", __version__, __author__)
 
 if __name__ == "__main__":
     # Start main
-    # common.launch_OCI.main()
-    cls.atmosphere.module_test()
+    common.launch_OCI.main()
+    # cls.atmosphere.module_test()
