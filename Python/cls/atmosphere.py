@@ -30,10 +30,6 @@ from cls.celestial_body_utils import Composition, Component
 
 # Class initializations and global variables
 logger = logging.getLogger(__name__)
-gravitational_constant: float = 6.67430 * pow(10, -11)  # m^3 kg-1 s-2
-standard_gravity = 9.80665  # m/s2
-air_molar_mass = 0.028964425278793993  # kg/mol
-universal_gas_constant = 8.3144598  # N·m/(mol·K)
 
 EarthAthmosphericComposition = Composition([
     Component("Nitrogen", 78.084, "N2"),
@@ -147,7 +143,7 @@ class EarthAtmosphere(Atmosphere):
         # Calculate air density and return values
         air_density = pressure / (0.2869 * (temperature + 273.1))
         logger.debug("Atmospheric temp.: %.6f (C°), pres.: %.6f (kPa) and"
-                     "air density: %.6f (kg/m3) @ %s (m)",
+                     " air density: %.6f (kg/m3) @ %s (m)",
                      temperature, pressure, air_density, altitude)
         return temperature, pressure, air_density
 
@@ -216,7 +212,7 @@ class EarthAtmosphereUS1976(Atmosphere):
         # Calculate air density and return values
         air_density = pressure / (0.2869 * temperature)
         logger.debug("Atmospheric temp.: %.6f (K), pres.: %.6f (kPa) and"
-                     "air density: %.6f (kg/m3) @ %s (m)",
+                     " air density: %.6f (kg/m3) @ %s (m)",
                      temperature, pressure, air_density, altitude)
         return temperature, pressure, air_density
 
@@ -251,7 +247,7 @@ class MarsAtmosphere(Atmosphere):
         # Calculate air density and return values
         air_density = pressure / (0.1921 * (temperature + 273.1))
         logger.debug("Atmospheric temp.: %.6f (C°), pres.: %.6f (kPa) and"
-                     "athmospheric density: %.6f (kg/m3) @ %s (m)",
+                     " athmospheric density: %.6f (kg/m3) @ %s (m)",
                      temperature, pressure, air_density, altitude)
         return temperature, pressure, air_density
 
