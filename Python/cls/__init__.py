@@ -4,7 +4,7 @@
 
 # Class imports
 from cls.celestial_body import CelestialBody
-from cls.planet import Planet, LaunchSite
+from cls.planet import Earth, Planet, LaunchSite
 from cls.atmosphere import Atmosphere, EarthAtmosphereUS1976
 from cls.kepler_orbit import KeplerOrbit
 from cls.hardware import Stage, RocketAttitudeStatus, RocketEngineStatus
