@@ -34,6 +34,7 @@ gravitational_constant: float = 6.67430 * pow(10, -11)  # m^3 kg-1 s-2
 standard_gravity = 9.80665  # m/s2
 air_molar_mass = 0.028964425278793993  # kg/mol
 universal_gas_constant = 8.3144598  # N·m/(mol·K)
+
 EarthAthmosphericComposition = Composition([
     Component("Nitrogen", 78.084, "N2"),
     Component("Oxygen", 20.946, "O2"),
