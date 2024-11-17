@@ -386,8 +386,11 @@ class RocketLaunch:
         # Calculations of target orbit
         # TODO: pre-flight checks for inclination limits
         # TODO: implement calculations for desired orbit, and provide defaults for minimal energy orbit
-        launch_azimuth = m.asinh(m.cos(inclination * m.pi/180) / m.cos(self.central_body.latitude * m.pi / 180))
+        launch_azimuth = m.asin(m.cos(inclination * m.pi/180) / m.cos(self.central_body.latitude * m.pi / 180))
         # target_velocity = 0
+
+        # A handy formula to remember is: cos(i) = cos(φ) * sin(β), where i is
+        # the inclination, β is the launch azimuth, and φ is the launch latitude.
 
         # Update state vector with initial conditions
         r_rocket = convert_spherical_to_cartesian_coords(self.central_body.surface_radius,
