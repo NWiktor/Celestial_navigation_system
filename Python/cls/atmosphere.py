@@ -58,35 +58,27 @@ MarsAthmosphericComposition = Composition([
 class Atmosphere:
     """ Baseclass for a generic atmospheric model. """
 
-    def __init__(self, model_name: str, atm_lower_limit_m: int,
-                 atm_upper_limit_m: int):
+    def __init__(self, model_name: str, atm_upper_limit_m: int):
         self.model_name = model_name
-        self.atm_lower_limit_m = atm_lower_limit_m  # Lower limit
         self.atm_upper_limit_m = atm_upper_limit_m  # Upper limit
         self.composition = None
-
-    def _apply_limits(self, altitude) -> int:
-        """ If the given value is out of range of the valid atmospheric model,
-        returns the applicable value. This function is needed to in case an
-        iterative calculation accidentally runs through the limits.
-        When the altitude smaller than 0, there is solid ground, no atmosphere;
-        this case should be handled anyway elsewhere. When altitude is above
-        range, there is space (no pressure, no atmosphere).
-        """
-        return min(max(self.atm_lower_limit_m, altitude),
-                   self.atm_upper_limit_m)
 
     # pylint: disable = unused-argument
     # @override
     def _atmospheric_model(self, altitude) -> tuple[float, float, float]:
-        """ Returns the temperature, pressure, density values. """
+        """ Returns the temperature, pressure, density values.
+
+        When the altitude is lass than 0, there is solid ground, no atmosphere;
+        when altitude is above the upper limit, there is space (no pressure, no
+        atmosphere).
+        """
         return 0.0, 0.0, 0.0
 
     def get_atm_params(self, altitude) -> tuple[float, float, float]:
         """ Enforces the atmospheric model limits, and returns the temperature,
         pressure, density values.
         """
-        return self._atmospheric_model(self._apply_limits(altitude))
+        return self._atmospheric_model(altitude)
 
     def get_temperature(self, altitude) -> float:
         """ Returns the temperature at a given altitude. """
@@ -116,7 +108,7 @@ class EarthAtmosphere(Atmosphere):
 
     def __init__(self):
         super().__init__("Standard atmosphere, simplified, NASA",
-                         0, 30000)
+                         30000)
         self.set_composition(EarthAthmosphericComposition)
 
     def _atmospheric_model(self, altitude: float) -> tuple[float, float, float]:
@@ -127,6 +119,7 @@ class EarthAtmosphere(Atmosphere):
         """
         temperature = 0.0
         pressure = 0.0
+        altitude = max(0.0, altitude)  # Handle negative values
 
         if 0 <= altitude < 11000:  # Troposhere
             temperature = 15.04 - 0.00649 * altitude
@@ -136,9 +129,12 @@ class EarthAtmosphere(Atmosphere):
             temperature = -56.46
             pressure = 22.65 * m.exp(1.73 - 0.000157 * altitude)
 
-        elif 25000 <= altitude:  # Upper stratosphere
+        elif 25000 <= altitude < self.atm_upper_limit_m:  # Upper stratosphere
             temperature = -131.21 + 0.00299 * altitude
             pressure = 2.488 * pow((temperature + 273.1) / 216.6, -11.388)
+
+        else:
+            return float(-270), 0, 0
 
         # Calculate air density and return values
         air_density = pressure / (0.2869 * (temperature + 273.1))
@@ -155,7 +151,7 @@ class EarthAtmosphereUS1976(Atmosphere):
 
     def __init__(self):
         super().__init__("US. standard atmosphere, 1976",
-                         0, 100000)
+                         100000)
         self.set_composition(EarthAthmosphericComposition)
 
     def _atmospheric_model(self, altitude: float) -> tuple[float, float, float]:
@@ -170,6 +166,7 @@ class EarthAtmosphereUS1976(Atmosphere):
         temperature: float = 288.15  # Kelvin
         pressure: float = 101.325  # kPa
         # air_density: float = 1.225  # kg/m3
+        altitude = max(0.0, altitude)  # Handle negative values
 
         if 0 < altitude <= 11000:  # Troposphere
             temperature = 288.15 - 0.0065 * altitude
@@ -205,15 +202,19 @@ class EarthAtmosphereUS1976(Atmosphere):
             temperature = 184.65
             pressure = 0.0003
 
-        elif 91000 < altitude:
+        elif 91000 < altitude < self.atm_upper_limit_m:
             temperature = 184.65
             pressure = 0.0003
 
+        else:
+            return float(-270), 0, 0
+
         # Calculate air density and return values
         air_density = pressure / (0.2869 * temperature)
-        logger.debug("Atmospheric temp.: %.6f (K), pres.: %.6f (kPa) and"
-                     " air density: %.6f (kg/m3) @ %s (m)",
-                     temperature, pressure, air_density, altitude)
+        # NOTE: add back when testing over
+        # logger.debug("Atmospheric temp.: %.6f (K), pres.: %.6f (kPa) and"
+        #              " air density: %.6f (kg/m3) @ %s (m)",
+        #              temperature, pressure, air_density, altitude)
         return temperature, pressure, air_density
 
 
@@ -224,7 +225,7 @@ class MarsAtmosphere(Atmosphere):
 
     def __init__(self):
         super().__init__("Standard Martian atmosphere, NASA",
-                         0, 60000)
+                         60000)
         self.set_composition(MarsAthmosphericComposition)
 
     def _atmospheric_model(self, altitude: float) -> tuple[float, float, float]:
@@ -235,14 +236,18 @@ class MarsAtmosphere(Atmosphere):
         """
         temperature = -31  # C°
         pressure = 0.7  # kPa
+        altitude = max(0.0, altitude)  # Handle negative values
 
         if 0 < altitude <= 7000:  # Troposhere
             temperature = -31 - 0.000998 * altitude
             pressure = 0.699 * m.exp(-0.00009 * altitude)
 
-        elif 7000 < altitude:  # Upper stratosphere
+        elif 7000 < altitude < self.atm_upper_limit_m:  # Upper stratosphere
             temperature = -23.4 - 0.00222 * altitude
             pressure = 0.699 * m.exp(-0.00009 * altitude)
+
+        else:
+            return float(-270), 0, 0
 
         # Calculate air density and return values
         air_density = pressure / (0.1921 * (temperature + 273.1))
@@ -261,7 +266,7 @@ def plot_atmosphere(model: Atmosphere):
     tmp = []
     pres = []
     rho = []
-    for i in range(0, 10000):
+    for i in range(1, int(model.atm_upper_limit_m/10 * 1.1)):
         data = model.get_atm_params(i * 10)
         alt.append(i*10)
         tmp.append(data[0])
@@ -299,7 +304,7 @@ def plot_atmosphere(model: Atmosphere):
 
 # Include guard
 if __name__ == '__main__':
-    # plot_atmosphere(EarthAtmosphereUS1976())
+    plot_atmosphere(EarthAtmosphereUS1976())
     for comp in MarsAthmosphericComposition.get_composition():
         print(comp)
     # plot_atmosphere(MarsAtmosphere())
