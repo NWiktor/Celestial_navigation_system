@@ -458,11 +458,12 @@ def main():
 
     # Launch-site
     cape_canaveral = LaunchSite(Earth(), "Cape Canaveral", 28.3127, -80.3903)
-    # cape_canaveral = EarthLocation("Cape Canaveral", 28.3127, -80.3903)
 
     # Falcon9 hardware specs:  # 2nd stage empty mass minus payload fairing
-    first_stage = Stage(25600, 395700, 9, 934e3, [312, 283])
-    second_stage = Stage(2000, 92670, 1, 934e3, 348)
+    first_stage = Stage(25600, 395700, 9,
+                        934e3, [312, 283])
+    second_stage = Stage(2000, 92670, 1,
+                         934e3, 348)
 
     # TODO: Modelling throttle to 80% properly, and test it
     throttle_map = [[70, 80, 81, 150, 550, 3000, 3500],
