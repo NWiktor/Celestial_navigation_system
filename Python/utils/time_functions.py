@@ -29,33 +29,33 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def julian_date(year: int, month: int, day: int,
-                hour: int, minute: int, second=0):
+def julian_date(date: datetime.datetime) -> float:
     """ Calculates full Julian date of a given date according to:
     JD = JDN + hour/24 + minute/1440 + second/86400
 
     https://stackoverflow.com/questions/13943062/extract-day-of-year-and-julian-day-from-a-string-date
     https://en.wikipedia.org/wiki/Julian_day
     """
-    jdn = datetime.date(year, month, day).toordinal() + 1721424.5
-    jd_ = jdn + hour/24 + minute/1440 + second/86400
-    logging.debug(f"Julian date number of {year}-{month:02d}-{day:02d} {hour:02d}:{minute:02d}:{second:02d} is: {jd_}")
+    jdn = date.toordinal() + 1721424.5
+    jd_ = jdn + date.hour / 24 + date.minute / 1440 + date.second / 86400
+    logging.debug(f"Julian date number of {date.year}-{date.month:02d}-{date.day:02d} "
+                  f"{date.hour:02d}:{date.minute:02d}:{date.second:02d} is: {jd_}")
     return jd_
 
 
-def j2000_date(year: int, month: int, day: int,
-               hour: int, minute: int, second=0):
+def j2000_date(date: datetime.datetime) -> float:
     """ Calculates J200 date of a given date from Julian date.
 
     https://en.wikipedia.org/wiki/Epoch_(astronomy)
     """
-    julian_d = julian_date(year, month, day, hour, minute, second)
+    julian_d = julian_date(date)
     j2000 = 2000 + (julian_d - 2451545.0) / 365.25
-    logging.debug(f"J2000 date of {year}-{month:02d}-{day:02d} {hour:02d}:{minute:02d}:{second:02d} is: {j2000}")
+    logging.debug(f"J2000 date of {date.year}-{date.month:02d}-{date.day:02d} "
+                  f"{date.hour:02d}:{date.minute:02d}:{date.second:02d} is: {j2000}")
     return j2000
 
 
-def secs_to_mins(total_seconds) -> str:
+def secs_to_mins(total_seconds: int) -> str:
     """ Formats seconds to HH:MM:SS format. """
     total_minutes, seconds = divmod(total_seconds, 60)
     hours, minutes = divmod(total_minutes, 60)
