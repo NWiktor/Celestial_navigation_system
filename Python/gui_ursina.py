@@ -16,7 +16,7 @@ Help
 Contents
 --------
 """
-
+import datetime
 # Standard library imports
 # First import should be the logging module if any!
 import logging
@@ -26,22 +26,28 @@ import math as m
 from ursina import *
 
 # Local application imports
+from cls.kepler_orbit import CircularOrbit
+from utils import time_functions as tf
 
 logger = logging.getLogger(__name__)
+
 CAMERA_AZIMUTH = 55
 CAMERA_POLAR = 120
-CAMERA_RADIUS = 100
+CAMERA_RADIUS = 200
 
-TIME_SCALE_FACTOR = 200  # the passing of time is multiplied by this number
+YEARS_TO_SECS = 31_556_926
+# DAYS_TO_SECS = 86_400
+TIME_SCALE_FACTOR = 1000000  # the passing of time is multiplied by this number
 DIMENSION_SCALE_FACTOR = 1000  # all dimensions (in km) are divided by this number
 GRID_SIZE_KM = 100000
 SUBGRID_RATIO = 5
 
-GLOBAL_TIME = 0
-alpha = 0
-START_TIME = 0
+START_TIME = tf.j2000_date(datetime.datetime.now())
+SIMULATION_TIME = tf.j2000_date(datetime.datetime.now())
 
 OBJECTS = []
+
+moon_orbit = None
 
 
 class Planet(Entity):
@@ -65,15 +71,16 @@ class PlanetTexture(Entity):
 
 
 def update():
-    global alpha, CAMERA_AZIMUTH, CAMERA_POLAR, CAMERA_RADIUS
+    global secs, CAMERA_AZIMUTH, CAMERA_POLAR, CAMERA_RADIUS,\
+        SIMULATION_TIME, moon_orbit
 
     # Camera
     CAMERA_AZIMUTH += held_keys['d'] * 20 * time.dt
     CAMERA_AZIMUTH -= held_keys['a'] * 20 * time.dt
     CAMERA_POLAR += held_keys['w'] * 15 * time.dt
     CAMERA_POLAR -= held_keys['s'] * 15 * time.dt
-    CAMERA_RADIUS += held_keys['up arrow'] * 50 * time.dt
-    CAMERA_RADIUS -= held_keys['down arrow'] * 50 * time.dt
+    CAMERA_RADIUS -= held_keys['up arrow'] * 50 * time.dt
+    CAMERA_RADIUS += held_keys['down arrow'] * 50 * time.dt
 
     camera.x = (CAMERA_RADIUS * m.cos(m.radians(CAMERA_AZIMUTH))
                 * m.sin(m.radians(CAMERA_POLAR)))
@@ -81,19 +88,27 @@ def update():
                 * m.sin(m.radians(CAMERA_POLAR)))
     camera.z = CAMERA_RADIUS * m.cos(m.radians(CAMERA_POLAR))
     camera.look_at(earth, up=earth.back)
+
+
+    # Animation
+    SIMULATION_TIME += TIME_SCALE_FACTOR * time.dt / YEARS_TO_SECS
+
+    pos = moon_orbit.get_position(SIMULATION_TIME) / DIMENSION_SCALE_FACTOR / 10
+    moon.world_x = pos[0]
+    moon.world_y = pos[1]
+    moon.world_z = -pos[2]
+
+    # Tidal-lock
+    moon.rotation_z -= moon_orbit.mean_angular_motion * 365.25 * TIME_SCALE_FACTOR * time.dt / YEARS_TO_SECS
+
     rotation_info.text = (
-            f"Camera pos.: {camera.position}\n"
-            + f"Camera rot.: {camera.rotation}\n"
+            f"Simulation start: {START_TIME}\n"
+            f"Simulation time: {SIMULATION_TIME}\n"
+            + "---------\n"
             + f"Camera azimuth.: {CAMERA_AZIMUTH}\n"
             + f"Camera polar.: {CAMERA_POLAR}\n"
             + f"Camera radius.: {CAMERA_RADIUS}\n"
     )
-
-    # Animation
-    radius = 25000 / DIMENSION_SCALE_FACTOR
-    alpha += 10 * time.dt
-    moon.x = radius * m.cos(m.radians(alpha))
-    moon.y = radius * m.sin(m.radians(alpha))
 
 
 def input(key):
@@ -109,15 +124,43 @@ def input(key):
 
 
 def main():
+    global moon_orbit
     # 384_400 - original orbit of moon
     earth = Planet(6_378, (0, 0, 0),
                    'resource/2k_earth_daymap.jpg')
     moon = Planet(1_737, (0, 0, 0),
                   'resource/lroc_color_poles_1k.jpg')
 
-    orbit = Entity(model=Circle(120, radius=25000 / DIMENSION_SCALE_FACTOR,
-                                mode='line', thickness=2),
-                   rotation_x=0, color=color.hsv(60, 1, 1, .3))
+    moon_orbit = CircularOrbit(384_748, 28.58,
+                               45, 90,
+                               0)
+    moon_orbit.calculate_orbital_period(5.972E24, 7.34767309E22)
+
+    long_asc_node = Entity(
+        model=Cylinder(6, radius=0.1, direction=(1, 0, 0),
+                       height=384_748 / DIMENSION_SCALE_FACTOR / 10,
+                       thickness=2),
+        rotation_z=-45,
+        parent=scene, world_scale=1, color=color.hsv(60, 1, 1, .3))
+
+    orbit = Entity(
+        model=Circle(120, radius=384_748 / DIMENSION_SCALE_FACTOR / 10,
+                     mode='line', thickness=2),
+        color=color.hsv(60, 1, 1, .3),
+        rotation_x=-28.58,
+        parent=long_asc_node)
+
+    periapsis = Entity(
+        model=Cylinder(6, radius=0.1, direction=(1, 0, 0),
+                       height=384_748 / DIMENSION_SCALE_FACTOR / 10,
+                       thickness=2),
+        rotation_z=-90,
+        parent=orbit, world_scale=1, color=color.hsv(60, 1, 1, .3))
+
+    mean_anomaly = moon_orbit.get_current_mean_anomaly(SIMULATION_TIME)
+    moon.parent = periapsis
+    moon.position = Vec3(384_748 / DIMENSION_SCALE_FACTOR / 10, 0, 0)
+    moon.rotate(Vec3(0, 0, 180 - mean_anomaly))
 
     return earth, moon
 
@@ -165,6 +208,6 @@ if __name__ == '__main__':
     create_unit_vectors(earth, scale=3, right_handed=True)
     create_unit_vectors(moon, scale=3, right_handed=True)
 
-    create_grid()
+    # create_grid()
 
     app.run()
