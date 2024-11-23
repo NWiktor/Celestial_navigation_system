@@ -95,8 +95,9 @@ class KeplerOrbit:
     def calculate_orbital_period(self, mass1, mass2=0):
         """ Calculate orbital period from keplerian elements. """
         # Converting km to m in semimajor axis, and convert seconds to days
-        self.orbital_period = 2 * m.pi * m.sqrt(pow(self.semimajor_axis * 1000, 3)
-                                                / ((mass1 + mass2) * gravitational_constant)) / 86400
+        self.orbital_period = 2 * m.pi * m.sqrt(
+            pow(self.semimajor_axis * 1000, 3)
+            / ((mass1 + mass2) * gravitational_constant)) / 86400
         logging.debug("Orbital period is %s", self.orbital_period)
         self.calculate_mean_angular_motion()
 
@@ -105,7 +106,8 @@ class KeplerOrbit:
         at a given time since J2000 epoch in the inertial reference frame (IRF).
         """
         # Calculate mean anomaly at J2000, in deg
-        mean_anomaly = (self.mean_anomaly_at_epoch + (self.mean_angular_motion * j2000_time)) % 360
+        mean_anomaly = (self.mean_anomaly_at_epoch +
+                        (self.mean_angular_motion * j2000_time)) % 360
         logging.debug("Mean anomaly is %s°", mean_anomaly)
 
         # Calculate eccentric anomaly according to:
