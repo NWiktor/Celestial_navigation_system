@@ -29,7 +29,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def julian_date(year, month, day, hour, minute, second=0):
+def julian_date(year: int, month: int, day: int,
+                hour: int, minute: int, second=0):
     """ Calculates full Julian date of a given date according to:
     JD = JDN + hour/24 + minute/1440 + second/86400
 
@@ -42,7 +43,8 @@ def julian_date(year, month, day, hour, minute, second=0):
     return jd_
 
 
-def j2000_date(year, month, day, hour, minute, second=0):
+def j2000_date(year: int, month: int, day: int,
+               hour: int, minute: int, second=0):
     """ Calculates J200 date of a given date from Julian date.
 
     https://en.wikipedia.org/wiki/Epoch_(astronomy)
