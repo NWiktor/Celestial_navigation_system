@@ -82,7 +82,7 @@ class KeplerOrbit:
 
     def calculate_mean_angular_motion(self) -> None:
         """ Calculate mean angular motion from orbital period. """
-        self.mean_angular_motion = 360 / self.orbital_period
+        self.mean_angular_motion = 360 / self.orbital_period  # deg/day
 
     def set_orbital_period(self, orbital_period: float) -> None:
         """ Set the value of orbital period attribute directly (from external
@@ -91,24 +91,32 @@ class KeplerOrbit:
         self.orbital_period = orbital_period  # 24 * 60 * 60 seconds aka 1 solar day
         self.calculate_mean_angular_motion()
 
-    # TODO: validate function
-    def calculate_orbital_period(self, mass1, mass2=0):
+    def calculate_orbital_period(self, mass1_kg, mass2_kg=0):
         """ Calculate orbital period from keplerian elements. """
         # Converting km to m in semimajor axis, and convert seconds to days
         self.orbital_period = 2 * m.pi * m.sqrt(
             pow(self.semimajor_axis * 1000, 3)
-            / ((mass1 + mass2) * gravitational_constant)) / 86400
+            / ((mass1_kg + mass2_kg) * gravitational_constant)) / 86400
         logging.debug("Orbital period is %s", self.orbital_period)
         self.calculate_mean_angular_motion()
 
-    def get_position(self, j2000_time):
+    def get_current_mean_anomaly(self, j2000_years: float) -> float:
+        """ Calculate mean anomaly at current time, in deg.
+
+        This method can be used to calculate angular position at an
+        initial value.
+        """
+        mean_anomaly = (self.mean_anomaly_at_epoch +
+                        (self.mean_angular_motion * j2000_years * 365.25)) % 360
+        logging.debug("Mean anomaly is %s°", mean_anomaly)
+        return mean_anomaly
+
+    def get_position(self, j2000_time: float):
         """ Calculate position and velocity vectors of an object at a given orbit,
         at a given time since J2000 epoch in the inertial reference frame (IRF).
         """
-        # Calculate mean anomaly at J2000, in deg
-        mean_anomaly = (self.mean_anomaly_at_epoch +
-                        (self.mean_angular_motion * j2000_time)) % 360
-        logging.debug("Mean anomaly is %s°", mean_anomaly)
+        # Calculate mean anomaly at J2000 in deg
+        mean_anomaly = self.get_current_mean_anomaly(j2000_time)
 
         # Calculate eccentric anomaly according to:
         # https://space.stackexchange.com/questions/55356/how-to-find-eccentric-anomaly-by-mean-anomaly
@@ -152,7 +160,29 @@ class CircularOrbit(KeplerOrbit):
         super().__init__(0, radius, inclination, longitude_of_ascending_node,
                          argument_of_periapsis, mean_anomaly_at_epoch)
 
+    def get_position(self, j2000_time: float):
+        """ Calculate position and velocity vectors of an object at a given
+        orbit, at a given time since J2000 epoch in the inertial reference frame
+        (IRF).
+        """
+        # Calculate mean anomaly at J2000 in deg
+        mean_anomaly = self.get_current_mean_anomaly(j2000_time)
+        eca0 = mean_anomaly * m.pi / 180
+
+        # Calculate state variables (position and velocity) in orbital plane
+        rx = self.semimajor_axis * m.cos(eca0)  # km
+        ry = self.semimajor_axis * m.sin(eca0)  # km
+        # TODO: add velocity calculation
+        # vx =
+        # vy =
+
+        # Convert position vector coordinates to IRF coordinates
+        return np.dot(self.rotational_matrix, (np.array([rx, ry, 0])))
+
 
 # Include guard
 if __name__ == '__main__':
-    pass
+    moon_orbit = CircularOrbit(384_748, 28.58,
+                               45, 90,
+                               0)
+    moon_orbit.calculate_orbital_period(5.972E24, 7.34767309E22)
