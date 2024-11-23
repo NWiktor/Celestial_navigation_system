@@ -1,5 +1,6 @@
 # Sajat ignore
 log/
+sandbox/
 AWP_copycode.py
 
 # Byte-compiled / optimized / DLL files
