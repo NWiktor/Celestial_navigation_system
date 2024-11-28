@@ -24,6 +24,7 @@ import math as m
 
 # Third party imports
 from ursina import *
+from ursina import time
 
 # Local application imports
 from cls.kepler_orbit import CircularOrbit
@@ -36,7 +37,6 @@ CAMERA_POLAR = 120
 CAMERA_RADIUS = 200
 
 YEARS_TO_SECS = 31_556_926
-# DAYS_TO_SECS = 86_400
 TIME_SCALE_FACTOR = 1000000  # the passing of time is multiplied by this number
 DIMENSION_SCALE_FACTOR = 1000  # all dimensions (in km) are divided by this number
 GRID_SIZE_KM = 100000
@@ -44,8 +44,7 @@ SUBGRID_RATIO = 5
 
 START_TIME = tf.j2000_date(datetime.datetime.now())
 SIMULATION_TIME = tf.j2000_date(datetime.datetime.now())
-
-OBJECTS = []
+RUN = True
 
 moon_orbit = None
 
@@ -71,7 +70,7 @@ class PlanetTexture(Entity):
 
 
 def update():
-    global secs, CAMERA_AZIMUTH, CAMERA_POLAR, CAMERA_RADIUS,\
+    global CAMERA_AZIMUTH, CAMERA_POLAR, CAMERA_RADIUS, \
         SIMULATION_TIME, moon_orbit
 
     # Camera
@@ -89,8 +88,10 @@ def update():
     camera.z = CAMERA_RADIUS * m.cos(m.radians(CAMERA_POLAR))
     camera.look_at(earth, up=earth.back)
 
+    # Animation run
+    if not RUN:
+        return
 
-    # Animation
     SIMULATION_TIME += TIME_SCALE_FACTOR * time.dt / YEARS_TO_SECS
 
     pos = moon_orbit.get_position(SIMULATION_TIME) / DIMENSION_SCALE_FACTOR / 10
@@ -102,17 +103,17 @@ def update():
     moon.rotation_z -= moon_orbit.mean_angular_motion * 365.25 * TIME_SCALE_FACTOR * time.dt / YEARS_TO_SECS
 
     rotation_info.text = (
-            f"Simulation start: {START_TIME}\n"
-            f"Simulation time: {SIMULATION_TIME}\n"
+            f"Simulation start: {tf.gregorian_date(START_TIME)}\n"
+            f"Simulation time: {tf.gregorian_date(SIMULATION_TIME)}\n"
             + "---------\n"
-            + f"Camera azimuth.: {CAMERA_AZIMUTH}\n"
-            + f"Camera polar.: {CAMERA_POLAR}\n"
-            + f"Camera radius.: {CAMERA_RADIUS}\n"
+            + f"Camera azimuth.: {CAMERA_AZIMUTH:.1f}\n"
+            + f"Camera polar.: {CAMERA_POLAR:.1f}\n"
+            + f"Camera radius.: {CAMERA_RADIUS:.1f}\n"
     )
 
 
 def input(key):
-    global CAMERA_RADIUS
+    global CAMERA_RADIUS, RUN
     if key == 'escape':
         quit()
 
@@ -121,6 +122,11 @@ def input(key):
 
     if key == 'scroll down':
         CAMERA_RADIUS -= 100 * time.dt
+
+    if key == 'space' and RUN:
+        RUN = False
+    elif key == 'space' and not RUN:
+        RUN = True
 
 
 def main():
