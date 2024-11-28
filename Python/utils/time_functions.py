@@ -13,7 +13,7 @@ Libs
 
 Help
 ----
-* https://en.wikipedia.org/wiki/Truncated_icosahedron
+* https://currentmillis.com/?now
 
 Contents
 --------
@@ -22,6 +22,8 @@ Contents
 # Standard library imports
 import datetime
 import logging
+import math
+
 # Third party imports
 # Local application imports
 
@@ -30,30 +32,51 @@ logger = logging.getLogger(__name__)
 
 
 def julian_date(date: datetime.datetime) -> float:
-    """ Calculates full Julian date of a given date according to:
+    """ Calculates full Julian date of a given date according to (in days):
     JD = JDN + hour/24 + minute/1440 + second/86400
 
     https://stackoverflow.com/questions/13943062/extract-day-of-year-and-julian-day-from-a-string-date
     https://en.wikipedia.org/wiki/Julian_day
     """
     jdn = date.toordinal() + 1721424.5
-    jd_ = jdn + date.hour / 24 + date.minute / 1440 + date.second / 86400
+    jd_days = jdn + date.hour / 24 + date.minute / 1440 + date.second / 86400
     logging.debug(f"Julian date number of {date.year}-{date.month:02d}-{date.day:02d} "
-                  f"{date.hour:02d}:{date.minute:02d}:{date.second:02d} is: {jd_}")
-    return jd_
+                  f"{date.hour:02d}:{date.minute:02d}:{date.second:02d} is: {jd_days}")
+    return jd_days
 
 
 def j2000_date(date: datetime.datetime) -> float:
-    """ Calculates the elapsed time since the J2000 epoch.
+    """ Calculates the elapsed time since the J2000 epoch in years.
 
     https://en.wikipedia.org/wiki/Epoch_(astronomy)
     """
-    julian_d = julian_date(date)
-    j2000_years = 2000 + (julian_d - 2451545.0) / 365.25
-    j2000_days = 2000 + (julian_d - 2451545.0)
-    logging.debug(f"J2000 date of {date.year}-{date.month:02d}-{date.day:02d} "
-                  f"{date.hour:02d}:{date.minute:02d}:{date.second:02d} is: {j2000_years}")
+    julian_d = julian_date(date)  # Julian date in days
+    # j2000_days = (julian_d - 2451545.0)
+    j2000_years = (julian_d - 2451545.0) / 365.25  # elapsed days since epoch (years)
+    logging.info(f"J2000 date of {date.year}-{date.month:02d}-"
+                 f"{date.day:02d} is: J2000+{j2000_years}")
     return j2000_years
+
+
+def gregorian_date(j2000_date_years: float) -> datetime.datetime:
+    """ Calculates the Gregorian date from J2000 date (years). """
+
+    _julian_date = (j2000_date_years * 365.25) + 2451545.0
+    jd_days = _julian_date - 1721424.5  # Calculate julian days
+    date = datetime.datetime.fromordinal(math.floor(jd_days))  # Create date
+    fraction = jd_days % 1
+    hours = fraction * 24
+    minutes = (hours % 1) * 60
+    seconds = (minutes % 1) * 60
+    # microseconds = (seconds % 1) * 1000
+
+    # Create time params separately, bc. date doesnt support float
+    time = datetime.time(hour=int(hours), minute=int(minutes),
+                         second=int(seconds),
+                         # microsecond=int(microseconds)
+                         )
+
+    return datetime.datetime.combine(date, time)
 
 
 def secs_to_mins(total_seconds: int) -> str:
@@ -67,4 +90,11 @@ def secs_to_mins(total_seconds: int) -> str:
 
 # Include guard
 if __name__ == '__main__':
-    pass
+    print(datetime.datetime.now())
+    a = j2000_date(datetime.datetime.now())
+    b = julian_date(datetime.datetime.now())
+    print(a)
+    print(b)
+
+    c = gregorian_date(a)
+    print(c)
