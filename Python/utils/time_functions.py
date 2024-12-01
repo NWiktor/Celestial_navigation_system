@@ -64,8 +64,8 @@ def gregorian_date(j2000_date_years: float) -> datetime.datetime:
     _julian_date = (j2000_date_years * 365.25) + 2451545.0
     jd_days = _julian_date - 1721424.5  # Calculate julian days
     date = datetime.datetime.fromordinal(math.floor(jd_days))  # Create date
-    fraction = jd_days % 1
-    hours = fraction * 24
+
+    hours = (jd_days % 1) * 24
     minutes = (hours % 1) * 60
     seconds = (minutes % 1) * 60
     # microseconds = (seconds % 1) * 1000
