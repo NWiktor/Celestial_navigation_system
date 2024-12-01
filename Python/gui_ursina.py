@@ -46,6 +46,7 @@ START_TIME = tf.j2000_date(datetime.datetime.now())
 SIMULATION_TIME = tf.j2000_date(datetime.datetime.now())
 RUN = True
 
+# TODO: implement central body and satellites - simulate a system
 moon_orbit = None
 
 
@@ -103,12 +104,16 @@ def update():
     moon.rotation_z -= moon_orbit.mean_angular_motion * 365.25 * TIME_SCALE_FACTOR * time.dt / YEARS_TO_SECS
 
     rotation_info.text = (
-            f"Simulation start: \t{tf.gregorian_date(START_TIME)}\n"
+            f"Simulation start: \t{tf.gregorian_date(START_TIME)} "
+            f"(Time scale: {TIME_SCALE_FACTOR})\n"
             f"Simulation time: \t{tf.gregorian_date(SIMULATION_TIME)}\n"
-            + "---------\n"
-            + f"Camera azimuth.: \t{CAMERA_AZIMUTH:.1f}\n"
-            + f"Camera polar.: \t{CAMERA_POLAR:.1f}\n"
-            + f"Camera radius.: \t{CAMERA_RADIUS:.1f}\n"
+            "---------\n"
+            f"Grid size: \t\t{GRID_SIZE_KM} km\n"
+            f"Subgrid size: \t{GRID_SIZE_KM/SUBGRID_RATIO} km\n"
+            "---------\n"
+            f"Camera azimuth.: \t{CAMERA_AZIMUTH:.1f}\n"
+            f"Camera polar.: \t{CAMERA_POLAR:.1f}\n"
+            f"Camera radius.: \t{CAMERA_RADIUS:.1f}\n"
     )
 
 
@@ -214,6 +219,6 @@ if __name__ == '__main__':
     create_unit_vectors(earth, scale=3, right_handed=True)
     create_unit_vectors(moon, scale=3, right_handed=True)
 
-    # create_grid()
+    create_grid()
 
     app.run()
