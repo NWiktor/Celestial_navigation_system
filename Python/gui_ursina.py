@@ -69,7 +69,7 @@ class PlanetTexture(Entity):
                          rotation_x=-90,
                          texture=texture_file)
 
-# TODO: implement this as class     
+# TODO: implement this as class
 ####
 # points = [Vec3(0,0,0), Vec3(0,.5,0), Vec3(1,1,0)]
 # curve_renderer = Entity(model=Mesh(vertices=points, mode='line'))
