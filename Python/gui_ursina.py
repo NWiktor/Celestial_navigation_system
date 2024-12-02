@@ -67,7 +67,7 @@ class CelestialBodyVisual(Entity):
     def __init__(self, radius_km, position=(0, 0, 0),
                  texture_file: PathLike = None,
                  celestial_body: CelestialBody = None,
-                 color=None):
+                 color = None):
         # self.celestial_body = celestial_body
         # self.color = color
         # Set default color, and color option
@@ -87,17 +87,6 @@ class CelestialBodyVisual(Entity):
                     rotation_x=-90,
                     texture=texture_file
             )
-
-
-# TODO: remove if obsolete
-class PlanetTexture(Entity):
-    """ Creates a texture entity, which is rotated around the X axis, to align
-    the texture and the parent body coordinate system."""
-    def __init__(self, parent, texture_file):
-        super().__init__(parent=parent, position=(0, 0, 0),
-                         model='sphere',
-                         rotation_x=-90,
-                         texture=texture_file)
 
 
 class Trajectory(Entity):
