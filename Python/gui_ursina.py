@@ -16,6 +16,7 @@ Help
 Contents
 --------
 """
+from os import PathLike
 import datetime
 # Standard library imports
 # First import should be the logging module if any!
@@ -63,7 +64,8 @@ class CelestialBodyVisual(Entity):
     """ Abstract class for visual / graphical representation of the
     CelestialBody.
     """
-    def __init__(self, radius_km, position=(0, 0, 0), texture_file: str = None,
+    def __init__(self, radius_km, position=(0, 0, 0),
+                 texture_file: PathLike = None,
                  celestial_body: CelestialBody = None,
                  color=None):
         # self.celestial_body = celestial_body
