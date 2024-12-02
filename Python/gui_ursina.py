@@ -39,7 +39,8 @@ CAMERA_RADIUS = 200
 
 YEARS_TO_SECS = 31_556_926
 TIME_SCALE_FACTOR = 1000000  # the passing of time is multiplied by this number
-DIMENSION_SCALE_FACTOR = 1000  # all dimensions (in km) are divided by this number
+DIMENSION_SCALE_FACTOR = 1000  # all dim. (in km) are divided by this number
+SECOND_SCALE = 10
 GRID_SIZE_KM = 100000
 SUBGRID_RATIO = 5
 
@@ -58,29 +59,35 @@ SPACECRAFT = []
 moon_orbit = None
 
 
-# TODO: rework this with the PLanet Entity
-class _CelestialBodyVisual:
+class CelestialBodyVisual(Entity):
     """ Abstract class for visual / graphical representation of the
     CelestialBody.
     """
+    def __init__(self, radius_km, position=(0, 0, 0), texture_file: str = None,
+                 celestial_body: CelestialBody = None,
+                 color=None):
+        # self.celestial_body = celestial_body
+        # self.color = color
+        # Set default color, and color option
+        if color is not None:
+            pass
 
-    def __init__(self, celestial_body: CelestialBody, radius: int,
-                 color: tuple[int, int, int]):
-        self.celestial_body = celestial_body
-        self.radius = radius  # For 'visualization' only
-        self.color = color
-
-
-class CelestialBodyVisual(Entity):
-    """ Creates a planet entity."""
-    def __init__(self, radius_km, position=(0, 0, 0), texture_file=None):
-        scale = radius_km / DIMENSION_SCALE_FACTOR * 2
-        super().__init__(parent=scene, scale=scale, position=position)
+        super().__init__(parent=scene,
+                         scale=radius_km / DIMENSION_SCALE_FACTOR * 2,
+                         position=position)
 
         if texture_file is not None:
-            self.texture_entity = PlanetTexture(self, texture_file)
+            # self.texture_entity = PlanetTexture(self, texture_file)
+            self.texture_entity = Entity(
+                    parent=self,
+                    position=position,
+                    model='sphere',
+                    rotation_x=-90,
+                    texture=texture_file
+            )
 
 
+# TODO: remove if obsolete
 class PlanetTexture(Entity):
     """ Creates a texture entity, which is rotated around the X axis, to align
     the texture and the parent body coordinate system."""
@@ -126,14 +133,15 @@ def update():
 
     SIMULATION_TIME += TIME_SCALE_FACTOR * time.dt / YEARS_TO_SECS
 
-    pos = moon_orbit.get_position(SIMULATION_TIME) / DIMENSION_SCALE_FACTOR / 10
+    pos = (moon_orbit.get_position(SIMULATION_TIME)
+           / DIMENSION_SCALE_FACTOR / SECOND_SCALE)
     moon.world_x = pos[0]
     moon.world_y = pos[1]
     moon.world_z = -pos[2]
 
     # Tidal-lock
-    moon.rotation_z -= (moon_orbit.mean_angular_motion * 365.25 *
-                        TIME_SCALE_FACTOR * time.dt / YEARS_TO_SECS)
+    moon.rotation_z -= (moon_orbit.mean_angular_motion * 365.25
+                        * TIME_SCALE_FACTOR * time.dt / YEARS_TO_SECS)
 
     rotation_info.text = (
             f"Simulation start: \t{tf.gregorian_date(START_TIME)} "
@@ -149,6 +157,7 @@ def update():
     )
 
 
+# TODO: set hotkeys for isometric, top and other views
 def input(key):
     global CAMERA_RADIUS, RUN
     if key == 'escape':
@@ -166,13 +175,13 @@ def input(key):
         RUN = True
 
 
-def main():
+def create_celestial_objects():
+    """ Function for creating celestial objects (entities). """
     global moon_orbit
-    # 384_400 - original orbit of moon
     earth = CelestialBodyVisual(6_378, (0, 0, 0),
-                   'resource/2k_earth_daymap.jpg')
+                                'resource/2k_earth_daymap.jpg')
     moon = CelestialBodyVisual(1_737, (0, 0, 0),
-                  'resource/lroc_color_poles_1k.jpg')
+                               'resource/lroc_color_poles_1k.jpg')
 
     moon_orbit = CircularOrbit(384_748, 28.58,
                                45, 90,
@@ -181,29 +190,42 @@ def main():
 
     # NOTE: create a function for this, and put it in a loop
     long_asc_node = Entity(
-        model=Cylinder(6, radius=0.1, direction=(1, 0, 0),
-                       height=384_748 / DIMENSION_SCALE_FACTOR / 10,
+        model=Cylinder(6,
+                       radius=0.1,
+                       direction=(1, 0, 0),
+                       height=384_748 / DIMENSION_SCALE_FACTOR / SECOND_SCALE,
                        thickness=2),
         rotation_z=-45,
-        parent=scene, world_scale=1, color=color.hsv(60, 1, 1, .3))
+        parent=scene,
+        world_scale=1,
+        color=color.hsv(60, 1, 1, .3)
+    )
 
     orbit = Entity(
-        model=Circle(120, radius=384_748 / DIMENSION_SCALE_FACTOR / 10,
-                     mode='line', thickness=2),
+        model=Circle(120,
+                     radius=384_748 / DIMENSION_SCALE_FACTOR / SECOND_SCALE,
+                     mode='line',
+                     thickness=2),
         color=color.hsv(60, 1, 1, .3),
         rotation_x=-28.58,
-        parent=long_asc_node)
+        parent=long_asc_node
+    )
 
     periapsis = Entity(
-        model=Cylinder(6, radius=0.1, direction=(1, 0, 0),
-                       height=384_748 / DIMENSION_SCALE_FACTOR / 10,
+        model=Cylinder(6,
+                       radius=0.1,
+                       direction=(1, 0, 0),
+                       height=384_748 / DIMENSION_SCALE_FACTOR / SECOND_SCALE,
                        thickness=2),
         rotation_z=-90,
-        parent=orbit, world_scale=1, color=color.hsv(60, 1, 1, .3))
+        parent=orbit,
+        world_scale=1,
+        color=color.hsv(60, 1, 1, .3)
+    )
 
     mean_anomaly = moon_orbit.get_current_mean_anomaly(SIMULATION_TIME)
     moon.parent = periapsis
-    moon.position = Vec3(384_748 / DIMENSION_SCALE_FACTOR / 10, 0, 0)
+    moon.position = Vec3(384_748 / DIMENSION_SCALE_FACTOR / SECOND_SCALE, 0, 0)
     moon.rotate(Vec3(0, 0, 180 - mean_anomaly))
 
     return earth, moon
@@ -230,10 +252,10 @@ def create_unit_vectors(parent=scene, scale=1, right_handed=False):
                       parent=parent, world_scale=scale, color=color.blue)
 
 
-def create_grid():
-    """ Create grid in the x-y plane with the specified increment size. """
+def create_grid(grid_number: int = 10):
+    """ Create a 'nxn' grid in the x-y plane with the specified grid size,
+    divided by the specified subgrid number. """
     grid_size = GRID_SIZE_KM / DIMENSION_SCALE_FACTOR  # size of 1 grid in units
-    grid_number = 10  # number of grids (n x n)
     grid = Entity(model=Grid(grid_number, grid_number),
                   scale=grid_number * grid_size,
                   rotation_x=0,
@@ -251,7 +273,7 @@ if __name__ == '__main__':
 
     rotation_info = Text(position=window.top_left)
 
-    earth, moon = main()
+    earth, moon = create_celestial_objects()
     create_unit_vectors(scale=3)
     create_unit_vectors(earth, scale=3, right_handed=True)
     create_unit_vectors(moon, scale=3, right_handed=True)
