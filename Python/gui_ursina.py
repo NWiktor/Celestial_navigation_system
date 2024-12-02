@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 CAMERA_AZIMUTH = 55
 CAMERA_POLAR = 120
-CAMERA_RADIUS = 200
+CAMERA_RADIUS = 350
 
 YEARS_TO_SECS = 31_556_926
 TIME_SCALE_FACTOR = 100_000  # the passing of time is multiplied by this number
@@ -119,8 +119,8 @@ def update():
     CAMERA_AZIMUTH -= held_keys['a'] * 20 * time.dt
     CAMERA_POLAR += held_keys['w'] * 15 * time.dt
     CAMERA_POLAR -= held_keys['s'] * 15 * time.dt
-    CAMERA_RADIUS -= held_keys['up arrow'] * 50 * time.dt
-    CAMERA_RADIUS += held_keys['down arrow'] * 50 * time.dt
+    CAMERA_RADIUS -= held_keys['up arrow'] * 100 * time.dt
+    CAMERA_RADIUS += held_keys['down arrow'] * 100 * time.dt
 
     camera.x = (CAMERA_RADIUS * m.cos(m.radians(CAMERA_AZIMUTH))
                 * m.sin(m.radians(CAMERA_POLAR)))
