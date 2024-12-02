@@ -1,10 +1,7 @@
 # -*- coding: utf-8 -*-
 # !/usr/bin/python3
 
-""" Summary of this code file goes here. The purpose of this module can be
-expanded in multiple sentences. Below a short free-text summary of the included
-classes and functions to give an overview. More detailed summary of the
-functions can be provided inside the function's body.
+""" Class for describing a Keplerian orbit.
 
 Libs
 ----
@@ -13,6 +10,7 @@ Libs
 Help
 ----
 * https://en.wikipedia.org/wiki/Orbital_elements
+* https://space.stackexchange.com/questions/55356/how-to-find-eccentric-anomaly-by-mean-anomaly
 * https://en.wikipedia.org/wiki/Kepler%27s_laws_of_planetary_motion
 * https://en.wikipedia.org/wiki/Ellipse
 
@@ -49,7 +47,7 @@ class KeplerOrbit:
         self.eccentricity = eccentricity  # (e), -
         self.semimajor_axis = semimajor_axis  # (a), km
         self.inclination = inclination  # (i), deg
-        self.longitude_of_ascending_node = longitude_of_ascending_node  # (Ω), deg
+        self.longitude_of_ascending_node = longitude_of_ascending_node  # (Ω), °
         self.argument_of_periapsis = argument_of_periapsis  # (ω), deg
         self.mean_anomaly_at_epoch = mean_anomaly_at_epoch  # (M0), deg
 
@@ -88,10 +86,10 @@ class KeplerOrbit:
         """ Set the value of orbital period attribute directly (from external
         source), and calculates mean angular motion.
         """
-        self.orbital_period = orbital_period  # 24 * 60 * 60 seconds aka 1 solar day
+        self.orbital_period = orbital_period  # 24*60*60 seconds aka 1 solar day
         self.calculate_mean_angular_motion()
 
-    def calculate_orbital_period(self, mass1_kg, mass2_kg=0):
+    def calculate_orbital_period(self, mass1_kg: float, mass2_kg: float = 0.0):
         """ Calculate orbital period from keplerian elements. """
         # Converting km to m in semimajor axis, and convert seconds to days
         self.orbital_period = 2 * m.pi * m.sqrt(
@@ -112,14 +110,13 @@ class KeplerOrbit:
         return mean_anomaly
 
     def get_position(self, j2000_time: float):
-        """ Calculate position and velocity vectors of an object at a given orbit,
-        at a given time since J2000 epoch in the inertial reference frame (IRF).
+        """ Calculate position and velocity vectors of an object at a given
+        orbit, at a given time since J2000 epoch in the inertial reference
+        frame (IRF).
         """
         # Calculate mean anomaly at J2000 in deg
         mean_anomaly = self.get_current_mean_anomaly(j2000_time)
 
-        # Calculate eccentric anomaly according to:
-        # https://space.stackexchange.com/questions/55356/how-to-find-eccentric-anomaly-by-mean-anomaly
         # Solving for E = M + e*sin(E) using iteration
         eca0 = mean_anomaly * m.pi / 180
 
@@ -130,12 +127,14 @@ class KeplerOrbit:
             if abs(eca1 - eca0) > 0.0000001:
                 eca0 = eca1
             else:
-                logging.debug("Eccentric anomaly is %s rad, found at %s. iteration.", eca1, i)
+                logging.debug("Eccentric anomaly is %s rad, found at "
+                              "%s. iteration.", eca1, i)
                 break
 
         # Calculate state variables (position and velocity) in orbital plane
         rx = self.semimajor_axis * (m.cos(eca1) - self.eccentricity)  # km
-        ry = self.semimajor_axis * m.sqrt(1 - pow(self.eccentricity, 2)) * m.sin(eca1)  # km
+        ry = (self.semimajor_axis *
+              m.sqrt(1 - pow(self.eccentricity, 2)) * m.sin(eca1))  # km
         # TODO: add velocity calculation
         # vx =
         # vy =
