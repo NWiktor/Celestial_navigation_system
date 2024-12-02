@@ -24,12 +24,12 @@ import logging
 import math as m
 
 # Third party imports
-from ursina import *
-from ursina import Entity, scene, Mesh, Cylinder, Circle, Grid, Text, Vec3
-from ursina import time, color, duplicate, camera, held_keys, window
+import ursina
+from ursina import (Ursina, Entity, scene, Mesh, Cylinder, Circle, Grid, Text,
+                    Vec3, time, color, duplicate, camera, held_keys, window)
 
 # Local application imports
-from cls import CelestialBody, CircularOrbit
+from cls import CelestialBody, CircularOrbit, Planet
 from utils import time_functions as tf
 
 logger = logging.getLogger(__name__)
@@ -39,10 +39,10 @@ CAMERA_POLAR = 120
 CAMERA_RADIUS = 200
 
 YEARS_TO_SECS = 31_556_926
-TIME_SCALE_FACTOR = 1000000  # the passing of time is multiplied by this number
-DIMENSION_SCALE_FACTOR = 1000  # all dim. (in km) are divided by this number
+TIME_SCALE_FACTOR = 100_000  # the passing of time is multiplied by this number
+DIMENSION_SCALE_FACTOR = 1_000  # all dim. (in km) are divided by this number
 SECOND_SCALE = 10
-GRID_SIZE_KM = 100000
+GRID_SIZE_KM = 100_000
 SUBGRID_RATIO = 5
 
 START_TIME = tf.j2000_date(datetime.datetime.now())
@@ -57,36 +57,38 @@ CENTRAL_BODY = None
 SATELLITES = []
 SPACECRAFT = []
 
-moon_orbit = None
+moon_orbit: Entity | None = None
 
 
 class CelestialBodyVisual(Entity):
     """ Abstract class for visual / graphical representation of the
     CelestialBody.
     """
-    def __init__(self, radius_km, position=(0, 0, 0),
-                 texture_file: PathLike = None,
-                 celestial_body: CelestialBody = None,
-                 color = None):
-        # self.celestial_body = celestial_body
-        # self.color = color
-        # Set default color, and color option
-        if color is not None:
-            pass
+    def __init__(self, celestial_body: CelestialBody,
+                 position=(0, 0, 0),
+                 texture_file: PathLike | str = None,
+                 body_color: ursina.color = None):
+        self.celestial_body = celestial_body
+        super().__init__(parent=scene, position=position)
 
-        super().__init__(parent=scene,
-                         scale=radius_km / DIMENSION_SCALE_FACTOR * 2,
-                         position=position)
+        # Celestial body may not have radius (e.g. comet, asteroid)
+        if hasattr(celestial_body, 'surface_radius_m'):
+            self.scale = (celestial_body.surface_radius_m / 1000
+                          / DIMENSION_SCALE_FACTOR * 2)
+        else:
+            self.scale = 1.0
 
+        # If texture is defined, we use it; otherwise set color
         if texture_file is not None:
-            # self.texture_entity = PlanetTexture(self, texture_file)
             self.texture_entity = Entity(
-                    parent=self,
-                    position=position,
+                    parent=self, position=position,
                     model='sphere',
                     rotation_x=-90,
                     texture=texture_file
             )
+
+        elif body_color is not None:
+            self.color = body_color
 
 
 class Trajectory(Entity):
@@ -94,9 +96,16 @@ class Trajectory(Entity):
 
     Example: points = [Vec3(0,0,0), Vec3(0,.5,0), Vec3(1,1,0)]
     """
-    def __init__(self, parent, points: list[Vec3]):
-        super.__init__(parent=parent, position=(0, 0, 0),
-                       model=Mesh(vertices=points, mode='line'))
+    def __init__(self, parent: Entity, points: list[Vec3]):
+        self.points = points
+        super().__init__(parent=parent,
+                         position=(0, 0, 0),
+                         model=Mesh(vertices=points, mode='line')
+                         )
+
+    def add_point(self, point: Vec3):
+        self.points.pop(0)
+        self.points.append(point)
 
 
 def update():
@@ -139,8 +148,8 @@ def update():
             f"(Time scale: {TIME_SCALE_FACTOR})\n"
             f"Simulation time: \t{tf.gregorian_date(SIMULATION_TIME)}\n"
             "---------\n"
-            f"Grid size: \t\t{GRID_SIZE_KM} km\n"
-            f"Subgrid size: \t{GRID_SIZE_KM/SUBGRID_RATIO} km\n"
+            f"Grid size: \t\t{GRID_SIZE_KM:.0f} km\n"
+            f"Subgrid size: \t{GRID_SIZE_KM/SUBGRID_RATIO:.0f} km\n"
             "---------\n"
             f"Camera azimuth.: \t{CAMERA_AZIMUTH:.1f}\n"
             f"Camera polar.: \t{CAMERA_POLAR:.1f}\n"
@@ -169,9 +178,15 @@ def input(key):
 def create_celestial_objects():
     """ Function for creating celestial objects (entities). """
     global moon_orbit
-    earth = CelestialBodyVisual(6_378, (0, 0, 0),
+
+    fold = Planet("0001", "Föld", 0, None,
+                  None, None, 9.81, 6_378_000)
+    hold = Planet("0002", "Hold", 0, None,
+                  None, None, 9.81, 1_737_000)
+
+    earth = CelestialBodyVisual(fold, (0, 0, 0),
                                 'resource/2k_earth_daymap.jpg')
-    moon = CelestialBodyVisual(1_737, (0, 0, 0),
+    moon = CelestialBodyVisual(hold, (0, 0, 0),
                                'resource/lroc_color_poles_1k.jpg')
 
     moon_orbit = CircularOrbit(384_748, 28.58,
@@ -226,21 +241,25 @@ def create_unit_vectors(parent=scene, scale=1, right_handed=False):
     """ Create x, y, z unit vectors at the parent object local coordinate
     system. Shows x as red, y as green and z as blue vector.
     """
+    res = 6
     height = 5
     radius = 0.1
     z_dir = 1
     if right_handed:
         z_dir = -1
 
-    x_vector = Entity(model=Cylinder(6, radius=radius,
-                                     direction=(1, 0, 0), height=height),
-                      parent=parent, world_scale=scale, color=color.red)
-    y_vector = Entity(model=Cylinder(6, radius=radius,
-                                     direction=(0, 1, 0), height=height),
-                      parent=parent, world_scale=scale, color=color.green)
-    z_vector = Entity(model=Cylinder(6, radius=radius,
-                                     direction=(0, 0, z_dir), height=height),
-                      parent=parent, world_scale=scale, color=color.blue)
+    Entity(  # x vector
+        model=Cylinder(res, radius=radius, direction=(1, 0, 0), height=height),
+        parent=parent, world_scale=scale, color=color.red
+    )
+    Entity(  # y vector
+        model=Cylinder(res, radius=radius, direction=(0, 1, 0), height=height),
+        parent=parent, world_scale=scale, color=color.green
+    )
+    Entity(  # z vector
+        model=Cylinder(res, radius=radius, direction=(0, 0, z_dir), height=height),
+        parent=parent, world_scale=scale, color=color.blue
+    )
 
 
 def create_grid(grid_number: int = 10):
