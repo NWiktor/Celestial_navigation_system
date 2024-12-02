@@ -40,18 +40,16 @@ import logging.config
 import os
 import sys
 import json
+from pathlib import Path
 
 
-# NOTE: Wihtout this, the .exe file not works!
-if getattr(sys, 'frozen', False):
-    INITDIR = os.path.dirname(os.path.dirname(sys.executable))
-else:
-    INITDIR = os.path.dirname(os.path.dirname(__file__))
+INITDIR = Path(__file__).parents[0]
+# INITDIR = os.path.dirname(os.path.dirname(__file__))
 
 # Set defaults
-LOG_FILENAME = "log.txt"
-LOG_DIRNAME = "log"
-LOG_PATH = os.path.join(INITDIR, LOG_DIRNAME, LOG_FILENAME)
+LOG_FILENAME = Path("log.txt")
+LOG_DIRNAME = Path("log")
+LOG_PATH = Path.joinpath(INITDIR, LOG_DIRNAME, LOG_FILENAME)
 
 
 class FilterFontManager(logging.Filter):
@@ -72,11 +70,12 @@ def config_logger():
     this again.
     """
     # If logging folder is missing, create it
-    if not os.path.isdir(os.path.join(INITDIR, LOG_DIRNAME)):
-        os.mkdir(os.path.join(INITDIR, LOG_DIRNAME))
+    folderpath = Path.joinpath(INITDIR, LOG_DIRNAME)
+    if not folderpath.is_dir():
+        folderpath.mkdir()
 
     # Configure root logger
-    config_file = os.path.join(INITDIR, "database/logging_config.json")
+    config_file = Path.joinpath(INITDIR, Path("database/logging_config.json"))
     with open(config_file, "r", encoding="utf-8") as file:
         config = json.load(file)
 
