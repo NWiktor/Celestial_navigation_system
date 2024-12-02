@@ -41,7 +41,7 @@ CAMERA_RADIUS = 200
 YEARS_TO_SECS = 31_556_926
 TIME_SCALE_FACTOR = 100_000  # the passing of time is multiplied by this number
 DIMENSION_SCALE_FACTOR = 1_000  # all dim. (in km) are divided by this number
-SECOND_SCALE = 10
+SECOND_SCALE = 5
 GRID_SIZE_KM = 100_000
 SUBGRID_RATIO = 5
 
@@ -100,11 +100,13 @@ class Trajectory(Entity):
         self.points = points
         super().__init__(parent=parent,
                          position=(0, 0, 0),
-                         model=Mesh(vertices=points, mode='line')
+                         model=Mesh(vertices=self.points, mode='line'),
+                         color=color.green, thickness=3
                          )
 
-    def add_point(self, point: Vec3):
-        self.points.pop(0)
+    def add_point(self, point: Vec3, max_points: int = 40):
+        if len(self.points) > max_points:
+            self.points.pop(0)
         self.points.append(point)
 
 
@@ -179,9 +181,9 @@ def create_celestial_objects():
     """ Function for creating celestial objects (entities). """
     global moon_orbit
 
-    fold = Planet("0001", "Föld", 0, None,
+    fold = Planet("0001", "Föld", 972E24, None,
                   None, None, 9.81, 6_378_000)
-    hold = Planet("0002", "Hold", 0, None,
+    hold = Planet("0002", "Hold", 7.34767309E22, None,
                   None, None, 9.81, 1_737_000)
 
     earth = CelestialBodyVisual(fold, (0, 0, 0),
@@ -242,38 +244,36 @@ def create_unit_vectors(parent=scene, scale=1, right_handed=False):
     system. Shows x as red, y as green and z as blue vector.
     """
     res = 6
-    height = 5
+    length = 5
     radius = 0.1
-    z_dir = 1
+    zdir = 1
     if right_handed:
-        z_dir = -1
+        zdir = -1
 
     Entity(  # x vector
-        model=Cylinder(res, radius=radius, direction=(1, 0, 0), height=height),
+        model=Cylinder(res, radius=radius, direction=(1, 0, 0), height=length),
         parent=parent, world_scale=scale, color=color.red
     )
     Entity(  # y vector
-        model=Cylinder(res, radius=radius, direction=(0, 1, 0), height=height),
+        model=Cylinder(res, radius=radius, direction=(0, 1, 0), height=length),
         parent=parent, world_scale=scale, color=color.green
     )
     Entity(  # z vector
-        model=Cylinder(res, radius=radius, direction=(0, 0, z_dir), height=height),
+        model=Cylinder(res, radius=radius, direction=(0, 0, zdir),
+                       height=length),
         parent=parent, world_scale=scale, color=color.blue
     )
 
 
-def create_grid(grid_number: int = 10):
+def create_grid(grid_nbr: int = 10):
     """ Create a 'nxn' grid in the x-y plane with the specified grid size,
     divided by the specified subgrid number. """
     grid_size = GRID_SIZE_KM / DIMENSION_SCALE_FACTOR  # size of 1 grid in units
-    grid = Entity(model=Grid(grid_number, grid_number),
-                  scale=grid_number * grid_size,
-                  rotation_x=0,
-                  color=color.blue)
+    grid = Entity(model=Grid(grid_nbr, grid_nbr), scale=grid_nbr * grid_size,
+                  rotation_x=0, color=color.blue, thickness=0.1)
     subgrid = duplicate(grid)
-    grid.model.thickness = 2
-    subgrid.model = Grid(grid_number * SUBGRID_RATIO,
-                         grid_number * SUBGRID_RATIO)
+    grid.model.thickness = 1
+    subgrid.model = Grid(grid_nbr * SUBGRID_RATIO, grid_nbr * SUBGRID_RATIO)
     subgrid.color = color.azure
 
 
