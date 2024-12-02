@@ -24,11 +24,11 @@ import math as m
 
 # Third party imports
 from ursina import *
-from ursine import Entity, scene, Mesh, Cylinder, Circle, Grid, Text, Vec3
+from ursina import Entity, scene, Mesh, Cylinder, Circle, Grid, Text, Vec3
 from ursina import time, color, duplicate, camera, held_keys, window
 
 # Local application imports
-from cls.kepler_orbit import CircularOrbit
+from cls import CelestialBody, CircularOrbit
 from utils import time_functions as tf
 
 logger = logging.getLogger(__name__)
@@ -51,12 +51,15 @@ RUN = True
 # Central body - 1 pc
 # Satellites (keplerian elements) - list
 # Spacecraft (calculated by gravity) - list (at least 2)
+CENTRAL_BODY = None
+SATELLITES = []
+SPACECRAFT = []
 
 moon_orbit = None
 
 
-# TODO: rework when the time comes
-class CelestialBodyVisual:
+# TODO: rework this with the PLanet Entity
+class _CelestialBodyVisual:
     """ Abstract class for visual / graphical representation of the
     CelestialBody.
     """
@@ -68,7 +71,7 @@ class CelestialBodyVisual:
         self.color = color
 
 
-class Planet(Entity):
+class CelestialBodyVisual(Entity):
     """ Creates a planet entity."""
     def __init__(self, radius_km, position=(0, 0, 0), texture_file=None):
         scale = radius_km / DIMENSION_SCALE_FACTOR * 2
@@ -129,7 +132,8 @@ def update():
     moon.world_z = -pos[2]
 
     # Tidal-lock
-    moon.rotation_z -= moon_orbit.mean_angular_motion * 365.25 * TIME_SCALE_FACTOR * time.dt / YEARS_TO_SECS
+    moon.rotation_z -= (moon_orbit.mean_angular_motion * 365.25 *
+                        TIME_SCALE_FACTOR * time.dt / YEARS_TO_SECS)
 
     rotation_info.text = (
             f"Simulation start: \t{tf.gregorian_date(START_TIME)} "
@@ -165,9 +169,9 @@ def input(key):
 def main():
     global moon_orbit
     # 384_400 - original orbit of moon
-    earth = Planet(6_378, (0, 0, 0),
+    earth = CelestialBodyVisual(6_378, (0, 0, 0),
                    'resource/2k_earth_daymap.jpg')
-    moon = Planet(1_737, (0, 0, 0),
+    moon = CelestialBodyVisual(1_737, (0, 0, 0),
                   'resource/lroc_color_poles_1k.jpg')
 
     moon_orbit = CircularOrbit(384_748, 28.58,
@@ -175,6 +179,7 @@ def main():
                                0)
     moon_orbit.calculate_orbital_period(5.972E24, 7.34767309E22)
 
+    # NOTE: create a function for this, and put it in a loop
     long_asc_node = Entity(
         model=Cylinder(6, radius=0.1, direction=(1, 0, 0),
                        height=384_748 / DIMENSION_SCALE_FACTOR / 10,
@@ -205,6 +210,9 @@ def main():
 
 
 def create_unit_vectors(parent=scene, scale=1, right_handed=False):
+    """ Create x, y, z unit vectors at the parent object local coordinate
+    system. Shows x as red, y as green and z as blue vector.
+    """
     height = 5
     radius = 0.1
     z_dir = 1
@@ -223,6 +231,7 @@ def create_unit_vectors(parent=scene, scale=1, right_handed=False):
 
 
 def create_grid():
+    """ Create grid in the x-y plane with the specified increment size. """
     grid_size = GRID_SIZE_KM / DIMENSION_SCALE_FACTOR  # size of 1 grid in units
     grid_number = 10  # number of grids (n x n)
     grid = Entity(model=Grid(grid_number, grid_number),
