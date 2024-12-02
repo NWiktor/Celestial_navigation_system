@@ -24,7 +24,8 @@ import math as m
 
 # Third party imports
 from ursina import *
-from ursina import time
+from ursine import Entity, scene, Mesh, Cylinder, Circle, Grid, Text, Vec3
+from ursina import time, color, duplicate, camera, held_keys, window
 
 # Local application imports
 from cls.kepler_orbit import CircularOrbit
@@ -47,7 +48,24 @@ SIMULATION_TIME = tf.j2000_date(datetime.datetime.now())
 RUN = True
 
 # TODO: implement central body and satellites - simulate a system
+# Central body - 1 pc
+# Satellites (keplerian elements) - list
+# Spacecraft (calculated by gravity) - list (at least 2)
+
 moon_orbit = None
+
+
+# TODO: rework when the time comes
+class CelestialBodyVisual:
+    """ Abstract class for visual / graphical representation of the
+    CelestialBody.
+    """
+
+    def __init__(self, celestial_body: CelestialBody, radius: int,
+                 color: tuple[int, int, int]):
+        self.celestial_body = celestial_body
+        self.radius = radius  # For 'visualization' only
+        self.color = color
 
 
 class Planet(Entity):
@@ -69,11 +87,15 @@ class PlanetTexture(Entity):
                          rotation_x=-90,
                          texture=texture_file)
 
-# TODO: implement this as class
-####
-# points = [Vec3(0,0,0), Vec3(0,.5,0), Vec3(1,1,0)]
-# curve_renderer = Entity(model=Mesh(vertices=points, mode='line'))
-####
+
+class Trajectory(Entity):
+    """ Creates an entity, representing a trajectory, defined by finite points.
+
+    Example: points = [Vec3(0,0,0), Vec3(0,.5,0), Vec3(1,1,0)]
+    """
+    def __init__(self, parent, points: list[Vec3]):
+        super.__init__(parent=parent, position=(0, 0, 0),
+                       model=Mesh(vertices=points, mode='line'))
 
 
 def update():
