@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # !/usr/bin/python3
 
-""" CelestialBody baseclass for describing different celestial bodies. Specified
-classes can be inherited from this.
+""" CelestialBody baseclass for describing different celestial bodies.
+Specified classes (planet, star) can be inherited from this class.
 
 Libs
 ----
@@ -10,7 +10,10 @@ Libs
 
 Help
 ----
-* https://en.wikipedia.org/wiki/Truncated_icosahedron
+* https://en.wikipedia.org/wiki/Stellar_classification
+* https://en.wikipedia.org/wiki/Earth%27s_rotation
+* https://en.wikipedia.org/wiki/Density_of_air
+* https://en.wikipedia.org/wiki/Earth
 
 Contents
 --------
@@ -31,8 +34,6 @@ gravitational_constant: float = 6.67430 * pow(10, -11)  # m^3 kg-1 s-2
 
 
 # Class and function definitions
-# TODO: Create children objects for the inner planets ??
-# TODO: merge with PlanetLocation class, or make it CelestialBody's children
 class CelestialBody:
     """ Class for celestial bodies (planet, moon, asteroid, sun, etc.). """
 
@@ -78,7 +79,7 @@ class CelestialBody:
                 rotation_vector)  # rad
         self.angular_velocity_rad_per_s: float = unit_vector(rotation_vector)
 
-    # TODO: This is valid for a given object-pair, this value is only universal
+    # NOTE: This is valid for a given object-pair, this value is only universal
     #  for objects with zero mass.
     def set_std_gravitational_param(self, mass2_kg: float = 0.0):
         """ Sets standard gravitational parameter using the CB's own mass, and
@@ -87,6 +88,7 @@ class CelestialBody:
         self.std_gravitational_parameter = (
                 gravitational_constant * (self.mass_kg + mass2_kg))  # m^3/s^2
 
+    # TODO: is this needed ???
     # TODO: rework this !!!
     # def get_relative_velocity(self, state: np.array) -> float:
     #     """ Returns the speed of the rocket relative to the atmosphere.
@@ -109,19 +111,6 @@ class CelestialBody:
 
     def __str__(self):
         return str(self.__class__) + ": " + str(self.__dict__)
-
-
-# TODO: rework when the time comes
-class CelestialBodyVisual:
-    """ Abstract class for visual / graphical representation of the
-    CelestialBody.
-    """
-
-    def __init__(self, celestial_body: CelestialBody, radius: int,
-                 color: tuple[int, int, int]):
-        self.celestial_body = celestial_body
-        self.radius = radius  # For 'visualization' only
-        self.color = color
 
 
 class Asteroid(CelestialBody):
