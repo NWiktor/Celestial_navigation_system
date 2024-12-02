@@ -37,14 +37,11 @@ Contents
 
 
 import logging.config
-import os
-import sys
 import json
 from pathlib import Path
 
 
-INITDIR = Path(__file__).parents[0]
-# INITDIR = os.path.dirname(os.path.dirname(__file__))
+INITDIR = Path(__file__).parents[1]
 
 # Set defaults
 LOG_FILENAME = Path("log.txt")
