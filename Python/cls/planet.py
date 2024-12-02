@@ -52,7 +52,7 @@ class PlanetType(StrEnum):
 class Planet(CelestialBody):
 
     def __init__(self, uuid, name, mass_kg, other_names, composition,
-                 planettype: PlanetType, std_gravity: float,
+                 planettype: PlanetType | None, std_gravity: float,
                  surface_radius_m: float):
         super().__init__(uuid, name, mass_kg, other_names, composition)
         self.planettype = planettype
