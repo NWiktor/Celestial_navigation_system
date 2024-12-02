@@ -10,7 +10,8 @@ Libs
 Help
 ----
 * https://en.wikipedia.org/wiki/Orbital_elements
-* https://space.stackexchange.com/questions/55356/how-to-find-eccentric-anomaly-by-mean-anomaly
+* https://space.stackexchange.com/questions/55356/how-to-find-eccentric-anomaly\
+-by-mean-anomaly
 * https://en.wikipedia.org/wiki/Kepler%27s_laws_of_planetary_motion
 * https://en.wikipedia.org/wiki/Ellipse
 
@@ -47,7 +48,7 @@ class KeplerOrbit:
         self.eccentricity = eccentricity  # (e), -
         self.semimajor_axis = semimajor_axis  # (a), km
         self.inclination = inclination  # (i), deg
-        self.longitude_of_ascending_node = longitude_of_ascending_node  # (Ω), °
+        self.longitude_of_ascending_node = longitude_of_ascending_node  # (Ω),°
         self.argument_of_periapsis = argument_of_periapsis  # (ω), deg
         self.mean_anomaly_at_epoch = mean_anomaly_at_epoch  # (M0), deg
 
