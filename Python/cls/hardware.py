@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # !/usr/bin/python3
 
-""" This module describes the rocket hardware classes.
+""" This module describes the rocket hardware baseclass and instances.
 
 Libs
 ----
