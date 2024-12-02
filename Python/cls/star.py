@@ -1,19 +1,11 @@
 # -*- coding: utf-8 -*-
 # !/usr/bin/python3
 
-""" Summary of this code file goes here. The purpose of this module can be
-expanded in multiple sentences. Below a short free-text summary of the included
-classes and functions to give an overview. More detailed summary of the
-functions can be provided inside the function's body.
-
-Libs
-----
-* some_module - This is used for imported, non-standard modules, to help track
-    dependencies. Summary is not needed.
+""" Star class inherited from CelestialBody class for representing stars.
 
 Help
 ----
-* https://en.wikipedia.org/wiki/Truncated_icosahedron
+* https://en.wikipedia.org/wiki/Stellar_classification
 
 Contents
 --------
@@ -80,7 +72,8 @@ class SpectralClass:
         self.temp_class = temp_class
         self.rel_temp = rel_temp
         self.lum_class = lum_class
-        self.stellar_class = f"{self.temp_class.value}{self.rel_temp}{self.lum_class.value}"
+        self.stellar_class =\
+            f"{self.temp_class.value}{self.rel_temp}{self.lum_class.value}"
 
     @property
     def rel_temp(self):
@@ -103,8 +96,8 @@ class Star(CelestialBody):
         super().__init__(*args)
         self.surface_radius_m = surface_radius_m  # m
         self.std_gravity = std_gravity  # m/s^2
-        # spectral class is a list, because it could be uncertain
-        # (multiple-values) and values could be inbetween (tuple)
+        # NOTE: spectral class is a list, because it could be uncertain
+        #  (multiple-values) and values could also be inbetween (tuple)
         self.spectral_class = spectral_class
         self.surface_temperature_K = None  # Kelvin
         self.bv_color_index = None

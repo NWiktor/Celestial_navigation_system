@@ -3,9 +3,6 @@
 
 """ Planet class inherited from CelestialBody class for representing planets.
 
-Libs
-----
-
 Help
 ----
 * https://en.wikipedia.org/wiki/Earth%27s_rotation
