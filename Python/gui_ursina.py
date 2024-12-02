@@ -29,33 +29,33 @@ from ursina import (Ursina, Entity, scene, Mesh, Cylinder, Circle, Grid, Text,
                     Vec3, time, color, duplicate, camera, held_keys, window)
 
 # Local application imports
-from cls import CelestialBody, CircularOrbit, Planet
+from cls import CelestialBody, CircularOrbit, Planet, Earth
 from utils import time_functions as tf
 
 logger = logging.getLogger(__name__)
 
+# Camera params
 CAMERA_AZIMUTH = 55
 CAMERA_POLAR = 120
 CAMERA_RADIUS = 350
 
+# Constants for visualization / graphics
 YEARS_TO_SECS = 31_556_926
-TIME_SCALE_FACTOR = 100_000  # the passing of time is multiplied by this number
 DIMENSION_SCALE_FACTOR = 1_000  # all dim. (in km) are divided by this number
 SECOND_SCALE = 5
 GRID_SIZE_KM = 100_000
 SUBGRID_RATIO = 5
 
+# Simulation (time) params
+TIME_SCALE_FACTOR = 100_000  # the passing of time is multiplied by this number
 START_TIME = tf.j2000_date(datetime.datetime.now())
 SIMULATION_TIME = tf.j2000_date(datetime.datetime.now())
 RUN = True
 
 # TODO: implement central body and satellites - simulate a system
-# Central body - 1 pc
-# Satellites (keplerian elements) - list
-# Spacecraft (calculated by gravity) - list (at least 2)
-CENTRAL_BODY = None
-SATELLITES = []
-SPACECRAFT = []
+CENTRAL_BODY: Entity | None = None  # Only one
+SATELLITES = []  # Satellites (keplerian elements) - list
+SPACECRAFT = []  # Spacecraft (calculated by gravity) - list (at least 2)
 
 moon_orbit: Entity | None = None
 
@@ -64,8 +64,7 @@ class CelestialBodyVisual(Entity):
     """ Abstract class for visual / graphical representation of the
     CelestialBody.
     """
-    def __init__(self, celestial_body: CelestialBody,
-                 position=(0, 0, 0),
+    def __init__(self, celestial_body: CelestialBody, position=(0, 0, 0),
                  texture_file: PathLike | str = None,
                  body_color: ursina.color = None):
         self.celestial_body = celestial_body
@@ -127,13 +126,19 @@ def update():
     camera.y = (CAMERA_RADIUS * m.sin(m.radians(CAMERA_AZIMUTH))
                 * m.sin(m.radians(CAMERA_POLAR)))
     camera.z = CAMERA_RADIUS * m.cos(m.radians(CAMERA_POLAR))
-    camera.look_at(earth, up=earth.back)
+    camera.look_at(CENTRAL_BODY, up=CENTRAL_BODY.back)
 
     # Animation run
     if not RUN:
         return
 
     SIMULATION_TIME += TIME_SCALE_FACTOR * time.dt / YEARS_TO_SECS
+
+    # Rotate central body
+    CENTRAL_BODY.rotation_z -= (
+            CENTRAL_BODY.celestial_body.angular_velocity_rad_per_s * 180 / m.pi
+            * TIME_SCALE_FACTOR * time.dt
+    )
 
     pos = (moon_orbit.get_position(SIMULATION_TIME)
            / DIMENSION_SCALE_FACTOR / SECOND_SCALE)
@@ -177,24 +182,26 @@ def input(key):
         RUN = True
 
 
+def create_central_body():
+    """ Set central body of the system. """
+    global CENTRAL_BODY
+    CENTRAL_BODY = CelestialBodyVisual(Earth(), (0, 0, 0),
+                                       'resource/2k_earth_daymap.jpg')
+
+
 def create_celestial_objects():
     """ Function for creating celestial objects (entities). """
-    global moon_orbit
+    global SATELLITES, moon_orbit
 
-    fold = Planet("0001", "Föld", 972E24, None,
-                  None, None, 9.81, 6_378_000)
+    # Set satellites
     hold = Planet("0002", "Hold", 7.34767309E22, None,
                   None, None, 9.81, 1_737_000)
-
-    earth = CelestialBodyVisual(fold, (0, 0, 0),
-                                'resource/2k_earth_daymap.jpg')
-    moon = CelestialBodyVisual(hold, (0, 0, 0),
-                               'resource/lroc_color_poles_1k.jpg')
-
     moon_orbit = CircularOrbit(384_748, 28.58,
                                45, 90,
                                0)
     moon_orbit.calculate_orbital_period(5.972E24, 7.34767309E22)
+    moon = CelestialBodyVisual(hold, (0, 0, 0),
+                               'resource/lroc_color_poles_1k.jpg')
 
     # NOTE: create a function for this, and put it in a loop
     long_asc_node = Entity(
@@ -236,7 +243,7 @@ def create_celestial_objects():
     moon.position = Vec3(384_748 / DIMENSION_SCALE_FACTOR / SECOND_SCALE, 0, 0)
     moon.rotate(Vec3(0, 0, 180 - mean_anomaly))
 
-    return earth, moon
+    return moon
 
 
 def create_unit_vectors(parent=scene, scale=1, right_handed=False):
@@ -282,10 +289,10 @@ if __name__ == '__main__':
     window.color = color.black
 
     rotation_info = Text(position=window.top_left)
-
-    earth, moon = create_celestial_objects()
+    create_central_body()
+    moon = create_celestial_objects()
     create_unit_vectors(scale=3)
-    create_unit_vectors(earth, scale=3, right_handed=True)
+    create_unit_vectors(CENTRAL_BODY, scale=3, right_handed=True)
     create_unit_vectors(moon, scale=3, right_handed=True)
 
     create_grid()
