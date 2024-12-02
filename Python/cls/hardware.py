@@ -24,7 +24,7 @@ import numpy as np
 # Class initializations and global variables
 logger = logging.getLogger(__name__)
 
-# Add here rocket hardware specs
+# TODO: Add here rocket hardware specs
 # Falcon
 # Vulcan
 # Starship
