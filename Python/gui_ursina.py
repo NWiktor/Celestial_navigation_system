@@ -47,7 +47,7 @@ GRID_SIZE_KM = 100_000
 SUBGRID_RATIO = 5
 
 # Simulation (time) params
-TIME_SCALE_FACTOR = 100_000  # the passing of time is multiplied by this number
+TIME_SCALE_FACTOR = 50_000  # the passing of time is multiplied by this number
 START_TIME = tf.j2000_date(datetime.datetime.now())
 SIMULATION_TIME = tf.j2000_date(datetime.datetime.now())
 RUN = True
@@ -152,7 +152,7 @@ def update():
 
     rotation_info.text = (
             f"Simulation start: \t{tf.gregorian_date(START_TIME)} "
-            f"(Time scale: {TIME_SCALE_FACTOR})\n"
+            f"({TIME_SCALE_FACTOR}x)\n"
             f"Simulation time: \t{tf.gregorian_date(SIMULATION_TIME)}\n"
             "---------\n"
             f"Grid size: \t\t{GRID_SIZE_KM:.0f} km\n"
