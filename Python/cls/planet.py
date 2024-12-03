@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 # !/usr/bin/python3
 
-""" Planet class inherited from CelestialBody class for representing planets.
+""" Planet class inherited from CelestialBody class for representing planets
+and planetezoids (e.g. moons).
 
 Help
 ----
@@ -58,10 +59,12 @@ class Planet(CelestialBody):
         self.planettype = planettype
         self.surface_radius_m = surface_radius_m  # m
         self.std_gravity = std_gravity  # m/s^2
-        self.atmosphere = None
 
-        # Setters
+        # Properties to be set by function
+        self.atmosphere = None
         self.outer_radius_m = None
+
+        # Setter function call
         self.set_outer_radius_m()
 
     def set_atmosphere(self, atmosphere: Atmosphere):
@@ -84,14 +87,17 @@ class Planet(CelestialBody):
 # TODO: refactor Planetlocation to Launchlocation,
 #  only to collect launch relevant data
 class PlanetLocation:
-    """ General class for representing a location on a planet. """
+    """ General class for representing a location (point) on a planet
+    (spherical body).
+    """
 
     def __init__(self, planet: Planet, location_name: str,
-                 latitude: float, longitude: float):
+                 latitude: float, longitude: float, radius: float):
         self.planet = planet
         self.name = f"{location_name} ({self.planet.name})"
         self.latitude = latitude
         self.longitude = longitude
+        self.radius = radius
 
 
 class LaunchSite(PlanetLocation):
@@ -99,9 +105,9 @@ class LaunchSite(PlanetLocation):
 
     def __init__(self, planet: Planet, location_name: str,
                  latitude: float, longitude: float):
-        super().__init__(planet, location_name, latitude, longitude)
-
-        self.surface_radius = self.planet.surface_radius_m
+        # self.surface_radius = self.planet.surface_radius_m
+        super().__init__(planet, location_name, latitude, longitude,
+                         planet.surface_radius_m)
         self.angular_velocity = self.planet.angular_velocity_rad_per_s
         self.std_gravity = self.planet.std_gravity  # m/s^2
 
@@ -111,11 +117,14 @@ class LaunchSite(PlanetLocation):
             self.planet.std_gravitational_parameter)  # m^3/s^2
 
     def get_density(self, altitude) -> float:
+        """ Get atmospheric density at altitude. """
         return self.planet.atmosphere.get_density(altitude)
 
     def get_pressure(self, altitude) -> float:
+        """ Get atmospheric pressure at altitude. """
         return self.planet.atmosphere.get_pressure(altitude)
 
+    # TODO: test this
     def get_relative_velocity(self, state: np.array) -> float:
         """ Returns the speed of the rocket relative to the atmosphere.
 
@@ -130,6 +139,7 @@ class LaunchSite(PlanetLocation):
                         state[0:3]
                 )))
 
+    # TODO: is this needed ?
     def get_surface_velocity(self):
         """ Placeholder func. """
 
