@@ -3,32 +3,32 @@ import unittest
 from cls import EarthAtmosphereUS1976
 
 
-class TestEarthAtmosphere(unittest.TestCase):
-    """ Unittest functions for EarthAtmosphere class. """
+class TestEarthAtmosphereUS1976(unittest.TestCase):
+    """ Unittest functions for EarthAtmosphereUS1976 class. """
 
     @classmethod
     def setUpClass(self):
         self.atm = EarthAtmosphereUS1976()
 
-    def test_apply_limits(self):
-        """ Test for put of limit values. """
-        self.assertEqual(self.atm._apply_limits(-2), 0,
-                         "Should be zero for negativ values!")
-        self.assertEqual(self.atm._apply_limits(0), 0,
-                         "Should be zero for 0!")
-        self.assertEqual(self.atm._apply_limits(100000), 100000,
-                         "Should be 120000 for 120000!")
-        self.assertEqual(self.atm._apply_limits(100001), 100000,
-                         "Should be 120000 for values higher than 120000!")
-
     def test_tempretatures(self):
         """ Test temperatures. """
         self.assertAlmostEqual(self.atm.get_temperature(0), 288.15, 3,
-                               "Should be 288.15 at ground!")
+                               "Should be 288.15 K° at ground!")
         self.assertAlmostEqual(self.atm.get_temperature(11000), 216.65, 3,
-                               "Should be 216.65 for 11000 (m) altitude!")
+                               "Should be 216.65 K° for 11000 (m) altitude!")
         self.assertAlmostEqual(self.atm.get_temperature(20000), 216.65, 3,
-                               "Should be 216.65 for 20000 (m) altitude!")
+                               "Should be 216.65 K° for 20000 (m) altitude!")
+        self.assertAlmostEqual(self.atm.get_temperature(100000), 0, 3,
+                               "Should be 0 K° for 100000 (m) altitude!")
+
+    def test_pressure(self):
+        """ Test pressures. """
+        self.assertAlmostEqual(self.atm.get_pressure(0), 101.325, 3,
+                               "Should be 101.325 kPa at ground!")
+        self.assertAlmostEqual(self.atm.get_pressure(11000), 22.632, 3,
+                               "Should be 22.632 kPa for 11000 (m) altitude!")
+        self.assertAlmostEqual(self.atm.get_pressure(100_000), 0, 3,
+                               "Should be 0 kPa for 100000 (m) altitude!")
 
 
 if __name__ == '__main__':
