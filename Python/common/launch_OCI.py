@@ -273,7 +273,7 @@ class RocketLaunch:
             a_thrust = thrust * unit_vector(v)
 
         # vectors
-        elif 15 <= time < 60:
+        elif 15 <= time < 65:
         # elif (self.flightprogram.pitch_maneuver_start <= time
         #       < self.flightprogram.pitch_maneuver_end):
             # FIXME: cleanup, and investigate how this works exactly
@@ -283,16 +283,26 @@ class RocketLaunch:
                     np.array([1, 0, 0]), np.array([0, 0, 1]),
                     self.target_orbit.longitude_of_ascending_node * m.pi / 180
             )
+            # print(vector_loan)
+
             unit_r = unit_vector(r)
-            orbital_plane_vector = np.cross(unit_r, vector_loan)  # np.array([1, 0, 0])
+            orbital_plane_vector = np.cross(unit_r, vector_loan)
             unit_opv = unit_vector(orbital_plane_vector)
-            a_thrust = rodrigues_rotation(
-                thrust * unit_vector(r), unit_opv, 0.1 * m.pi / 180)
+            a_thrust = thrust * rodrigues_rotation(
+                unit_vector(r), unit_opv, 1.1 * m.pi / 180)
+            print("Roll prg")
+            # print(angle_of_vectors(unit_vector(r), unit_vector(vector_relative)))
 
             # https://arc.aiaa.org/doi/abs/10.2514/6.2008-6288
 
         else:  # Gravity assist -> Thrust is parallel with velocity
             a_thrust = thrust * unit_vector(v)
+
+        #print()
+        vector_relative = (state[3:6]
+                           - np.cross(np.array(
+                    [0, 0, self.launchsite.angular_velocity]), state[0:3]))
+        print(angle_of_vectors(unit_vector(r), unit_vector(vector_relative)))
 
         # Calculate acceleration (v_dot) and m_dot
         pressure_ratio = air_density / self.launchsite.get_density(0.0)
