@@ -65,7 +65,7 @@ class Atmosphere:
 
     # pylint: disable = unused-argument
     # @override
-    def _atmospheric_model(self, altitude) -> tuple[float, float, float]:
+    def _atmospheric_model(self, altitude_m) -> tuple[float, float, float]:
         """ Returns the temperature, pressure, density values.
 
         When the altitude is lass than 0, there is solid ground, no atmosphere;
@@ -74,23 +74,23 @@ class Atmosphere:
         """
         return 0.0, 0.0, 0.0
 
-    def get_atm_params(self, altitude) -> tuple[float, float, float]:
+    def get_atm_params(self, altitude_m) -> tuple[float, float, float]:
         """ Enforces the atmospheric model limits, and returns the temperature,
         pressure, density values.
         """
-        return self._atmospheric_model(altitude)
+        return self._atmospheric_model(altitude_m)
 
-    def get_temperature(self, altitude) -> float:
-        """ Returns the temperature at a given altitude. """
-        return self._atmospheric_model(altitude)[0]
+    def get_temperature(self, altitude_m) -> float:
+        """ Returns the temperature (K) at a given altitude (m). """
+        return self._atmospheric_model(altitude_m)[0]
 
-    def get_pressure(self, altitude) -> float:
-        """ Returns the pressure at a given altitude. """
-        return self._atmospheric_model(altitude)[1]
+    def get_pressure(self, altitude_m) -> float:
+        """ Returns the pressure (kPa) at a given altitude (m). """
+        return self._atmospheric_model(altitude_m)[1]
 
-    def get_density(self, altitude) -> float:
-        """ Returns the density at a given altitude. """
-        return self._atmospheric_model(altitude)[2]
+    def get_density(self, altitude_m) -> float:
+        """ Returns the density (kg/m3) at a given altitude (m). """
+        return self._atmospheric_model(altitude_m)[2]
 
     def set_composition(self, composition: Composition) -> None:
         """ Sets the chemical composition of the atmosphere. """
@@ -111,37 +111,36 @@ class EarthAtmosphere(Atmosphere):
                          30000)
         self.set_composition(EarthAthmosphericComposition)
 
-    def _atmospheric_model(self, altitude: float) -> tuple[float, float, float]:
+    def _atmospheric_model(self, alt_m: float) -> tuple[float, float, float]:
         """ Returns the temperature, pressure, density values of the atmosphere
         depending on the altitude measured from sea level. Calculation is
         loosely based on the US. standard atmosphere model (1976), and uses
         three separate zones (layers).
         """
-        temperature = 0.0
-        pressure = 0.0
-        altitude = max(0.0, altitude)  # Handle negative values
+        alt_m = max(0.0, alt_m)  # Handle negative values
 
-        if 0 <= altitude < 11000:  # Troposhere
-            temperature = 15.04 - 0.00649 * altitude
-            pressure = 101.29 * pow((temperature + 273.1) / 288.08, 5.256)
+        if 0 <= alt_m < 11000:  # Troposhere
+            temp_celsius = 15.04 - 0.00649 * alt_m
+            pressure_kpa = 101.29 * pow((temp_celsius + 273.1) / 288.08, 5.256)
 
-        elif 11000 <= altitude < 25000:  # Lower stratosphere
-            temperature = -56.46
-            pressure = 22.65 * m.exp(1.73 - 0.000157 * altitude)
+        elif 11000 <= alt_m < 25000:  # Lower stratosphere
+            temp_celsius = -56.46
+            pressure_kpa = 22.65 * m.exp(1.73 - 0.000157 * alt_m)
 
-        elif 25000 <= altitude < self.atm_upper_limit_m:  # Upper stratosphere
-            temperature = -131.21 + 0.00299 * altitude
-            pressure = 2.488 * pow((temperature + 273.1) / 216.6, -11.388)
+        elif 25000 <= alt_m < self.atm_upper_limit_m:  # Upper stratosphere
+            temp_celsius = -131.21 + 0.00299 * alt_m
+            pressure_kpa = 2.488 * pow((temp_celsius + 273.1) / 216.6, -11.388)
 
         else:
-            return float(-270), 0, 0
+            return 0.0, 0.0, 0.0  # in space zero kelvin, zero athmosphere
 
         # Calculate air density and return values
-        air_density = pressure / (0.2869 * (temperature + 273.1))
-        logger.debug("Atmospheric temp.: %.6f (C°), pres.: %.6f (kPa) and"
+        temp_kelvin = temp_celsius + 273.15
+        air_density = pressure_kpa / (0.2869 * temp_kelvin)
+        logger.debug("Atmospheric temp.: %.6f (K°), pres.: %.6f (kPa) and"
                      " air density: %.6f (kg/m3) @ %s (m)",
-                     temperature, pressure, air_density, altitude)
-        return temperature, pressure, air_density
+                     temp_kelvin, pressure_kpa, air_density, alt_m)
+        return temp_kelvin, pressure_kpa, air_density
 
 
 class EarthAtmosphereUS1976(Atmosphere):
@@ -154,7 +153,7 @@ class EarthAtmosphereUS1976(Atmosphere):
                          100000)
         self.set_composition(EarthAthmosphericComposition)
 
-    def _atmospheric_model(self, altitude: float) -> tuple[float, float, float]:
+    def _atmospheric_model(self, alt_m: float) -> tuple[float, float, float]:
         """ Returns the temperature, pressure, density values of the atmosphere
         depending on the altitude measured from sea level. Calculation is based
         on the US. standard atmosphere model (1976), which has seven separate
@@ -163,61 +162,58 @@ class EarthAtmosphereUS1976(Atmosphere):
         https://en.wikipedia.org/wiki/Barometric_formula
         http://www.luizmonteiro.com/StdAtm.aspx
         """
-        temperature: float = 288.15  # Kelvin
-        pressure: float = 101.325  # kPa
-        # air_density: float = 1.225  # kg/m3
-        altitude = max(0.0, altitude)  # Handle negative values
+        alt_m = max(0.0, alt_m)  # Handle negative values
 
-        if 0 < altitude <= 11000:  # Troposphere
-            temperature = 288.15 - 0.0065 * altitude
-            pressure = 101.325 * pow(288.15 / temperature, -5.228)
+        if 0 <= alt_m < 11000:  # Troposphere
+            temp_kelvin = 288.15 - 0.0065 * alt_m  # == 15 C°
+            pressure_kpa = 101.325 * pow(288.15 / temp_kelvin, -5.228)
 
-        elif 11000 < altitude <= 20000:  # Tropopause
-            temperature = 216.65
-            pressure = 22.632 * m.exp(-0.03416265012915032
-                                      * (altitude - 11000) / 216.65)
+        elif 11000 <= alt_m < 20000:  # Tropopause
+            temp_kelvin = 216.65
+            pressure_kpa = 22.632 * m.exp(-0.03416265012915032
+                                          * (alt_m - 11000) / 216.65)
 
-        elif 20000 < altitude <= 32000:  # Lower stratosphere
-            temperature = 216.65 + 0.001 * (altitude - 20000)
-            pressure = 5.47489 * pow(216.65 / temperature, 34.1626)
+        elif 20000 <= alt_m < 32000:  # Lower stratosphere
+            temp_kelvin = 216.65 + 0.001 * (alt_m - 20000)
+            pressure_kpa = 5.47489 * pow(216.65 / temp_kelvin, 34.1626)
 
-        elif 32000 < altitude <= 47000:  # Upper stratosphere
-            temperature = 228.65 + 0.0028 * (altitude - 32000)
-            pressure = 0.86802 * pow(228.65 / temperature, 12.2009)
+        elif 32000 <= alt_m < 47000:  # Upper stratosphere
+            temp_kelvin = 228.65 + 0.0028 * (alt_m - 32000)
+            pressure_kpa = 0.86802 * pow(228.65 / temp_kelvin, 12.2009)
 
-        elif 47000 < altitude <= 51000:  # Stratopause
-            temperature = 270.65
-            pressure = 0.11091 * m.exp(-0.03416265012915032
-                                       * (altitude - 47000) / 270.65)
+        elif 47000 <= alt_m < 51000:  # Stratopause
+            temp_kelvin = 270.65
+            pressure_kpa = 0.11091 * m.exp(-0.03416265012915032
+                                           * (alt_m - 47000) / 270.65)
 
-        elif 51000 < altitude <= 71000:  # Lower mesosphere
-            temperature = 270.65 - 0.0028 * (altitude - 51000)
-            pressure = 0.06694 * pow(270.65 / temperature, -12.2009)
+        elif 51000 <= alt_m < 71000:  # Lower mesosphere
+            temp_kelvin = 270.65 - 0.0028 * (alt_m - 51000)
+            pressure_kpa = 0.06694 * pow(270.65 / temp_kelvin, -12.2009)
 
-        elif 71000 < altitude <= 86000:  # Upper mesosphere
-            temperature = 214.65 - 0.002 * (altitude - 71000)
-            pressure = 0.00396 * pow(214.65 / temperature, -17.0813)
+        elif 71000 <= alt_m < 86000:  # Upper mesosphere
+            temp_kelvin = 214.65 - 0.002 * (alt_m - 71000)
+            pressure_kpa = 0.00396 * pow(214.65 / temp_kelvin, -17.0813)
 
-        elif 86000 < altitude <= 91000:  # Thermosphere
-            temperature = 184.65
-            pressure = 0.0003
+        elif 86000 <= alt_m < 91000:  # Thermosphere
+            temp_kelvin = 184.65
+            pressure_kpa = 0.0003
 
-        elif 91000 < altitude < self.atm_upper_limit_m:
-            temperature = 184.65
-            pressure = 0.0003
+        elif 91000 <= alt_m < self.atm_upper_limit_m:
+            temp_kelvin = 184.65
+            pressure_kpa = 0.0003
 
         else:
-            return float(-270), 0, 0
+            return 0.0, 0.0, 0.0  # in space zero kelvin, zero athmosphere
 
         # Calculate air density and return values
-        air_density = pressure / (0.2869 * temperature)
-        # NOTE: add back when testing over
-        # logger.debug("Atmospheric temp.: %.6f (K), pres.: %.6f (kPa) and"
-        #              " air density: %.6f (kg/m3) @ %s (m)",
-        #              temperature, pressure, air_density, altitude)
-        return temperature, pressure, air_density
+        air_density = pressure_kpa / (0.2869 * temp_kelvin)
+        logger.debug("Atmospheric temp.: %.6f (K), pres.: %.6f (kPa) and"
+                     " air density: %.6f (kg/m3) @ %s (m)",
+                     temp_kelvin, pressure_kpa, air_density, alt_m)
+        return temp_kelvin, pressure_kpa, air_density
 
 
+# TODO: fix celsius to kelvin !!!
 class MarsAtmosphere(Atmosphere):
     """  Standard model of Mars Atmosphere according to NASA:
     https://www.grc.nasa.gov/www/k-12/airplane/atmosmrm.html
@@ -228,33 +224,32 @@ class MarsAtmosphere(Atmosphere):
                          60000)
         self.set_composition(MarsAthmosphericComposition)
 
-    def _atmospheric_model(self, altitude: float) -> tuple[float, float, float]:
+    def _atmospheric_model(self, alt_m: float) -> tuple[float, float, float]:
         """ Returns the temperature, pressure, density values of the atmosphere
         depending on the altitude measured from surface level. Calculation uses
         two separate zones (layers) and based on measurements made by the
         Mars Global Surveyor in April 1996.
         """
-        temperature = -31  # C°
-        pressure = 0.7  # kPa
-        altitude = max(0.0, altitude)  # Handle negative values
+        alt_m = max(0.0, alt_m)  # Handle negative values
 
-        if 0 < altitude <= 7000:  # Troposhere
-            temperature = -31 - 0.000998 * altitude
-            pressure = 0.699 * m.exp(-0.00009 * altitude)
+        if 0 <= alt_m < 7000:  # Troposhere
+            temp_celsius = -31 - 0.000998 * alt_m
+            pressure_kpa = 0.699 * m.exp(-0.00009 * alt_m)
 
-        elif 7000 < altitude < self.atm_upper_limit_m:  # Upper stratosphere
-            temperature = -23.4 - 0.00222 * altitude
-            pressure = 0.699 * m.exp(-0.00009 * altitude)
+        elif 7000 <= alt_m < self.atm_upper_limit_m:  # Upper stratosphere
+            temp_celsius = -23.4 - 0.00222 * alt_m
+            pressure_kpa = 0.699 * m.exp(-0.00009 * alt_m)
 
         else:
-            return float(-270), 0, 0
+            return 0.0, 0.0, 0.0  # in space zero kelvin, zero athmosphere
 
         # Calculate air density and return values
-        air_density = pressure / (0.1921 * (temperature + 273.1))
-        logger.debug("Atmospheric temp.: %.6f (C°), pres.: %.6f (kPa) and"
+        temp_kelvin = temp_celsius + 273.15
+        air_density = pressure_kpa / (0.1921 * temp_kelvin)
+        logger.debug("Atmospheric temp.: %.6f (K°), pres.: %.6f (kPa) and"
                      " athmospheric density: %.6f (kg/m3) @ %s (m)",
-                     temperature, pressure, air_density, altitude)
-        return temperature, pressure, air_density
+                     temp_celsius, pressure_kpa, air_density, alt_m)
+        return temp_kelvin, pressure_kpa, air_density
 
 
 def plot_atmosphere(model: Atmosphere):
@@ -304,7 +299,9 @@ def plot_atmosphere(model: Atmosphere):
 
 # Include guard
 if __name__ == '__main__':
-    plot_atmosphere(EarthAtmosphereUS1976())
-    for comp in MarsAthmosphericComposition.get_composition():
-        print(comp)
+    plot_atmosphere(EarthAtmosphere())
+    # plot_atmosphere(EarthAtmosphereUS1976())
+    # plot_atmosphere(MarsAtmosphere())
+    # for comp in MarsAthmosphericComposition.get_composition():
+    #    print(comp)
     # plot_atmosphere(MarsAtmosphere())
