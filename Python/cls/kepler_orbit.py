@@ -147,12 +147,11 @@ class KeplerOrbit:
         return str(self.__class__) + ": " + str(self.__dict__)
 
 
-# TODO: expand class with simplified functions
 class CircularOrbit(KeplerOrbit):
     """ Simplified child of the KeplerOrbit class, where eccentricity is zero,
     thus the orbit is circular.
 
-    The function takes 5 parameters
+    The function takes only 5 parameters.
     """
 
     def __init__(self, radius, inclination, longitude_of_ascending_node,
