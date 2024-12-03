@@ -29,8 +29,9 @@ import matplotlib.pyplot as plt
 
 # Local application imports
 from utils import (secs_to_mins, convert_spherical_to_cartesian_coords,
-                   runge_kutta_4, unit_vector, rodrigues_rotation)
-from cls import (Earth, LaunchSite, KeplerOrbit, Stage, RocketAttitudeStatus,
+                   runge_kutta_4, unit_vector, rodrigues_rotation,
+                   angle_of_vectors)
+from cls import (Earth, LaunchSite, CircularOrbit, Stage, RocketAttitudeStatus,
                  RocketEngineStatus)
 
 logger = logging.getLogger(__name__)
@@ -49,11 +50,16 @@ class RocketFlightProgram:
     """
 
     # pylint: disable = too-many-arguments
-    def __init__(self, meco: float, ses_1: float, seco_1: float,
+    def __init__(self,
+                 meco: float,
+                 ses_1: float, seco_1: float,
                  ses_2: float, seco_2: float,
-                 throttle_program, fairing_jettison: float,
-                 pitch_maneuver_start: float, pitch_maneuver_end: float,
-                 ss_1: float = None, ss_2: float = None):
+                 throttle_program,
+                 fairing_jettison: float,
+                 pitch_maneuver_start: float,
+                 pitch_maneuver_end: float,
+                 ss_1: float = None,
+                 ss_2: float = None):
         """
         throttle_map - tuple(t, y): t is the list of time-points since launch,
         and y is the list of throttling factor at the corresponding t values.
@@ -150,7 +156,7 @@ class RocketLaunch:
     def __init__(self, name: str, payload_mass: float, fairing_mass: float,
                  coefficient_of_drag: float, diameter: float,
                  stages: list[Stage], flightprogram: RocketFlightProgram,
-                 target_orbit: KeplerOrbit, launchsite: LaunchSite):
+                 target_orbit: CircularOrbit, launchsite: LaunchSite):
         self.name = name
         self.stage_status = RocketEngineStatus.STAGE_0
         self.stages = stages
@@ -209,6 +215,20 @@ class RocketLaunch:
         #  is returned to avoid ZeroDivisionError and NaN values
         return 1
 
+    def validate_orbit(self):
+        """  """
+        # TODO: pre-flight checks for inclination limits
+        # TODO: implement calculations for desired orbit, and provide defaults
+        #  for minimal energy orbit
+        inclination = 0.0
+        launch_azimuth = m.asin(m.cos(inclination * m.pi / 180)
+                                / m.cos(self.launchsite.latitude * m.pi / 180))
+        # target_velocity = 0
+
+        # A handy formula to remember is: cos(i) = cos(φ) * sin(β), where i is
+        # the inclination, β is the launch azimuth, and φ is the launch
+        # latitude.
+
     # pylint: disable = too-many-locals
     def launch_ode(self, time, state, dt):
         """ 2nd order ODE of the state-vectors, during launch.
@@ -232,12 +252,11 @@ class RocketLaunch:
         v_relative = self.launchsite.get_relative_velocity(state)
         air_density = self.launchsite.get_density(
             np.linalg.norm(r) - self.launchsite.radius)
-        pressure_ratio = air_density / 1.204  # TODO: hardcoded!
         drag_const = self.drag_constant * air_density / 2
 
         # Calculate aceleration
         # Calculate drag and gravity
-        a_drag = -(v / np.linalg.norm(v)) * drag_const * v_relative ** 2 / mass
+        a_drag = - unit_vector(v) * drag_const * v_relative ** 2 / mass
         a_gravity = (-r * self.launchsite.std_gravitational_parameter
                      / np.linalg.norm(r) ** 3)
 
@@ -247,43 +266,44 @@ class RocketLaunch:
 
         # Vertical flight until tower is cleared
         if time < self.flightprogram.pitch_maneuver_start:
-            a_thrust = thrust * (r / np.linalg.norm(r))
+            a_thrust = thrust * unit_vector(r)
 
         # Initial pitch-over maneuver -> Slight offset of Thrust and Velocity
+        elif time < 15:
+            a_thrust = thrust * unit_vector(v)
+
         # vectors
-        elif (self.flightprogram.pitch_maneuver_start <= time
-              < self.flightprogram.pitch_maneuver_end):
+        elif 15 <= time < 60:
+        # elif (self.flightprogram.pitch_maneuver_start <= time
+        #       < self.flightprogram.pitch_maneuver_end):
             # FIXME: cleanup, and investigate how this works exactly
-            unit_r = r / np.linalg.norm(r)
-            orbital_plane_vector = np.cross(unit_r, np.array([1, 0, 0]))
+            # TODO: refactor orbital_plane_vector to reference targetorbit
+
+            vector_loan = rodrigues_rotation(
+                    np.array([1, 0, 0]), np.array([0, 0, 1]),
+                    self.target_orbit.longitude_of_ascending_node * m.pi / 180
+            )
+            launch_azimuth = m.asin(m.cos(self.target_orbit.inclination * m.pi / 180)
+                                    / m.cos(self.launchsite.latitude * m.pi / 180))
+            # print(vector_loan)
+            unit_r = unit_vector(r)
+            orbital_plane_vector = np.cross(unit_r, vector_loan)  # np.array([1, 0, 0])
             unit_opv = unit_vector(orbital_plane_vector)
             a_thrust = rodrigues_rotation(
-                thrust * unit_r, unit_opv, 0.01 * m.pi / 180)
+                thrust * unit_vector(r), unit_opv, 0.1 * m.pi / 180)
 
         else:  # Gravity assist -> Thrust is parallel with velocity
-            a_thrust = thrust * (v / np.linalg.norm(v))
+            a_thrust = thrust * unit_vector(v)
 
         # Calculate acceleration (v_dot) and m_dot
+        pressure_ratio = air_density / self.launchsite.get_density(0.0)
         a = a_gravity + a_thrust + a_drag  # 2nd order ODE function (acc.)
         m_dot = - thrust_force / (self.get_isp(pressure_ratio)
                                   * self.launchsite.std_gravity) * dt
         return np.concatenate((v, a, [m_dot]))  # vx, vy, vz, ax, ay, az, m_dot
 
-    def launch(self, inclination: float, simulation_time, timestep=1):
+    def launch(self, simulation_end_time: int = 16000, timestep: int = 1):
         """ Yield rocket's status variables during launch, every second. """
-
-        # CALCULATION START
-        # Calculations of target orbit
-        # TODO: pre-flight checks for inclination limits
-        # TODO: implement calculations for desired orbit, and provide defaults
-        #  for minimal energy orbit
-        launch_azimuth = m.asin(m.cos(inclination * m.pi/180)
-                                / m.cos(self.launchsite.latitude * m.pi / 180))
-        # target_velocity = 0
-
-        # A handy formula to remember is: cos(i) = cos(φ) * sin(β), where i is
-        # the inclination, β is the launch azimuth, and φ is the launch
-        # latitude.
 
         # Update state vector with initial conditions
         r_rocket = convert_spherical_to_cartesian_coords(
@@ -299,8 +319,9 @@ class RocketLaunch:
         # Yield initial values
         yield 0, self.state, np.array([0.0, 0.0, 0.0])  # time, state, acc.
 
+        # CALCULATION START
         time = 0  # Current step
-        while time <= simulation_time:
+        while time <= simulation_end_time:
             # Calculate stage status according to time
             self.stage_status = self.flightprogram.get_engine_status(time)
 
@@ -350,7 +371,7 @@ class RocketLaunch:
 
 # Main function for module testing
 # pylint: disable = too-many-statements
-def plot(rocketlaunch: RocketLaunch, inclination):
+def plot(rocketlaunch: RocketLaunch):
     """ Plots the given RocketLaunch parameters. """
 
     # Launch
@@ -369,7 +390,7 @@ def plot(rocketlaunch: RocketLaunch, inclination):
     plot_title = (f"{rocketlaunch.name} launch from"
                   f" {rocketlaunch.launchsite.name}")
 
-    for time, state, acc, in rocketlaunch.launch(inclination, 16000, 1):
+    for time, state, acc, in rocketlaunch.launch(3000, 1):
         time_data.append(time)
         rx.append(state[0])
         ry.append(state[1])
@@ -473,15 +494,21 @@ def main():
                                          195, 16,
                                          60, None, None)
     # TargetOrbit
-    targetorbit = None  # KeplerOrbit()
+    targetorbit = CircularOrbit(400_000, 51.64,
+                                45,
+                                90,
+                                0)
 
-    falcon9 = RocketLaunch("Falcon 9", 15000, 1900,
-                           0.25, 5.2,
-                           [first_stage, second_stage],
-                           flight_program, targetorbit, cape_canaveral)
+    mission_414_falcon9 = RocketLaunch("Falcon 9", 15000,
+                                       1900,
+                                       0.25,
+                                       5.2,
+                                       [first_stage, second_stage],
+                                       flight_program, targetorbit,
+                                       cape_canaveral)
 
     # Plot launch
-    plot(falcon9, 28.5)
+    plot(mission_414_falcon9)
 
 
 # Include guard
