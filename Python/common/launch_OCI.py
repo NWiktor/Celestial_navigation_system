@@ -283,14 +283,13 @@ class RocketLaunch:
                     np.array([1, 0, 0]), np.array([0, 0, 1]),
                     self.target_orbit.longitude_of_ascending_node * m.pi / 180
             )
-            launch_azimuth = m.asin(m.cos(self.target_orbit.inclination * m.pi / 180)
-                                    / m.cos(self.launchsite.latitude * m.pi / 180))
-            # print(vector_loan)
             unit_r = unit_vector(r)
             orbital_plane_vector = np.cross(unit_r, vector_loan)  # np.array([1, 0, 0])
             unit_opv = unit_vector(orbital_plane_vector)
             a_thrust = rodrigues_rotation(
                 thrust * unit_vector(r), unit_opv, 0.1 * m.pi / 180)
+
+            # https://arc.aiaa.org/doi/abs/10.2514/6.2008-6288
 
         else:  # Gravity assist -> Thrust is parallel with velocity
             a_thrust = thrust * unit_vector(v)
@@ -312,6 +311,7 @@ class RocketLaunch:
             self.launchsite.longitude * m.pi / 180
         )
 
+        # TODO: check this in alfonso's program, how to account for j2000 frame
         omega_planet = np.array([0, 0, self.launchsite.angular_velocity])  # rad/s
         self.state = np.concatenate(
             (r_rocket, np.cross(omega_planet, r_rocket), [self.total_mass])
