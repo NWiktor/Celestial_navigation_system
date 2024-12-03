@@ -35,7 +35,8 @@ gravitational_constant: float = 6.67430 * pow(10, -11)  # m^3 kg-1 s-2
 
 # Class and function definitions
 class CelestialBody:
-    """ Class for celestial bodies (planet, moon, asteroid, sun, etc.). """
+    """ Class for generic celestial bodies (planet, moon, asteroid, sun, etc.).
+    """
 
     def __init__(self, uuid: str, name: str, mass_kg: float,
                  other_names: list[str] = None,
@@ -43,10 +44,10 @@ class CelestialBody:
         self.uuid = uuid  # Unique identifier
         self.name = name  # Name of CB
         self.other_names = other_names
-        self.composition = composition
 
         # Phisycal properties
         self.mass_kg = mass_kg
+        self.composition = composition
         self.std_gravitational_parameter = 0.0  # m^3/s^2
 
         # Properties to be set by function
@@ -88,26 +89,20 @@ class CelestialBody:
         self.std_gravitational_parameter = (
                 gravitational_constant * (self.mass_kg + mass2_kg))  # m^3/s^2
 
-    # TODO: is this needed ???
-    # TODO: rework this !!!
-    # def get_relative_velocity(self, state: np.array) -> float:
-    #     """ Returns the speed of the rocket relative to the atmosphere.
-    #
-    #     The atmosphere of the planet is modelled as static (no winds). The function calculates the atmospheric
-    #     velocity (in inertial ref. frame), and substracts it from the rocket's speed in inertial frame, then takes
-    #     the norm of the resulting vector.
-    #     """
-    #     return np.linalg.norm(state[3:6] - np.cross(np.array([0, 0, self.angular_velocity_rad_per_s]), state[0:3]))
+    # TODO: check time format
+    # TODO: is this needed ?
+    def get_position(self, j2000_time: float) -> np.array:
+        """ Returns a 3D position vector of the object at a given time,
+        since epoch.
+        """
 
-    # def get_position(self, j2000_time: float):
-    #     """ Returns a 3D position vector of the object at a given time, since epoch. """
-    #
-    #     # If parent object is not defined
-    #     if self.parent_object is None or self.orbit is None:
-    #         return np.array([0, 0, 0])
-    #
-    #     # Else we add object position + parent object position
-    #     return self.orbit.get_position(j2000_time) + self.parent_object.get_position(j2000_time)
+        # If parent object or orbit is not defined, return default
+        if self.parent_object is None or self.orbit is None:
+            return np.array([0, 0, 0])
+
+        # Else we add object position + parent object position
+        return (self.orbit.get_position(j2000_time) +
+                self.parent_object.get_position(j2000_time))
 
     def __str__(self):
         return str(self.__class__) + ": " + str(self.__dict__)
