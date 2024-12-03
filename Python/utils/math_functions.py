@@ -110,7 +110,7 @@ def rodrigues_rotation(vector_v, vector_k, theta):
 
     :param vector_v: V vector (Numpy).
     :param vector_k: Unit vector K (rotational axis) (Numpy).
-    :param float theta: Rotational angle around vector K.
+    :param float theta: Rotational angle around vector K in radians.
     :return: Rotated V vector (Numpy).
 
     """
