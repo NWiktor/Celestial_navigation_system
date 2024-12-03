@@ -2,7 +2,6 @@ import json
 import logging
 import common.logger_setup
 import common.launch_OCI
-# import common.launch_OCI_old
 
 common.logger_setup.config_logger()
 
@@ -20,5 +19,4 @@ logging.info("Program version: %s, %s", __version__, __author__)
 if __name__ == "__main__":
     # Start main
     common.launch_OCI.main()
-    # common.launch_OCI_old.main()
     # cls.atmosphere.module_test()
