@@ -231,7 +231,7 @@ class RocketLaunch:
         # Calculate flight characteristics at the actual step
         v_relative = self.launchsite.get_relative_velocity(state)
         air_density = self.launchsite.get_density(
-            np.linalg.norm(r) - self.launchsite.surface_radius)
+            np.linalg.norm(r) - self.launchsite.radius)
         pressure_ratio = air_density / 1.204  # TODO: hardcoded!
         drag_const = self.drag_constant * air_density / 2
 
@@ -287,7 +287,7 @@ class RocketLaunch:
 
         # Update state vector with initial conditions
         r_rocket = convert_spherical_to_cartesian_coords(
-            self.launchsite.surface_radius,
+            self.launchsite.radius,
             self.launchsite.latitude * m.pi / 180,
             self.launchsite.longitude * m.pi / 180
         )
@@ -338,7 +338,7 @@ class RocketLaunch:
             # Log new data and end-conditions
             # TODO: implement checks for mass, target velocity, etc.
             altitude_above_surface = (np.linalg.norm(self.state[0:3])
-                                      - self.launchsite.surface_radius)
+                                      - self.launchsite.radius)
             if altitude_above_surface <= 0:
                 logger.warning("WARNING! LITHOBRAKING!")
                 break
@@ -365,7 +365,7 @@ def plot(rocketlaunch: RocketLaunch, inclination):
     vel_data = []
     acc_data = []
     mass_data = []
-    cbsr = rocketlaunch.launchsite.surface_radius
+    cbsr = rocketlaunch.launchsite.radius
     plot_title = (f"{rocketlaunch.name} launch from"
                   f" {rocketlaunch.launchsite.name}")
 
