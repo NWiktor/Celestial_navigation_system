@@ -79,7 +79,7 @@ def gregorian_date(j2000_date_years: float) -> datetime.datetime:
     return datetime.datetime.combine(date, time)
 
 
-def secs_to_mins(total_seconds: int) -> str:
+def secs_to_mins(total_seconds: float) -> str:
     """ Formats seconds to HH:MM:SS format. """
     total_minutes, seconds = divmod(total_seconds, 60)
     hours, minutes = divmod(total_minutes, 60)
