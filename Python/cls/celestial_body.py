@@ -30,7 +30,7 @@ from utils import unit_vector, angle_of_vectors
 
 # Class initializations and global variables
 logger = logging.getLogger(__name__)
-gravitational_constant: float = 6.67430 * pow(10, -11)  # m^3 kg-1 s-2
+gravitational_constant: float = 6.67430 * pow(10, -11)  # m^3 kg^-1 s^-2
 
 
 # Class and function definitions
