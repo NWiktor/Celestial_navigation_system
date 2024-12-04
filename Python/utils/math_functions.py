@@ -35,7 +35,7 @@ def unit_vector(vector: np.array) -> np.array:
 
 
 def angle_of_vectors(vector_a, vector_b) -> float:
-    """ Returns the angle between two unit vectors. """
+    """ Returns the angle (deg) between two unit vectors. """
     return m.acos(np.dot(vector_a, vector_b)
                   / np.linalg.norm(vector_a)
                   * np.linalg.norm(vector_b)) * 180 / m.pi
@@ -89,13 +89,13 @@ def convert_spherical_to_cartesian_coords(radius: float, theta: float, phi: floa
 
 
 def rotation_z(angle: float):
-    """ Principal Z axis active rotation matrix by an angle. """
+    """ Principal Z axis active rotation matrix by an angle (rad). """
     return np.array([[m.cos(angle), -m.sin(angle), 0],
                      [m.sin(angle), m.cos(angle), 0],
                      [0, 0, 1]])
 
 
-def rodrigues_rotation(vector_v, vector_k, theta):
+def rodrigues_rotation(vector_v, vector_k, theta_rad):
     # ReST syntax generates 'invalid-escape-sequence' warning
     # pylint: disable = anomalous-backslash-in-string
     """Implements Rodrigues rotation.
@@ -110,13 +110,13 @@ def rodrigues_rotation(vector_v, vector_k, theta):
 
     :param vector_v: V vector (Numpy).
     :param vector_k: Unit vector K (rotational axis) (Numpy).
-    :param float theta: Rotational angle around vector K in radians.
+    :param float theta_rad: Rotational angle (rad) around vector K.
     :return: Rotated V vector (Numpy).
 
     """
-    v_rot = ((vector_v * m.cos(theta))
-             + (np.cross(vector_k, vector_v) * m.sin(theta))
-             + (vector_k * np.dot(vector_k, vector_v) * (1 - m.cos(theta))))
+    v_rot = ((vector_v * m.cos(theta_rad))
+             + (np.cross(vector_k, vector_v) * m.sin(theta_rad))
+             + (vector_k * np.dot(vector_k, vector_v) * (1 - m.cos(theta_rad))))
     return v_rot
 
 
