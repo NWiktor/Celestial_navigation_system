@@ -36,6 +36,9 @@ from cls import (Earth, LaunchSite, CircularOrbit, Stage, RocketAttitudeStatus,
 
 logger = logging.getLogger(__name__)
 
+launch_plane_normal = None
+local_east = None
+local_north = None
 
 class RocketFlightProgram:
     """ Describes the rocket launch program (staging, engine throttling, roll
@@ -166,7 +169,8 @@ class RocketLaunch:
         self.target_orbit = target_orbit
         self.launchsite = launchsite
 
-        self.launch_azimuth = None
+        self.launch_azimuth1 = None
+        self.launch_azimuth2 = None
         # Check if orbit is reachable
         self.check_radius()
         self.target_velocity = self.get_target_velocity(
@@ -257,20 +261,36 @@ class RocketLaunch:
         v_eqrot = (self.launchsite.planet.surface_radius_m
                    * self.launchsite.planet.angular_velocity_rad_per_s)
 
-        self.launch_azimuth = m.atan2(
-                self.target_velocity * m.sin(launch_azimuth)
-                - v_eqrot * m.cos(self.launchsite.latitude * m.pi / 180),
-                self.target_velocity * m.cos(launch_azimuth)
-        ) / m.pi * 180  # (for deg)
+        # self.launch_azimuth1 = m.atan2(
+        #         self.target_velocity * m.sin(launch_azimuth)
+        #         - v_eqrot * m.cos(self.launchsite.latitude * m.pi / 180),
+        #         self.target_velocity * m.cos(launch_azimuth)
+        # ) / m.pi * 180  # (for deg)
+        self.launch_azimuth1 = launch_azimuth / m.pi * 180  # (for deg)
+        self.launch_azimuth2 = 180 - self.launch_azimuth1
 
-        if (self.launchsite.launch_azimuth_range is not None and not
-                self.launchsite.launch_azimuth_range[0] <= self.launch_azimuth
-                <= self.launchsite.launch_azimuth_range[1]):
-            print(f"ERROR: Launch azimuth ({self.launch_azimuth:.3f}°) is out "
-                  f"of permitted range!")
-            raise ValueError
+        if self.launchsite.launch_azimuth_range is not None:
+            possible = False
+            if (self.launchsite.launch_azimuth_range[0]
+                    <= self.launch_azimuth1
+                    <= self.launchsite.launch_azimuth_range[1]):
+                print(f"ERROR: Launch azimuth for ascending node"
+                      f"({self.launch_azimuth1:.3f}°) "
+                      "is out of permitted range!")
+                possible = True
+            if (self.launchsite.launch_azimuth_range[0]
+                    <= self.launch_azimuth2
+                    <= self.launchsite.launch_azimuth_range[1]):
+                print(f"ERROR: Launch azimuth for descending node"
+                      f"({self.launch_azimuth2:.3f}°) "
+                      "is out of permitted range!")
+                possible = True
+            if not possible:
+                print("Launch is not possible for this orbit!")
+                raise ValueError
 
-        print(f"Launch azimuth: {self.launch_azimuth:.3f}°")
+        print(f"Launch azimuth1: {self.launch_azimuth1:.3f}°")
+        print(f"Launch azimuth2: {self.launch_azimuth2:.3f}°")
 
     def get_target_velocity(self, radius_m):
         """ Calculates orbital velocity for the given radius. """
@@ -301,6 +321,7 @@ class RocketLaunch:
         State-vector: rx, ry, rz, vx, vy, vz, m
         State-vector_dot: vx, vy, vz, ax, ay, az, m_dot
         """
+        global launch_plane_normal, local_east, local_north
         r = state[:3]  # Position vector
         v = state[3:6]  # Velocity vector
         mass = state[6]  # Mass
@@ -329,35 +350,36 @@ class RocketLaunch:
         )
         local_zenith = unit_vector(r_launch)
 
-        east_launch = convert_spherical_to_cartesian_coords(
-            self.launchsite.radius,
-            0,
-            ((self.launchsite.longitude + 90) % 360) * m.pi / 180
-        )
+        # east_launch = convert_spherical_to_cartesian_coords(
+        #     self.launchsite.radius,
+        #     0,
+        #     ((self.launchsite.longitude + 90) % 360) * m.pi / 180
+        # )
+        east_launch = np.cross(np.array([0, 0, 1]), local_zenith)
         local_east = unit_vector(east_launch)
-        west_launch = convert_spherical_to_cartesian_coords(
-            self.launchsite.radius,
-            0,
-            ((self.launchsite.longitude + 270) % 360) * m.pi / 180
-        )
+
+        # west_launch = convert_spherical_to_cartesian_coords(
+        #     self.launchsite.radius,
+        #     0,
+        #     ((self.launchsite.longitude + 270) % 360) * m.pi / 180
+        # )
+        west_launch = -1 * east_launch
         local_west = unit_vector(west_launch)
         local_north = unit_vector(np.cross(r_launch, east_launch))
-        #print(f"{local_north=}")
-        # print(f"{local_east=}")
-        # print(f"{local_west=}")
-        # print(f"{local_zenith=}")
 
         # NOTE: launch plane vector is static, it represents the initial plane,
         #  in which the rocket launched.
-        # west should be rotated
-        launch_plane_normal = rodrigues_rotation(local_west,
-                                                 local_zenith,
-                                                 -self.launch_azimuth)
+        # NOTE: why is the angle positive ???
+        launch_plane_normal = rodrigues_rotation(
+            local_north, local_zenith, self.launch_azimuth1 * m.pi / 180)
         launch_plane_unit = unit_vector(launch_plane_normal)
-
+        # angle = angle_of_vectors(launch_plane_normal, local_north)
+        # print(f"{angle=}")
         # Relative speed to earth (vector)
+        # NOTE: this is a one-time addition, the initial value must be
+        #  substracted, and not the running value
         v_rel = v - np.cross(
-            np.array([0, 0, self.launchsite.angular_velocity]), r)
+            np.array([0, 0, self.launchsite.angular_velocity]), r_launch)
 
         # Vertical flight until tower is cleared in non-inertial frame
         if time < 5:  # self.flightprogram.pitch_maneuver_start:
@@ -382,17 +404,13 @@ class RocketLaunch:
             v_pitch = rodrigues_rotation(
                     v_rel,  # v_rel
                     launch_plane_unit,
-                    -0.25 * m.pi / 180)
+                    0.7 * m.pi / 180)
 
             a_thrust = thrust * unit_vector(v_pitch)
 
         else:  # Gravity assist -> Thrust is parallel with velocity
             # NOTE: rotate velocity vector around local zenith, to match orbital plane
-            # deviation = angle_of_vectors(unit_vector(r), orbital_plane_vector) - 90
-            # corr = deviation/abs(deviation) * 10
-            # v_yaw = rodrigues_rotation(v, unit_vector(r), 0 * m.pi / 180)
-
-            a_thrust = thrust * unit_vector(v)  # unit_vector(v)
+            a_thrust = thrust * unit_vector(v_rel)  # unit_vector(v)
 
         # Print flight data
         # NOTE: Deviation should increase with time, as the rocket is affected
@@ -513,7 +531,7 @@ class RocketLaunch:
 # pylint: disable = too-many-statements
 def plot(rocketlaunch: RocketLaunch):
     """ Plots the given RocketLaunch parameters. """
-
+    global launch_plane_normal
     # Launch
     time_data = []
     alt_data = []
@@ -530,7 +548,7 @@ def plot(rocketlaunch: RocketLaunch):
     plot_title = (f"{rocketlaunch.name} launch from"
                   f" {rocketlaunch.launchsite.name}")
 
-    for time, state, acc, in rocketlaunch.launch(2000, 1):
+    for time, state, acc, in rocketlaunch.launch(500, 1):
         time_data.append(time)
         rx.append(state[0])
         ry.append(state[1])
@@ -542,6 +560,16 @@ def plot(rocketlaunch: RocketLaunch):
         vel_data.append(np.linalg.norm(state[3:6]))  # Velocity - m/s
         acc_data.append(np.linalg.norm(acc) / 9.82)  # Acceleration - g
         mass_data.append(state[6] / 1000)  # Mass - 1000 kg
+
+    pts_x = []
+    pts_y = []
+    pts_z = []
+    vector = np.array([rx[0], ry[0], rz[0]])
+    for i in range(0, 90):
+        rot_v = rodrigues_rotation(vector, launch_plane_normal, i * m.pi / 180)
+        pts_x.append(rot_v[0])
+        pts_y.append(rot_v[1])
+        pts_z.append(rot_v[2])
 
     # Plotting
     plt.style.use('_mpl-gallery')
@@ -584,6 +612,8 @@ def plot(rocketlaunch: RocketLaunch):
     ax5.set_title("Flight trajectory")
     ax5.plot(rx, ry, rz, label="Trajectory", color="m")
 
+    ax5.plot(pts_x, pts_y, pts_z, label="Orbit_plane", color="y")
+
     # Plot CB surface
     u = np.linspace(0, 2 * np.pi, 100)
     v = np.linspace(0, np.pi, 100)
@@ -594,6 +624,10 @@ def plot(rocketlaunch: RocketLaunch):
     ax5.set_aspect('equal')
 
     # Reference vectors
+    ax5.plot([0, launch_plane_normal[0] * cbsr * 1.1],
+             [0, launch_plane_normal[1] * cbsr * 1.1],
+             [0, launch_plane_normal[2] * cbsr * 1.1],
+             label="launch_plane_normal", color="y")
     ax5.plot([0, cbsr * 1.1], [0, 0], [0, 0], label="x axis", color="r")
     ax5.plot([0, 0], [0, cbsr * 1.1], [0, 0], label="y axis", color="g")
     ax5.plot([0, 0], [0, 0], [0, cbsr * 1.1], label="z axis", color="b")
