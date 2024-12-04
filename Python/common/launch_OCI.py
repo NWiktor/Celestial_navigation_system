@@ -404,11 +404,11 @@ class RocketLaunch:
                     v_rel,
                     launch_plane_unit,
                     0.7 * m.pi / 180)
-
             a_thrust = thrust * unit_vector(v_pitch)
 
         else:  # Gravity assist -> Thrust is parallel with velocity
             # NOTE: rotate velocity vector around local zenith, to match orbital plane
+            # ang = angle_of_vectors()
             a_thrust = thrust * unit_vector(v_rel)  # unit_vector(v)
 
         # Print flight data
@@ -427,10 +427,11 @@ class RocketLaunch:
         #  the rocket relative velocity vector. It should start from 0°
         #  (vertical flight) to 90° as the rocket reaches orbit.
         flight_angle = angle_of_vectors(unit_vector(r), unit_vector(v_rel))
+        ang = angle_of_vectors(a_thrust, launch_plane_normal)
         print(f"{time}: Deviation from orbital plane: {deviation:.3f}°")
         print(f"{time}: Current inclination: {inclination_cur:.3f}°")
         print(f"{time}: Flight angle: {flight_angle:.3f}°")
-
+        print(f"Angle between thrust and launch plane: {ang:.3f}")
         # Calculate acceleration (v_dot) and m_dot
         pressure_ratio = air_density / self.launchsite.get_density(0.0)
         a = a_gravity + a_thrust + a_drag  # 2nd order ODE function (acc.)
