@@ -261,12 +261,11 @@ class RocketLaunch:
         v_eqrot = (self.launchsite.planet.surface_radius_m
                    * self.launchsite.planet.angular_velocity_rad_per_s)
 
-        # self.launch_azimuth1 = m.atan2(
-        #         self.target_velocity * m.sin(launch_azimuth)
-        #         - v_eqrot * m.cos(self.launchsite.latitude * m.pi / 180),
-        #         self.target_velocity * m.cos(launch_azimuth)
-        # ) / m.pi * 180  # (for deg)
-        self.launch_azimuth1 = launch_azimuth / m.pi * 180  # (for deg)
+        self.launch_azimuth1 = m.atan2(
+                self.target_velocity * m.sin(launch_azimuth)
+                - v_eqrot * m.cos(self.launchsite.latitude * m.pi / 180),
+                self.target_velocity * m.cos(launch_azimuth)
+        ) / m.pi * 180  # (for deg)
         self.launch_azimuth2 = 180 - self.launch_azimuth1
 
         if self.launchsite.launch_azimuth_range is not None:
@@ -350,12 +349,12 @@ class RocketLaunch:
         )
         local_zenith = unit_vector(r_launch)
 
-        # east_launch = convert_spherical_to_cartesian_coords(
-        #     self.launchsite.radius,
-        #     0,
-        #     ((self.launchsite.longitude + 90) % 360) * m.pi / 180
-        # )
-        east_launch = np.cross(np.array([0, 0, 1]), local_zenith)
+        east_launch = convert_spherical_to_cartesian_coords(
+            self.launchsite.radius,
+            0,
+            ((self.launchsite.longitude + 90) % 360) * m.pi / 180
+        )
+        # east_launch = np.cross(np.array([0, 0, 1]), local_zenith)
         local_east = unit_vector(east_launch)
 
         # west_launch = convert_spherical_to_cartesian_coords(
@@ -402,7 +401,7 @@ class RocketLaunch:
             # TODO: find universally applicable parameters, or implement checks
             #  to set it automatically
             v_pitch = rodrigues_rotation(
-                    v_rel,  # v_rel
+                    v_rel,
                     launch_plane_unit,
                     0.7 * m.pi / 180)
 
