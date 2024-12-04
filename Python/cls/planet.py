@@ -124,7 +124,6 @@ class LaunchSite(PlanetLocation):
         """ Get atmospheric pressure at altitude. """
         return self.planet.atmosphere.get_pressure(altitude)
 
-    # TODO: test this
     def get_relative_velocity(self, state: np.array) -> float:
         """ Returns the speed of the rocket relative to the atmosphere.
 
@@ -133,11 +132,12 @@ class LaunchSite(PlanetLocation):
         and substracts it from the rocket's speed in inertial frame, then takes
         the norm of the resulting vector.
         """
-        return float(np.linalg.norm(
-                state[3:6] - np.cross(
-                        np.array([0, 0, self.angular_velocity]),
-                        state[0:3]
-                )))
+        pos = state[0:3]  # Rocket position
+        vel = state[3:6]  # Rocket velocity
+        # NOTE: Cross product of the angular velocity and the position, which is
+        #  the speed of the atmosphere at this given location
+        atm_velocity = np.cross(np.array([0, 0, self.angular_velocity]), pos)
+        return float(np.linalg.norm(vel - atm_velocity))
 
     # TODO: is this needed ?
     def get_surface_velocity(self):
