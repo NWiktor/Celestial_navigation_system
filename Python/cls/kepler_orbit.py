@@ -156,6 +156,7 @@ class CircularOrbit(KeplerOrbit):
 
     def __init__(self, radius, inclination, longitude_of_ascending_node,
                  argument_of_periapsis, mean_anomaly_at_epoch):
+        self.radius = radius  # equals to semimajor axis
         super().__init__(0, radius, inclination, longitude_of_ascending_node,
                          argument_of_periapsis, mean_anomaly_at_epoch)
 
@@ -169,8 +170,8 @@ class CircularOrbit(KeplerOrbit):
         eca0 = mean_anomaly * m.pi / 180
 
         # Calculate state variables (position and velocity) in orbital plane
-        rx = self.semimajor_axis * m.cos(eca0)  # km
-        ry = self.semimajor_axis * m.sin(eca0)  # km
+        rx = self.radius * m.cos(eca0)  # km
+        ry = self.radius * m.sin(eca0)  # km
         # TODO: add velocity calculation
         # vx =
         # vy =
