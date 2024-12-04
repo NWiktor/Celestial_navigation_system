@@ -167,10 +167,10 @@ class RocketLaunch:
         self.launchsite = launchsite
 
         self.launch_azimuth = None
-        self.target_velocity = None
         # Check if orbit is reachable
         self.check_radius()
-        self.get_target_velocity()
+        self.target_velocity = self.get_target_velocity(
+            self.target_orbit.radius * 1000)
         self.check_inclination()
         self.get_launch_azimuth()  # Calculate lauch azimuth
         self.get_launch_time()  # Time of launch to get desired LoAN
@@ -272,15 +272,14 @@ class RocketLaunch:
 
         print(f"Launch azimuth: {self.launch_azimuth:.3f}°")
 
-    def get_target_velocity(self):
+    def get_target_velocity(self, radius_m):
         """ Calculates orbital velocity of the target orbit. """
         # https://en.wikipedia.org/wiki/Orbital_speed
-
-        self.target_velocity = m.sqrt(
-                self.launchsite.std_gravitational_parameter
-                / (self.target_orbit.radius * 1000)
+        target_velocity = m.sqrt(
+                self.launchsite.std_gravitational_parameter / radius_m
         )
         print(f"Target velocity for orbit: {self.target_velocity:.3f} m/s")
+        return target_velocity
 
     def get_launch_time(self):
         """ xxx """
