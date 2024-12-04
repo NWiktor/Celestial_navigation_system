@@ -370,7 +370,7 @@ class RocketLaunch:
         #  in which the rocket launched.
         # NOTE: why is the angle positive ???
         launch_plane_normal = rodrigues_rotation(
-            local_north, local_zenith, self.launch_azimuth1 * m.pi / 180)
+            local_north, local_zenith, (90 - self.launch_azimuth1) * m.pi / 180)
         launch_plane_unit = unit_vector(launch_plane_normal)
         # angle = angle_of_vectors(launch_plane_normal, local_north)
         # print(f"{angle=}")
@@ -379,21 +379,24 @@ class RocketLaunch:
         #  substracted, and not the running value
         v_rel = v - np.cross(
             np.array([0, 0, self.launchsite.angular_velocity]), r_launch)
+        flight_angle = angle_of_vectors(unit_vector(r), unit_vector(v_rel))
 
         # Vertical flight until tower is cleared in non-inertial frame
         if time < 5:  # self.flightprogram.pitch_maneuver_start:
-            # NOTE: use 'r_tower' because launch site is rotating in the
-            #  inertial frame with the central body
-            r_tower = rodrigues_rotation(
-                    r_launch,
-                    np.array([0, 0, 1]),
-                    self.launchsite.angular_velocity * time
-            )
-            a_thrust = thrust * unit_vector(r_tower)
+            # NOTE: should use 'r_tower' because launch site is rotating in the
+            #  inertial frame with the central body; however this is very hard
+            #  to compensate later with hand-made thrust-vectoring, so just use
+            #  'r_launch' to eliminate offset from the launch-plane
+            # r_tower = rodrigues_rotation(
+            #         r_launch,
+            #         np.array([0, 0, 1]),
+            #         self.launchsite.angular_velocity * time
+            # )
+            a_thrust = thrust * unit_vector(r_launch)
 
         # Initial pitch-over maneuver -> Slight offset of Thrust and Velocity
         #  vectors
-        elif 5 <= time < 65:
+        elif 5 <= time < 15:
         # elif (self.flightprogram.pitch_maneuver_start <= time
         #       < self.flightprogram.pitch_maneuver_end):
             # NOTE: incrementally rotating the relative velocity vector in the
@@ -401,15 +404,18 @@ class RocketLaunch:
             # TODO: find universally applicable parameters, or implement checks
             #  to set it automatically
             v_pitch = rodrigues_rotation(
-                    v_rel,
+                    unit_vector(r),
                     launch_plane_unit,
-                    0.7 * m.pi / 180)
+                    (flight_angle + 0.87) * m.pi / 180)
             a_thrust = thrust * unit_vector(v_pitch)
 
         else:  # Gravity assist -> Thrust is parallel with velocity
             # NOTE: rotate velocity vector around local zenith, to match orbital plane
-            # ang = angle_of_vectors()
-            a_thrust = thrust * unit_vector(v_rel)  # unit_vector(v)
+            v_pitch = rodrigues_rotation(
+                unit_vector(r),
+                launch_plane_unit,
+                flight_angle * m.pi / 180)
+            a_thrust = thrust * unit_vector(v_pitch)  # unit_vector(v_rel)
 
         # Print flight data
         # NOTE: Deviation should increase with time, as the rocket is affected
@@ -426,7 +432,7 @@ class RocketLaunch:
         # NOTE: flight angle represents the angle between the local zenith, and
         #  the rocket relative velocity vector. It should start from 0°
         #  (vertical flight) to 90° as the rocket reaches orbit.
-        flight_angle = angle_of_vectors(unit_vector(r), unit_vector(v_rel))
+
         ang = angle_of_vectors(a_thrust, launch_plane_normal)
         print(f"{time}: Deviation from orbital plane: {deviation:.3f}°")
         print(f"{time}: Current inclination: {inclination_cur:.3f}°")
