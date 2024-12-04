@@ -105,7 +105,7 @@ class LaunchSite(PlanetLocation):
 
     def __init__(self, planet: Planet, location_name: str,
                  latitude: float, longitude: float,
-                 launch_azimuth_range: list[float] | None = None):
+                 launch_azimuth_range: tuple[float, float] | None = None):
         # self.surface_radius = self.planet.surface_radius_m
         super().__init__(planet, location_name, latitude, longitude,
                          planet.surface_radius_m)
