@@ -53,13 +53,12 @@ class RocketFlightProgram:
     def __init__(self,
                  meco: float,
                  ses_1: float, seco_1: float,
-                 ses_2: float, seco_2: float,
-                 throttle_program,
+                 # ses_2: float, seco_2: float,
+                 throttle_program: list[list[float]] | None,
                  fairing_jettison: float,
                  pitch_maneuver_start: float,
                  pitch_maneuver_end: float,
-                 ss_1: float = None,
-                 ss_2: float = None):
+                 ss_1: float = None):  # ss_2: float = None):
         """
         throttle_map - tuple(t, y): t is the list of time-points since launch,
         and y is the list of throttling factor at the corresponding t values.
@@ -73,8 +72,8 @@ class RocketFlightProgram:
         self.meco = meco  # s
         self.ses_1 = ses_1  # s
         self.seco_1 = seco_1  # s
-        self.ses_2 = ses_2  # s
-        self.seco_2 = seco_2  # s
+        # self.ses_2 = ses_2  # s
+        # self.seco_2 = seco_2  # s
         self.throttle_program = throttle_program  # second - % mapping
         self.fairing_jettison = fairing_jettison  # s
 
@@ -83,10 +82,10 @@ class RocketFlightProgram:
             self.ss_1 = meco + 3  # s
         else:
             self.ss_1 = ss_1  # s
-        if ss_2 is None:
-            self.ss_2 = seco_2 + 3  # s
-        else:
-            self.ss_2 = ss_2  # s
+        # if ss_2 is None:
+        #     self.ss_2 = seco_2 + 3  # s
+        # else:
+        #    self.ss_2 = ss_2  # s
 
         # Attitude control
         self.pitch_maneuver_start = pitch_maneuver_start
@@ -103,10 +102,10 @@ class RocketFlightProgram:
             return RocketEngineStatus.STAGE_1_COAST
         if self.ses_1 <= t < self.seco_1:
             return RocketEngineStatus.STAGE_2_BURN
-        if self.seco_1 <= t < self.ses_2:
-            return RocketEngineStatus.STAGE_2_COAST
-        if self.ses_2 <= t < self.seco_2:
-            return RocketEngineStatus.STAGE_2_BURN
+        # if self.seco_1 <= t < self.ses_2:
+        #     return RocketEngineStatus.STAGE_2_COAST
+        # if self.ses_2 <= t < self.seco_2:
+        #     return RocketEngineStatus.STAGE_2_BURN
 
         return RocketEngineStatus.STAGE_2_COAST
 
@@ -114,6 +113,9 @@ class RocketFlightProgram:
         """ Return engine throttling factor (0.0 - 1.0) at a given t time since
         launch.
         """
+        if self.throttle_program is None:
+            return 1
+
         return float(np.interp(t, self.throttle_program[0],
                                self.throttle_program[1], left=1, right=1))
 
@@ -140,12 +142,12 @@ class RocketFlightProgram:
                     self.fairing_jettison)
         logger.info("SECOND ENGINE CUT OFF 1 at T+%s (%s s)",
                     secs_to_mins(self.seco_1), self.seco_1)
-        logger.info("SECOND ENGINE START 2 at T+%s (%s s)",
-                    secs_to_mins(self.ses_2), self.ses_2)
-        logger.info("SECOND ENGINE CUT OFF 2 at T+%s (%s s)",
-                    secs_to_mins(self.seco_2), self.seco_2)
-        logger.info("STAGE SEPARATION 2 at T+%s (%s s)",
-                    secs_to_mins(self.ss_2), self.ss_2)
+        # logger.info("SECOND ENGINE START 2 at T+%s (%s s)",
+        #             secs_to_mins(self.ses_2), self.ses_2)
+        # logger.info("SECOND ENGINE CUT OFF 2 at T+%s (%s s)",
+        #             secs_to_mins(self.seco_2), self.seco_2)
+        # logger.info("STAGE SEPARATION 2 at T+%s (%s s)",
+        #             secs_to_mins(self.ss_2), self.ss_2)
 
 
 class RocketLaunch:
@@ -163,7 +165,11 @@ class RocketLaunch:
         self.flightprogram = flightprogram
         self.target_orbit = target_orbit
         self.launchsite = launchsite
-        # self.central_body = central_body
+
+        # TODO: this
+        # time_of_launch
+        # get_orbital_velocity
+        # calculate launchsite coordinates
 
         # Physical properties
         # Drag coefficient (-) times cross-sectional area of rocket (m2)
@@ -218,6 +224,8 @@ class RocketLaunch:
     def validate_orbit(self):
         """  """
         # TODO: pre-flight checks for inclination limits
+        # calculate launch time
+        # check inclination limits
         # TODO: implement calculations for desired orbit, and provide defaults
         #  for minimal energy orbit
         inclination = 0.0
@@ -254,7 +262,7 @@ class RocketLaunch:
             np.linalg.norm(r) - self.launchsite.radius)
         drag_const = self.drag_constant * air_density / 2
 
-        # Calculate aceleration
+        # Calculate acceleration
         # Calculate drag and gravity
         a_drag = - unit_vector(v) * drag_const * v_relative ** 2 / mass
         a_gravity = (-r * self.launchsite.std_gravitational_parameter
@@ -264,58 +272,83 @@ class RocketLaunch:
         thrust_force = self.get_thrust() * self.flightprogram.get_throttle(time)
         thrust = thrust_force / mass
 
-        # Vertical flight until tower is cleared
-        if time < self.flightprogram.pitch_maneuver_start:
-            a_thrust = thrust * unit_vector(r)
+        # Orbital params
+        vector_to_loan = rodrigues_rotation(
+                np.array([1, 0, 0]),
+                np.array([0, 0, 1]),
+                self.target_orbit.longitude_of_ascending_node * m.pi / 180
+        )
+        # Local zenith at launchsite
+        r_launch = convert_spherical_to_cartesian_coords(
+            self.launchsite.radius,
+            self.launchsite.latitude * m.pi / 180,
+            self.launchsite.longitude * m.pi / 180
+        )
+        # Local north at lauchsite
+        orbital_plane_v = np.cross(r_launch, vector_to_loan)
+        orbital_plane_vector = unit_vector(orbital_plane_v)
+
+        # local east at lauchsite
+        tangential_vector = unit_vector(np.cross(orbital_plane_vector, r_launch))
+
+        # Relative speed to earth
+        v_rel = v - np.cross(
+            np.array([0, 0, self.launchsite.angular_velocity]), r)
+
+        # Vertical flight until tower is cleared in non-inertial frame
+        if time < 5:  # self.flightprogram.pitch_maneuver_start:
+            # NOTE: use 'r_tower' because lauch site is rotating in the
+            #  inertial frame with the central body
+            r_tower = rodrigues_rotation(
+                    r_launch,
+                    np.array([0, 0, 1]),
+                    self.launchsite.angular_velocity * time
+            )
+            a_thrust = thrust * unit_vector(r_tower)
 
         # Initial pitch-over maneuver -> Slight offset of Thrust and Velocity
-        elif time < 15:
-            a_thrust = thrust * unit_vector(v)
-
-        # vectors
-        elif 15 <= time < 65:
+        #  vectors
+        elif 5 <= time < 65:
         # elif (self.flightprogram.pitch_maneuver_start <= time
         #       < self.flightprogram.pitch_maneuver_end):
-            # FIXME: cleanup, and investigate how this works exactly
-            # TODO: refactor orbital_plane_vector to reference targetorbit
+            # NOTE: incrementally rotating the relative velocity vector in the
+            #  orbital plane, to imitate pitch manuever and start gravity assist
+            # TODO: find universally applicable parameters, or implement checks
+            #  to set it automatically
+            v_pitch = rodrigues_rotation(
+                    v_rel,
+                    orbital_plane_vector,
+                    -0.25 * m.pi / 180)
 
-            vector_loan = rodrigues_rotation(
-                    np.array([1, 0, 0]), np.array([0, 0, 1]),
-                    self.target_orbit.longitude_of_ascending_node * m.pi / 180
-            )
-            # print(vector_loan)
-
-            unit_r = unit_vector(r)
-            orbital_plane_vector = np.cross(unit_r, vector_loan)
-            unit_opv = unit_vector(orbital_plane_vector)
-            a_thrust = thrust * rodrigues_rotation(
-                unit_vector(r), unit_opv, 1.1 * m.pi / 180)
-            print("Roll prg")
-            # print(angle_of_vectors(unit_vector(r), unit_vector(vector_relative)))
-
-            # https://arc.aiaa.org/doi/abs/10.2514/6.2008-6288
+            a_thrust = thrust * unit_vector(v_pitch)
 
         else:  # Gravity assist -> Thrust is parallel with velocity
-            a_thrust = thrust * unit_vector(v)
+            # NOTE: rotate velocity vector around local zenith, to match orbital plane
+            deviation = angle_of_vectors(unit_vector(r), orbital_plane_vector) - 90
+            corr = deviation/abs(deviation) * 10
+            v_yaw = rodrigues_rotation(v, unit_vector(r), 0 * m.pi / 180)
 
-        #print()
-        vector_relative = (state[3:6]
-                           - np.cross(np.array(
-                    [0, 0, self.launchsite.angular_velocity]), state[0:3]))
-        print(angle_of_vectors(unit_vector(r), unit_vector(vector_relative)))
+            a_thrust = thrust * unit_vector(v)  # unit_vector(v)
+
+        # Print flight data
+        deviation = angle_of_vectors(unit_vector(r), orbital_plane_vector) - 90
+        flight_angle = angle_of_vectors(unit_vector(r), unit_vector(v))
+        print(f"{time}: Deviation from orbital plane: {deviation:.3f}°")
+        print(f"{time}: Flight angle: {flight_angle:.3f}°")
 
         # Calculate acceleration (v_dot) and m_dot
         pressure_ratio = air_density / self.launchsite.get_density(0.0)
         a = a_gravity + a_thrust + a_drag  # 2nd order ODE function (acc.)
         m_dot = - thrust_force / (self.get_isp(pressure_ratio)
-                                  * self.launchsite.std_gravity) * dt
+                                  * self.launchsite.std_gravity * dt
+                                  * self.flightprogram.get_throttle(time))  # correction for throttling
         return np.concatenate((v, a, [m_dot]))  # vx, vy, vz, ax, ay, az, m_dot
 
     def launch(self, simulation_end_time: int = 16000, timestep: int = 1):
         """ Yield rocket's status variables during launch, every second. """
 
         # Update state vector with initial conditions
-        r_rocket = convert_spherical_to_cartesian_coords(
+        r_init = convert_spherical_to_cartesian_coords(
             self.launchsite.radius,
             self.launchsite.latitude * m.pi / 180,
             self.launchsite.longitude * m.pi / 180
@@ -324,7 +357,7 @@ class RocketLaunch:
         # TODO: check this in alfonso's program, how to account for j2000 frame
         omega_planet = np.array([0, 0, self.launchsite.angular_velocity])  # rad/s
         self.state = np.concatenate(
-            (r_rocket, np.cross(omega_planet, r_rocket), [self.total_mass])
+            (r_init, np.cross(omega_planet, r_init), [self.total_mass])
         )
         # Yield initial values
         yield 0, self.state, np.array([0.0, 0.0, 0.0])  # time, state, acc.
@@ -362,9 +395,9 @@ class RocketLaunch:
             if time == self.flightprogram.ss_1:
                 self.stages[0].onboard = False
                 self.state[6] = self.get_total_mass()
-            if time == self.flightprogram.ss_2:
-                self.stages[1].onboard = False
-                self.state[6] = self.get_total_mass()
+            # if time == self.flightprogram.ss_2:
+            #     self.stages[1].onboard = False
+            #     self.state[6] = self.get_total_mass()
 
             # Log new data and end-conditions
             # TODO: implement checks for mass, target velocity, etc.
@@ -373,6 +406,9 @@ class RocketLaunch:
             if altitude_above_surface <= 0:
                 logger.warning("WARNING! LITHOBRAKING!")
                 break
+
+            v_current = np.linalg.norm(self.state[3:6])
+
 
             # Yield values
             time += timestep
@@ -400,7 +436,7 @@ def plot(rocketlaunch: RocketLaunch):
     plot_title = (f"{rocketlaunch.name} launch from"
                   f" {rocketlaunch.launchsite.name}")
 
-    for time, state, acc, in rocketlaunch.launch(3000, 1):
+    for time, state, acc, in rocketlaunch.launch(1000, 1):
         time_data.append(time)
         rx.append(state[0])
         ry.append(state[1])
@@ -489,6 +525,7 @@ def main():
 
     # Launch-site
     cape_canaveral = LaunchSite(Earth(), "Cape Canaveral", 28.3127, -80.3903)
+    fictional_cape = LaunchSite(Earth(), "Cape Canaveral", 28.3127, 0)
 
     # Falcon9 hardware specs:  # 2nd stage empty mass minus payload fairing
     first_stage = Stage(25600, 395700, 9,
@@ -497,15 +534,15 @@ def main():
                          934e3, 348)
 
     # TODO: Modelling throttle to 80% properly, and test it
-    throttle_map = [[70, 80, 81, 150, 550, 3000, 3500],
-                    [0.8, 0.8, 1.0, 0.88, 0.88, 0.1, 0.1]]
+    throttle_map = [[70, 80, 81, 150, 550],
+                    [0.8, 0.8, 1.0, 0.88, 0.88]]
     flight_program = RocketFlightProgram(145, 156, 514,
-                                         3090, 3390, throttle_map,
+                                         throttle_map,
                                          195, 16,
-                                         60, None, None)
+                                         60, None)
     # TargetOrbit
     targetorbit = CircularOrbit(400_000, 51.64,
-                                45,
+                                225,
                                 90,
                                 0)
 
@@ -515,7 +552,7 @@ def main():
                                        5.2,
                                        [first_stage, second_stage],
                                        flight_program, targetorbit,
-                                       cape_canaveral)
+                                       fictional_cape)
 
     # Plot launch
     plot(mission_414_falcon9)
