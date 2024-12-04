@@ -166,10 +166,14 @@ class RocketLaunch:
         self.target_orbit = target_orbit
         self.launchsite = launchsite
 
-        # TODO: this
-        # time_of_launch
-        # get_orbital_velocity
-        # calculate launchsite coordinates
+        self.launch_azimuth = None
+        self.target_velocity = None
+        # Check if orbit is reachable
+        self.check_radius()
+        self.get_target_velocity()
+        self.check_inclination()
+        self.get_launch_azimuth()  # Calculate lauch azimuth
+        self.get_launch_time()  # Time of launch to get desired LoAN
 
         # Physical properties
         # Drag coefficient (-) times cross-sectional area of rocket (m2)
@@ -221,21 +225,67 @@ class RocketLaunch:
         #  is returned to avoid ZeroDivisionError and NaN values
         return 1
 
-    def validate_orbit(self):
-        """  """
-        # TODO: pre-flight checks for inclination limits
-        # calculate launch time
-        # check inclination limits
-        # TODO: implement calculations for desired orbit, and provide defaults
-        #  for minimal energy orbit
-        inclination = 0.0
-        launch_azimuth = m.asin(m.cos(inclination * m.pi / 180)
-                                / m.cos(self.launchsite.latitude * m.pi / 180))
-        # target_velocity = 0
+    def check_radius(self):
+        """ xxx """
+        if (self.target_orbit.radius * 1000 <=
+                self.launchsite.planet.surface_radius_m):
+            print("ERROR: orbit radius is smaller than surface radius!")
+            raise ValueError
 
+        print(f"Orbit radius: {self.target_orbit.radius:.3f} km")
+
+    def check_inclination(self):
+        """ xxx """
+        if self.target_orbit.inclination < self.launchsite.latitude:
+            print("ERROR: Orbit inclination "
+                  f"({self.target_orbit.inclination:.3f}°) is too small!")
+            raise ValueError
+
+        print(f"Inclination: {self.target_orbit.inclination:.3f}°")
+
+    def get_launch_azimuth(self):
+        """ Check if target orbit is feasible. """
         # A handy formula to remember is: cos(i) = cos(φ) * sin(β), where i is
         # the inclination, β is the launch azimuth, and φ is the launch
         # latitude.
+        # https: // www.orbiterwiki.org / wiki / Launch_Azimuth
+        launch_azimuth = m.asin(
+                m.cos(self.target_orbit.inclination * m.pi / 180)
+                / m.cos(self.launchsite.latitude * m.pi / 180)
+                )  # / m.pi * 180 (for deg)
+
+        v_eqrot = (self.launchsite.planet.surface_radius_m
+                   * self.launchsite.planet.angular_velocity_rad_per_s)
+
+        self.launch_azimuth = m.atan2(
+                self.target_velocity * m.sin(launch_azimuth)
+                - v_eqrot * m.cos(self.launchsite.latitude * m.pi / 180),
+                self.target_velocity * m.cos(launch_azimuth)
+        ) / m.pi * 180  # (for deg)
+
+        if (self.launchsite.launch_azimuth_range is not None and not
+                self.launchsite.launch_azimuth_range[0] <= self.launch_azimuth
+                <= self.launchsite.launch_azimuth_range[1]):
+            print(f"ERROR: Launch azimuth ({self.launch_azimuth:.3f}°) is out "
+                  f"of permitted range!")
+            raise ValueError
+
+        print(f"Launch azimuth: {self.launch_azimuth:.3f}°")
+
+    def get_target_velocity(self):
+        """ Calculates orbital velocity of the target orbit. """
+        # https://en.wikipedia.org/wiki/Orbital_speed
+
+        self.target_velocity = m.sqrt(
+                self.launchsite.std_gravitational_parameter
+                / (self.target_orbit.radius * 1000)
+        )
+        print(f"Target velocity for orbit: {self.target_velocity:.3f} m/s")
+
+    def get_launch_time(self):
+        """ xxx """
+        # TODO: implement
+        pass
 
     # pylint: disable = too-many-locals
     def launch_ode(self, time, state, dt):
@@ -284,20 +334,19 @@ class RocketLaunch:
             self.launchsite.latitude * m.pi / 180,
             self.launchsite.longitude * m.pi / 180
         )
-        # Local north at lauchsite
         orbital_plane_v = np.cross(r_launch, vector_to_loan)
         orbital_plane_vector = unit_vector(orbital_plane_v)
 
         # local east at lauchsite
         tangential_vector = unit_vector(np.cross(orbital_plane_vector, r_launch))
 
-        # Relative speed to earth
+        # Relative speed to earth (vector)
         v_rel = v - np.cross(
             np.array([0, 0, self.launchsite.angular_velocity]), r)
 
         # Vertical flight until tower is cleared in non-inertial frame
         if time < 5:  # self.flightprogram.pitch_maneuver_start:
-            # NOTE: use 'r_tower' because lauch site is rotating in the
+            # NOTE: use 'r_tower' because launch site is rotating in the
             #  inertial frame with the central body
             r_tower = rodrigues_rotation(
                     r_launch,
@@ -332,8 +381,11 @@ class RocketLaunch:
 
         # Print flight data
         deviation = angle_of_vectors(unit_vector(r), orbital_plane_vector) - 90
-        flight_angle = angle_of_vectors(unit_vector(r), unit_vector(v))
+        opv2 = np.cross(unit_vector(r_launch), unit_vector(r))
+        inclination = angle_of_vectors(unit_vector(opv2), np.array([0, 0, 1]))
+        flight_angle = angle_of_vectors(unit_vector(r), unit_vector(v_rel))
         print(f"{time}: Deviation from orbital plane: {deviation:.3f}°")
+        print(f"{time}: Apparent inclination: {inclination:.3f}°")
         print(f"{time}: Flight angle: {flight_angle:.3f}°")
 
         # Calculate acceleration (v_dot) and m_dot
@@ -363,6 +415,7 @@ class RocketLaunch:
         yield 0, self.state, np.array([0.0, 0.0, 0.0])  # time, state, acc.
 
         # CALCULATION START
+        print("CALCULATION START")
         time = 0  # Current step
         while time <= simulation_end_time:
             # Calculate stage status according to time
@@ -407,7 +460,7 @@ class RocketLaunch:
                 logger.warning("WARNING! LITHOBRAKING!")
                 break
 
-            v_current = np.linalg.norm(self.state[3:6])
+            # v_current = np.linalg.norm(self.state[3:6])
 
 
             # Yield values
@@ -436,7 +489,7 @@ def plot(rocketlaunch: RocketLaunch):
     plot_title = (f"{rocketlaunch.name} launch from"
                   f" {rocketlaunch.launchsite.name}")
 
-    for time, state, acc, in rocketlaunch.launch(1000, 1):
+    for time, state, acc, in rocketlaunch.launch(200, 1):
         time_data.append(time)
         rx.append(state[0])
         ry.append(state[1])
@@ -445,7 +498,7 @@ def plot(rocketlaunch: RocketLaunch):
         vy.append(state[4])
         vz.append(state[5])
         alt_data.append((np.linalg.norm(state[0:3]) - cbsr) / 1000)  # Alt. - km
-        vel_data.append(np.linalg.norm(state[3:6]) / 1000)  # Velocity - km/s
+        vel_data.append(np.linalg.norm(state[3:6]))  # Velocity - m/s
         acc_data.append(np.linalg.norm(acc) / 9.82)  # Acceleration - g
         mass_data.append(state[6] / 1000)  # Mass - 1000 kg
 
@@ -471,8 +524,8 @@ def plot(rocketlaunch: RocketLaunch):
     ax3.tick_params(axis='y', labelcolor="b")
 
     ax4 = ax3.twinx()
-    ax4.set_ylabel('velocity (km/s)', color="g")
-    ax4.set_ylim(0, 10)
+    ax4.set_ylabel('velocity (m/s)', color="g")
+    ax4.set_ylim(0, 10000)
     ax4.plot(time_data, vel_data, color="g")
     ax4.tick_params(axis='y', labelcolor="g")
 
@@ -525,7 +578,7 @@ def main():
 
     # Launch-site
     cape_canaveral = LaunchSite(Earth(), "Cape Canaveral", 28.3127, -80.3903)
-    fictional_cape = LaunchSite(Earth(), "Cape Canaveral", 28.3127, 0)
+    fictional_cape = LaunchSite(Earth(), "Cape Canaveral", 28.5, 0)
 
     # Falcon9 hardware specs:  # 2nd stage empty mass minus payload fairing
     first_stage = Stage(25600, 395700, 9,
@@ -541,8 +594,8 @@ def main():
                                          195, 16,
                                          60, None)
     # TargetOrbit
-    targetorbit = CircularOrbit(400_000, 51.64,
-                                225,
+    targetorbit = CircularOrbit(300 + 6_378.137, 51.6,
+                                -45,
                                 90,
                                 0)
 
