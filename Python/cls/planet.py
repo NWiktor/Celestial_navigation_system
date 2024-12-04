@@ -104,14 +104,17 @@ class LaunchSite(PlanetLocation):
     """ Class for representing a launch-site on a planet. """
 
     def __init__(self, planet: Planet, location_name: str,
-                 latitude: float, longitude: float):
+                 latitude: float, longitude: float,
+                 launch_azimuth_range: list[float] | None = None):
         # self.surface_radius = self.planet.surface_radius_m
         super().__init__(planet, location_name, latitude, longitude,
                          planet.surface_radius_m)
+        self.launch_azimuth_range = launch_azimuth_range
         self.angular_velocity = self.planet.angular_velocity_rad_per_s
+        # TODO: ez kell ide?
         self.std_gravity = self.planet.std_gravity  # m/s^2
 
-        # TODO: work on implementation
+        # TODO: work on implementation ??
         # For zero-mass spacecraft
         self.std_gravitational_parameter = (
             self.planet.std_gravitational_parameter)  # m^3/s^2
