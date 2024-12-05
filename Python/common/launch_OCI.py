@@ -248,6 +248,7 @@ class RocketLaunch:
 
         logger.info(f"Inclination: {self.target_orbit.inclination:.3f}°")
 
+    # TODO: test baikonour and korou azimuth limit (349 to 90)
     def get_launch_azimuth(self):
         """ Check if target orbit is feasible.
 
@@ -443,10 +444,15 @@ class RocketLaunch:
             np.array([0, 0, 1])
         )
         thrust_deviation = angle_of_vectors(a_thrust, launch_plane_normal)
-        logger.debug(f"{time}: Deviation from orbital plane: {deviation:.3f}°")
-        logger.debug(f"{time}: Current inclination: {inclination_current:.3f}°")
-        logger.debug(f"{time}: Flight angle: {flight_angle:.3f}°")
-        logger.debug(f"{time}: Angle between thrust and launch plane: {thrust_deviation:.3f}")
+        logger.debug(
+            f"Deviation from orbital plane: {deviation:.3f}° ({time} s)")
+        logger.debug(
+            f"Current inclination: {inclination_current:.3f}° ({time} s)")
+        logger.debug(
+            f"Flight angle: {flight_angle:.3f}° ({time} s)")
+        logger.debug(
+            f"Angle between thrust and launch plane:"
+            f"{thrust_deviation:.3f}° ({time} s)")
 
         # Calculate acceleration (v_dot) and m_dot
         pressure_ratio = air_density / self._density_at_surface
