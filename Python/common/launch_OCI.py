@@ -31,8 +31,9 @@ import matplotlib.pyplot as plt
 from utils import (secs_to_mins, convert_spherical_to_cartesian_coords,
                    runge_kutta_4, unit_vector, rodrigues_rotation,
                    angle_of_vectors)
-from cls import (Earth, LaunchSite, CircularOrbit, Stage, RocketAttitudeStatus,
+from cls import (LaunchSite, CircularOrbit, Stage, RocketAttitudeStatus,
                  RocketEngineStatus)
+from database import CAPE_TEST, CAPE_CANEVERAL
 
 logger = logging.getLogger(__name__)
 
@@ -658,15 +659,6 @@ def main():
     * https://spaceflight101.com/spacerockets/falcon-9-ft/
     * https://en.wikipedia.org/wiki/Falcon_9#Design
     """
-
-    # Launch-site
-    cape_canaveral = LaunchSite(Earth(), "Cape Canaveral",
-                                28.3127, -80.3903,
-                                (35, 120))
-    fictional_cape = LaunchSite(Earth(), "Cape Canaveral",
-                                28.5, 0,
-                                (35, 120))
-
     # Falcon9 hardware specs:  # 2nd stage empty mass minus payload fairing
     first_stage = Stage(25600, 395700, 9,
                         934e3, [312, 283])
@@ -690,7 +682,7 @@ def main():
                                        5.2,
                                        [first_stage, second_stage],
                                        flight_program, targetorbit,
-                                       fictional_cape)
+                                       CAPE_TEST)
 
     # Plot launch
     plot(mission_414_falcon9)

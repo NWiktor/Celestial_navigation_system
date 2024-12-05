@@ -70,7 +70,7 @@ class Moon(Planet):
 
 CAPE_CANEVERAL = LaunchSite(
     Earth(), "Cape Canaveral, SLC 40",
-    28.562106, -80.57718,(35, 120))
+    28.562106, -80.57718, (35, 120))
 KSC_LC39A = LaunchSite(
     Earth(), "Kennedy Space Center, LC 39 A",
     28.608389, -80.604333, (35, 120))
