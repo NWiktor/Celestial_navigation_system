@@ -91,7 +91,7 @@ class Stage:
         Returns the percentage of fuel left in the tanks.
         """
         self._propellant_mass = max(0.0, self._propellant_mass - abs(mass))
-        logger.debug("Fuel left %.2f %% at (%s s)",
+        logger.debug("Fuel left %.3f%% at (%s s)",
                      self.get_propellant_percentage(), time)
 
 
