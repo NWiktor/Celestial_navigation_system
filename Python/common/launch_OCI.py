@@ -37,7 +37,7 @@ from cls import (Earth, LaunchSite, CircularOrbit, Stage, RocketAttitudeStatus,
 logger = logging.getLogger(__name__)
 
 # NOTE: for visualizing only
-launch_plane_normal = None
+launch_plane_normal: np.array = np.array([0, 0, 0])
 
 
 class RocketFlightProgram:
@@ -154,7 +154,7 @@ class RocketLaunch:
         self.flightprogram = flightprogram
         self.target_orbit = target_orbit
         self.launchsite = launchsite
-        self.launch_azimuth = [None, None]
+        self.launch_azimuth: list[float | None] = [None, None]
         self.flight_angle_corr = 0.87
 
         # Check if orbit is reachable
