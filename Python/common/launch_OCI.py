@@ -352,7 +352,7 @@ class RocketLaunch:
         #  in which the rocket launched.
         # NOTE: why is the angle positive ???
         launch_plane_normal = rodrigues_rotation(
-            local_north, local_zenith, (90 - self.launch_azimuth1) * m.pi / 180)
+            local_north, local_zenith, (90 - self.launch_azimuth[0]) * m.pi/180)
         launch_plane_unit = unit_vector(launch_plane_normal)
         # NOTE: this is a one-time addition, only the initial value must be
         #  substracted, and not the running value!
@@ -497,13 +497,13 @@ class RocketLaunch:
 
             if abs(delta_r) <= limit_r and abs(delta_v) <= limit_v:
                 print(f"Target orbit reached at {time} s:"
-                      f"{altitude_above_surface} m, {v_current} m/s")
+                      f"{altitude_above_surface:.3f} m, {v_current:.3f} m/s")
                 break
 
             delta_v2 = self.get_target_velocity(r_current) - v_current
             if delta_r <= 0 and abs(delta_v2) <= limit_v:
                 print(f"Stable orbit reached at {time} s: "
-                      f"{altitude_above_surface} m, {v_current} m/s")
+                      f"{altitude_above_surface:.3f} m, {v_current:.3f} m/s")
                 break
 
             # Yield values
