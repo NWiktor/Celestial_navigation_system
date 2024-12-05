@@ -74,7 +74,8 @@ def runge_kutta_4(func, t0: float, y0, h: float, *args):
     return y0 + h / 6.0 * (k1 + 2 * k2 + 2 * k3 + k4), k4
 
 
-def convert_spherical_to_cartesian_coords(radius: float, theta: float, phi: float):
+def convert_spherical_to_cartesian_coords(radius: float, theta: float,
+                                          phi: float):
     """
     Convert spherical coordinates to cartesian coordinates.
     theta - latitude, rad (-90° to +90°)
