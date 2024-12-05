@@ -20,24 +20,11 @@ from enum import StrEnum
 import numpy as np
 
 # Local application imports
-from cls.atmosphere import Atmosphere, EarthAtmosphereUS1976
+from cls.atmosphere import Atmosphere
 from cls.celestial_body import CelestialBody
-from cls.celestial_body_utils import Component, Composition
 
 # Class initializations and global variables
 logger = logging.getLogger(__name__)
-
-EarthCoreComposition = Composition([
-    Component("Iron", 32.1, "Fe"),
-    Component("Oxygen", 30.1, "O"),
-    Component("Silicon", 15.1, "Si"),
-    Component("Magnesium", 13.9, "Mg"),
-    Component("Sulfur", 2.9, "S"),
-    Component("Nickel", 1.8, "Ni"),
-    Component("Calcium", 1.5, "Ca"),
-    Component("Aluminium", 1.4, "Al")],
-    source="https://en.wikipedia.org/wiki/Earth"
-)
 
 
 class PlanetType(StrEnum):
@@ -84,13 +71,10 @@ class Planet(CelestialBody):
             self.outer_radius_m = self.surface_radius_m
 
 
-# TODO: refactor Planetlocation to Launchlocation,
-#  only to collect launch relevant data
 class PlanetLocation:
     """ General class for representing a location (point) on a planet
     (spherical body).
     """
-
     def __init__(self, planet: Planet, location_name: str,
                  latitude: float, longitude: float, radius: float):
         self.planet = planet
@@ -102,7 +86,6 @@ class PlanetLocation:
 
 class LaunchSite(PlanetLocation):
     """ Class for representing a launch-site on a planet. """
-
     def __init__(self, planet: Planet, location_name: str,
                  latitude: float, longitude: float,
                  launch_azimuth_range: tuple[float, float] | None = None):
@@ -141,40 +124,6 @@ class LaunchSite(PlanetLocation):
         #  the speed of the atmosphere at this given location
         atm_velocity = np.cross(np.array([0, 0, self.angular_velocity]), pos)
         return float(np.linalg.norm(vel - atm_velocity))
-
-    # TODO: is this needed ?
-    def get_surface_velocity(self):
-        """ Placeholder func. """
-
-
-class Earth(Planet):
-    def __init__(self):
-        super().__init__("0001", "Earth", 5.972e24,
-                         None, EarthCoreComposition,
-                         PlanetType.TERRESTIAL,
-                         9.80665, 6_371_000)
-        self.set_atmosphere(EarthAtmosphereUS1976())
-        self.set_outer_radius_m()
-        self.set_std_gravitational_param()
-        # self.set_orbit()
-        # self.set_rotation_params()
-        # TODO: replace direct access with setter function above
-        self.angular_velocity_rad_per_s = 7.292115e-5
-
-
-class Moon(Planet):
-    def __init__(self):
-        super().__init__("0002", "Moon", 7.34767309e22,
-                         None, None,
-                         PlanetType.TERRESTIAL,
-                         1.625, 1_737_000)
-        # self.set_atmosphere(EarthAtmosphereUS1976())
-        # self.set_outer_radius_m()
-        self.set_std_gravitational_param()
-        # self.set_orbit()
-        # self.set_rotation_params()
-        # TODO: replace direct access with setter function above
-        self.angular_velocity_rad_per_s = 7.292115e-5
 
 
 # Include guard
