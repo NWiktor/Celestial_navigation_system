@@ -138,7 +138,7 @@ class EarthAtmosphere(Atmosphere):
         temp_kelvin = temp_celsius + 273.15
         air_density = pressure_kpa / (0.2869 * temp_kelvin)
         logger.debug("Atmospheric temp.: %.3f (K°), pres.: %.3f (kPa) and"
-                     " air density: %.3f (kg/m3) @ %s (m)",
+                     " air density: %.3f (kg/m3) @ %.3f (m)",
                      temp_kelvin, pressure_kpa, air_density, alt_m)
         return temp_kelvin, pressure_kpa, air_density
 
@@ -208,7 +208,7 @@ class EarthAtmosphereUS1976(Atmosphere):
         # Calculate air density and return values
         air_density = pressure_kpa / (0.2869 * temp_kelvin)
         logger.debug("Atmospheric temp.: %.3f (K), pres.: %.3f (kPa) and"
-                     " air density: %.3f (kg/m3) @ %s (m)",
+                     " air density: %.3f (kg/m3) @ %.3f (m)",
                      temp_kelvin, pressure_kpa, air_density, alt_m)
         return temp_kelvin, pressure_kpa, air_density
 
@@ -247,7 +247,7 @@ class MarsAtmosphere(Atmosphere):
         temp_kelvin = temp_celsius + 273.15
         air_density = pressure_kpa / (0.1921 * temp_kelvin)
         logger.debug("Atmospheric temp.: %.3f (K°), pres.: %.3f (kPa) and"
-                     " athmospheric density: %.3f (kg/m3) @ %s (m)",
+                     " athmospheric density: %.3f (kg/m3) @ %.3f (m)",
                      temp_celsius, pressure_kpa, air_density, alt_m)
         return temp_kelvin, pressure_kpa, air_density
 
