@@ -147,7 +147,8 @@ class RocketLaunch:
     def __init__(self, name: str, payload_mass: float, fairing_mass: float,
                  coefficient_of_drag: float, diameter: float,
                  stages: list[Stage], flightprogram: RocketFlightProgram,
-                 target_orbit: CircularOrbit, launchsite: LaunchSite):
+                 target_orbit: CircularOrbit, launchsite: LaunchSite,
+                 flight_angle_corr: float = 0.87):
         self.name = name
         self.stage_status = RocketEngineStatus.STAGE_0
         self.stages = stages
@@ -155,7 +156,8 @@ class RocketLaunch:
         self.target_orbit = target_orbit
         self.launchsite = launchsite
         self.launch_azimuth: list[float | None] = [None, None]
-        self.flight_angle_corr = 0.87
+        self.flight_angle_corr = flight_angle_corr
+        self._density_at_surface: float = 0.0  # Automatically set
 
         # Check if orbit is reachable
         self.check_radius()
@@ -327,6 +329,8 @@ class RocketLaunch:
              [self.total_mass])
         )
 
+        self._density_at_surface = self.launchsite.get_density(0.0)
+
         # Local orientations at lauchsite
         east_launch = convert_spherical_to_cartesian_coords(
             self.launchsite.radius,
@@ -442,8 +446,9 @@ class RocketLaunch:
         logger.debug(f"{time}: Current inclination: {inclination_current:.3f}°")
         logger.debug(f"{time}: Flight angle: {flight_angle:.3f}°")
         logger.debug(f"{time}: Angle between thrust and launch plane: {thrust_deviation:.3f}")
+
         # Calculate acceleration (v_dot) and m_dot
-        pressure_ratio = air_density / self.launchsite.get_density(0.0)
+        pressure_ratio = air_density / self._density_at_surface
         a = a_gravity + a_thrust + a_drag  # 2nd order ODE function (acc.)
         m_dot = (- thrust_force
                  / (self.get_isp(pressure_ratio)
@@ -457,7 +462,7 @@ class RocketLaunch:
         """ Yield rocket's status variables during launch, every second. """
 
         # Update state vector with initial conditions, and calculate
-        # oriantation vectors at launchsite
+        # orientation vectors at launchsite
         self.set_inital_params()
 
         # Yield initial values
