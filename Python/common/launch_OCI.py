@@ -426,7 +426,7 @@ class RocketLaunch:
         # Print flight data
         # NOTE: Deviation should increase with time, as the rocket is affected
         #  by the planet rotation
-        deviation = angle_of_vectors(unit_vector(r), self.launch_plane_unit) - 90
+        deviation = angle_of_vectors(unit_vector(r), self.launch_plane_unit)-90
         # NOTE: the current orbital plane is determined by the current pos. and
         #  velocity vectors. It is changing because of the planet rotation.
         orbital_plane_current = np.cross(unit_vector(r), unit_vector(v))
@@ -438,10 +438,10 @@ class RocketLaunch:
             np.array([0, 0, 1])
         )
         thrust_deviation = angle_of_vectors(a_thrust, launch_plane_normal)
-        print(f"{time}: Deviation from orbital plane: {deviation:.3f}°")
-        print(f"{time}: Current inclination: {inclination_current:.3f}°")
-        print(f"{time}: Flight angle: {flight_angle:.3f}°")
-        print(f"{time}: Angle between thrust and launch plane: {thrust_deviation:.3f}")
+        logger.debug(f"{time}: Deviation from orbital plane: {deviation:.3f}°")
+        logger.debug(f"{time}: Current inclination: {inclination_current:.3f}°")
+        logger.debug(f"{time}: Flight angle: {flight_angle:.3f}°")
+        logger.debug(f"{time}: Angle between thrust and launch plane: {thrust_deviation:.3f}")
         # Calculate acceleration (v_dot) and m_dot
         pressure_ratio = air_density / self.launchsite.get_density(0.0)
         a = a_gravity + a_thrust + a_drag  # 2nd order ODE function (acc.)
@@ -513,14 +513,16 @@ class RocketLaunch:
             limit_v = self.target_velocity * 0.01
 
             if abs(delta_r) <= limit_r and abs(delta_v) <= limit_v:
-                print(f"Target orbit reached at {time} s:"
-                      f"{altitude_above_surface:.3f} m, {v_current:.3f} m/s")
+                logger.info(f"Target orbit reached at {time} s:"
+                            f"{altitude_above_surface:.3f} m, "
+                            f"{v_current:.3f} m/s")
                 break
 
             delta_v2 = self.get_target_velocity(r_current) - v_current
             if delta_r <= 0 and abs(delta_v2) <= limit_v:
-                print(f"Stable orbit reached at {time} s: "
-                      f"{altitude_above_surface:.3f} m, {v_current:.3f} m/s")
+                logger.info(f"Stable orbit reached at {time} s: "
+                            f"{altitude_above_surface:.3f} m, "
+                            f"{v_current:.3f} m/s")
                 break
 
             # Yield values
@@ -670,7 +672,7 @@ def main():
     throttle_map = [[70, 80, 81, 150, 550],
                     [0.8, 0.8, 1.0, 0.88, 0.88]]
     flight_program = RocketFlightProgram(145, 156, 514,
-                                         throttle_map,195)
+                                         throttle_map, 195)
     # TargetOrbit
     targetorbit = CircularOrbit(300 + 6_378, 51.6,
                                 -45,
