@@ -163,7 +163,7 @@ class RocketLaunch:
         # Check if orbit is reachable
         self.check_radius()
         self.target_velocity = self.get_target_velocity(
-            self.target_orbit.radius * 1000)
+            self.target_orbit.radius_km * 1000)
         self.check_inclination()
         self.get_launch_azimuth()  # Calculate lauch azimuth
         self.get_launch_time()  # Time of launch to get desired LoAN
@@ -228,13 +228,13 @@ class RocketLaunch:
         """ Check if specified target orbit radius is valid: greater than the
         planet surface.
         """
-        if (self.target_orbit.radius * 1000 <=
+        if (self.target_orbit.radius_km * 1000 <=
                 self.launchsite.planet.surface_radius_m):
-            logger.error(f"ERROR: orbit radius ({self.target_orbit.radius:.3f}"
+            logger.error(f"ERROR: orbit radius ({self.target_orbit.radius_km:.3f}"
                          f" km) is smaller than surface radius!")
             raise ValueError
 
-        logger.info(f"Orbit radius: {self.target_orbit.radius:.3f} km")
+        logger.info(f"Orbit radius: {self.target_orbit.radius_km:.3f} km")
 
     def check_inclination(self):
         """ Check if specified target orbit inclination is valid: greater than
@@ -519,9 +519,9 @@ class RocketLaunch:
                 logger.warning("WARNING! LITHOBRAKING!")
                 break
 
-            delta_r = self.target_orbit.radius - r_current
+            delta_r = self.target_orbit.radius_km - r_current
             delta_v = self.target_velocity - v_current
-            limit_r = self.target_orbit.radius * 0.01
+            limit_r = self.target_orbit.radius_km * 0.01
             limit_v = self.target_velocity * 0.01
 
             if abs(delta_r) <= limit_r and abs(delta_v) <= limit_v:
