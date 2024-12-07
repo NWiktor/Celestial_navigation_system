@@ -19,6 +19,8 @@ import logging
 
 # Local application imports
 from cls.atmosphere import EarthAtmosphereUS1976
+from cls.star import Star
+from cls.kepler_orbit import CircularOrbit
 from cls.planet import Planet, PlanetType, LaunchSite
 from cls.celestial_body_utils import Component, Composition
 
@@ -38,31 +40,31 @@ EarthCoreComposition = Composition([
 )
 
 
+class Sun(Star):
+    pass
+
+
 class Earth(Planet):
     def __init__(self):
         super().__init__("0001", "Earth", 5.972e24,
-                         None, EarthCoreComposition,
-                         PlanetType.TERRESTIAL,
-                         9.80665, 6_371_000)
+                         6_371_000, None,
+                         EarthCoreComposition, PlanetType.TERRESTIAL)
         self.set_atmosphere(EarthAtmosphereUS1976())
-        self.set_outer_radius_m()
-        self.set_std_gravitational_param()
         # self.set_orbit()
         # self.set_rotation_params()
-        # TODO: replace direct access with setter function above
+        # TODO: replace direct setting of value with setter function ?
         self.angular_velocity_rad_per_s = 7.292115e-5
 
 
 class Moon(Planet):
     def __init__(self):
         super().__init__("0002", "Moon", 7.34767309e22,
-                         None, None,
-                         PlanetType.TERRESTIAL,
-                         1.625, 1_737_000)
-        # self.set_atmosphere(EarthAtmosphereUS1976())
-        # self.set_outer_radius_m()
-        self.set_std_gravitational_param()
-        # self.set_orbit()
+                         1_737_000, None, None,
+                         PlanetType.TERRESTIAL)
+        self.set_orbit(Earth(),
+                       CircularOrbit(384_748, 28.58,
+                                     45, 90,
+                                     0))
         # self.set_rotation_params()
         # TODO: replace direct access with setter function above
         self.angular_velocity_rad_per_s = 7.292115e-5
