@@ -50,13 +50,20 @@ class CelestialBody:
         self.composition = composition
 
         # Properties to be set by function
-        # NOTE: Orbit and rotational vector is defined in the same
-        #  inertial reference frame
+        # NOTE: Orbit is defined in the parent object's inertial reference frame
+        #  and describes the current object inertial reference frame
         self.parent_object = None
         self.orbit: KeplerOrbit | None = None
-        self.rotation_vector: np.array = None
-        self.axial_tilt: float = 0.0
+
+        # Set rotational params
+        # TODO: transform between IRF and it's parent IRF
+        self.transformation_matrix = None
+        # self.rotation_vector: np.array = None - derived from transform matrix
+        # self.axial_tilt: float = 0.0 - derived from transform matrix
+
+        # NOTE: value in planet IRF
         self.angular_velocity_rad_per_s: float = 0.0
+        self._tidal_lock: bool = False  # TODO: add setter
 
     def set_orbit(self, parent_object, orbit: KeplerOrbit):
         """ Set a Kepler orbit to the object, defined in the parent object
