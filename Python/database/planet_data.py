@@ -54,6 +54,7 @@ class Earth(Planet):
         # self.set_rotation_params()
         # TODO: replace direct setting of value with setter function ?
         self.angular_velocity_rad_per_s = 7.292115e-5
+        self.texture = 'resource/2k_earth_daymap.jpg'
 
 
 class Moon(Planet):
@@ -68,6 +69,7 @@ class Moon(Planet):
         # self.set_rotation_params()
         # TODO: replace direct access with setter function above
         self.angular_velocity_rad_per_s = 7.292115e-5
+        self.texture = 'resource/lroc_color_poles_1k.jpg'
 
 
 CAPE_CANEVERAL = LaunchSite(
