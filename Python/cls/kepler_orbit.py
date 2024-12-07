@@ -40,17 +40,17 @@ class KeplerOrbit:
     (IFR). In order to initialize, the six orbital element must be defined.
     """
 
-    def __init__(self, eccentricity, semimajor_axis, inclination,
-                 longitude_of_ascending_node, argument_of_periapsis,
-                 mean_anomaly_at_epoch):
+    def __init__(self, eccentricity, semimajor_axis_km, inclination_deg,
+                 longitude_of_ascending_node_deg, argument_of_periapsis_deg,
+                 mean_anomaly_at_epoch_deg):
 
         # Keplerian elements
         self.eccentricity = eccentricity  # (e), -
-        self.semimajor_axis = semimajor_axis  # (a), km
-        self.inclination = inclination  # (i), deg
-        self.longitude_of_ascending_node = longitude_of_ascending_node  # (Ω),°
-        self.argument_of_periapsis = argument_of_periapsis  # (ω), deg
-        self.mean_anomaly_at_epoch = mean_anomaly_at_epoch  # (M0), deg
+        self.semimajor_axis_km = semimajor_axis_km  # (a)
+        self.inclination_deg = inclination_deg  # (i)
+        self.longitude_of_ascending_node_deg = longitude_of_ascending_node_deg  # (Ω)
+        self.argument_of_periapsis_deg = argument_of_periapsis_deg  # (ω)
+        self.mean_anomaly_at_epoch_deg = mean_anomaly_at_epoch_deg  # (M0)
 
         # Orbital parameters
         self.orbital_period = None  # (T) day
@@ -64,9 +64,9 @@ class KeplerOrbit:
         """ Calculates the rotational matrix (Euler rotation 3-1-3 (Z-X-Z))
         between the orbital plane and the inertial reference frame.
         """
-        loan = self.longitude_of_ascending_node * m.pi / 180
-        aop = self.argument_of_periapsis * m.pi / 180
-        incl = self.inclination * m.pi / 180
+        loan = self.longitude_of_ascending_node_deg * m.pi / 180
+        aop = self.argument_of_periapsis_deg * m.pi / 180
+        incl = self.inclination_deg * m.pi / 180
 
         self.rotational_matrix = np.array([
             [m.cos(loan) * m.cos(aop) - m.sin(loan) * m.cos(incl) * m.sin(aop),
@@ -94,7 +94,7 @@ class KeplerOrbit:
         """ Calculate orbital period from keplerian elements. """
         # Converting km to m in semimajor axis, and convert seconds to days
         self.orbital_period = 2 * m.pi * m.sqrt(
-            pow(self.semimajor_axis * 1000, 3)
+            pow(self.semimajor_axis_km * 1000, 3)
             / ((mass1_kg + mass2_kg) * gravitational_constant)) / 86400
         logging.debug("Orbital period is %s", self.orbital_period)
         self.calculate_mean_angular_motion()
@@ -105,7 +105,7 @@ class KeplerOrbit:
         This method can be used to calculate angular position at an
         initial value.
         """
-        mean_anomaly = (self.mean_anomaly_at_epoch +
+        mean_anomaly = (self.mean_anomaly_at_epoch_deg +
                         (self.mean_angular_motion * j2000_years * 365.25)) % 360
         logging.debug("Mean anomaly is %s°", mean_anomaly)
         return mean_anomaly
@@ -133,8 +133,8 @@ class KeplerOrbit:
                 break
 
         # Calculate state variables (position and velocity) in orbital plane
-        rx = self.semimajor_axis * (m.cos(eca1) - self.eccentricity)  # km
-        ry = (self.semimajor_axis *
+        rx = self.semimajor_axis_km * (m.cos(eca1) - self.eccentricity)  # km
+        ry = (self.semimajor_axis_km *
               m.sqrt(1 - pow(self.eccentricity, 2)) * m.sin(eca1))  # km
         # TODO: add velocity calculation
         # vx =
@@ -154,11 +154,13 @@ class CircularOrbit(KeplerOrbit):
     The function takes only 5 parameters.
     """
 
-    def __init__(self, radius, inclination, longitude_of_ascending_node,
-                 argument_of_periapsis, mean_anomaly_at_epoch):
-        self.radius = radius  # equals to semimajor axis
-        super().__init__(0, radius, inclination, longitude_of_ascending_node,
-                         argument_of_periapsis, mean_anomaly_at_epoch)
+    def __init__(self, radius_km, inclination_deg,
+                 longitude_of_ascending_node_deg,
+                 argument_of_periapsis_deg, mean_anomaly_at_epoch_deg):
+        self.radius_km = radius_km  # equals to semimajor axis
+        super().__init__(0, radius_km, inclination_deg,
+                         longitude_of_ascending_node_deg,
+                         argument_of_periapsis_deg, mean_anomaly_at_epoch_deg)
 
     def get_position(self, j2000_time: float):
         """ Calculate position and velocity vectors of an object at a given
@@ -170,8 +172,8 @@ class CircularOrbit(KeplerOrbit):
         eca0 = mean_anomaly * m.pi / 180
 
         # Calculate state variables (position and velocity) in orbital plane
-        rx = self.radius * m.cos(eca0)  # km
-        ry = self.radius * m.sin(eca0)  # km
+        rx = self.radius_km * m.cos(eca0)  # km
+        ry = self.radius_km * m.sin(eca0)  # km
         # TODO: add velocity calculation
         # vx =
         # vy =
