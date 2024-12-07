@@ -35,9 +35,9 @@ gravitational_constant: float = 6.67430 * pow(10, -11)  # m^3 kg^-1 s^-2
 
 # Class and function definitions
 class CelestialBody:
-    """ Class for generic celestial bodies (planet, moon, asteroid, sun, etc.).
+    """ Class for generic celestial bodies (stars, planets, moons, asteroids,
+    etc.).
     """
-
     def __init__(self, uuid: str, name: str, mass_kg: float,
                  other_names: list[str] = None,
                  composition: Composition = None):
@@ -53,10 +53,10 @@ class CelestialBody:
         # NOTE: Orbit and rotational vector is defined in the same
         #  inertial reference frame
         self.parent_object = None
-        self.orbit = None
-        self.rotation_vector = None
-        self.axial_tilt = None
-        self.angular_velocity_rad_per_s = None
+        self.orbit: KeplerOrbit | None = None
+        self.rotation_vector: np.array = None
+        self.axial_tilt: float = 0.0
+        self.angular_velocity_rad_per_s: float = 0.0
 
     def set_orbit(self, parent_object, orbit: KeplerOrbit):
         """ Set a Kepler orbit to the object, defined in the parent object
@@ -111,12 +111,14 @@ class CelestialBody:
 
 
 class Asteroid(CelestialBody):
+    """ Class describing asteroids. """
     def __init__(self, *args, asteroid_type: AsteriodType):
         super().__init__(*args)
         self.asteroid_type = asteroid_type
 
 
 class Comet(CelestialBody):
+    """ Class describing comets. """
     def __init__(self, *args):
         super().__init__(*args)
 
