@@ -48,7 +48,6 @@ class CelestialBody:
         # Phisycal properties
         self.mass_kg = mass_kg
         self.composition = composition
-        self.std_gravitational_parameter = 0.0  # m^3/s^2
 
         # Properties to be set by function
         # NOTE: Orbit and rotational vector is defined in the same
@@ -58,9 +57,6 @@ class CelestialBody:
         self.rotation_vector = None
         self.axial_tilt = None
         self.angular_velocity_rad_per_s = None
-
-        # Calculate params
-        self.set_std_gravitational_param()
 
     def set_orbit(self, parent_object, orbit: KeplerOrbit):
         """ Set a Kepler orbit to the object, defined in the parent object
@@ -80,17 +76,23 @@ class CelestialBody:
                 rotation_vector)  # rad
         self.angular_velocity_rad_per_s: float = unit_vector(rotation_vector)
 
-    # NOTE: This is valid for a given object-pair, this value is only universal
-    #  for objects with zero mass.
-    def set_std_gravitational_param(self, mass2_kg: float = 0.0):
-        """ Sets standard gravitational parameter using the CB's own mass, and
-        the given M2 value. By default
+    # NOTE: This is valid for a given object-pair!
+    def get_std_gravitational_param(self, mass2_kg: float = 0.0):
+        """ Returns the standard gravitational parameter using the CB's own
+        mass and the given mass2 value. If mass2 is omitted, zero value is used,
+        as it is considered negligible.
+
+        .. math::
+           \\mu = G \cdot (M + m) \\approx GM  (m^3/s^2)
+
+        :param mass2_kg: Mass of second object (kg)
+        :return: standard gravitational parameter (m^3/s^2)
         """
-        self.std_gravitational_parameter = (
-                gravitational_constant * (self.mass_kg + mass2_kg))  # m^3/s^2
+        return gravitational_constant * (self.mass_kg + mass2_kg)  # m^3/s^2
 
     # TODO: check time format
     # TODO: is this needed ?
+    # TODO: test this later, bc. this is needed for complex orbiting
     def get_position(self, j2000_time: float) -> np.array:
         """ Returns a 3D position vector of the object at a given time,
         since epoch.
