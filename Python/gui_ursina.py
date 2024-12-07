@@ -29,7 +29,7 @@ from ursina import (Ursina, Entity, scene, Mesh, Cylinder, Circle, Grid, Text,
                     Vec3, time, color, duplicate, camera, held_keys, window)
 
 # Local application imports
-from cls import CelestialBody, CircularOrbit, Planet
+from cls import CelestialBody
 from database import Earth, Moon
 from utils import time_functions as tf
 
