@@ -29,7 +29,8 @@ from ursina import (Ursina, Entity, scene, Mesh, Cylinder, Circle, Grid, Text,
                     Vec3, time, color, duplicate, camera, held_keys, window)
 
 # Local application imports
-from cls import CelestialBody, CircularOrbit, Planet, Earth
+from cls import CelestialBody, CircularOrbit, Planet
+from database import Earth
 from utils import time_functions as tf
 
 logger = logging.getLogger(__name__)
