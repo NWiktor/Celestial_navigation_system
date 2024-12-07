@@ -240,13 +240,13 @@ class RocketLaunch:
         """ Check if specified target orbit inclination is valid: greater than
         the launch-site latitude.
         """
-        if self.target_orbit.inclination < self.launchsite.latitude:
+        if self.target_orbit.inclination_deg < self.launchsite.latitude:
             logger.error("ERROR: Cannot launch directly into orbit with"
-                         f"inclination ({self.target_orbit.inclination:.3f}°)"
+                         f"inclination ({self.target_orbit.inclination_deg:.3f}°)"
                          "smaller than launchsite latitude!")
             raise ValueError
 
-        logger.info(f"Inclination: {self.target_orbit.inclination:.3f}°")
+        logger.info(f"Inclination: {self.target_orbit.inclination_deg:.3f}°")
 
     # TODO: test baikonour and korou azimuth limit (349 to 90)
     def get_launch_azimuth(self):
@@ -258,7 +258,7 @@ class RocketLaunch:
         https: // www.orbiterwiki.org / wiki / Launch_Azimuth
         """
         launch_azimuth = m.asin(
-                m.cos(self.target_orbit.inclination * m.pi / 180)
+                m.cos(self.target_orbit.inclination_deg * m.pi / 180)
                 / m.cos(self.launchsite.latitude * m.pi / 180)
                 )  # rad
 
@@ -665,12 +665,10 @@ def main():
                     [0.8, 0.8, 1.0, 0.88, 0.88]]
     flight_program = RocketFlightProgram(145, 156, 514,
                                          throttle_map, 195)
-    # TargetOrbit
     targetorbit = CircularOrbit(300 + 6_378, 51.6,
                                 -45,
                                 90,
                                 0)
-
     mission_414_falcon9 = RocketLaunch("Falcon 9", 15000,
                                        1900,
                                        0.25,
