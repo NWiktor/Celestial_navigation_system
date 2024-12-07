@@ -2,10 +2,11 @@
 # !/usr/bin/python3
 
 """ Planet class inherited from CelestialBody class for representing planets
-and planetezoids (e.g. moons).
+and planetary-mass moons (i.e. Moon).
 
 Help
 ----
+* https://en.wikipedia.org/wiki/Planetary-mass_moon
 * https://en.wikipedia.org/wiki/Earth%27s_rotation
 * https://en.wikipedia.org/wiki/Density_of_air
 * https://en.wikipedia.org/wiki/Earth
@@ -22,53 +23,72 @@ import numpy as np
 # Local application imports
 from cls.atmosphere import Atmosphere
 from cls.celestial_body import CelestialBody
-
+from cls.celestial_body_utils import Composition
 # Class initializations and global variables
 logger = logging.getLogger(__name__)
 
 
+# TODO: expand this, and split to more categories
 class PlanetType(StrEnum):
-    """ Describes the asteroid types by composition. """
+    """ Describes the planet types by main categories. """
     ICE_GIANT = "Ice giant"
     GAS_GIANT = "Gas giant"
     ROCKY = "Rocky"
     TERRESTIAL = "Terrestial"
     EXO = "Exo"
+    DWARF = "Dwarf"
+    MINOR = "Minor"
 
 
 # Class and function definitions
 class Planet(CelestialBody):
-
-    def __init__(self, uuid, name, mass_kg, other_names, composition,
-                 planettype: PlanetType | None, std_gravity: float,
-                 surface_radius_m: float):
+    """ Describes a planet. """
+    def __init__(self, uuid: str, name: str, mass_kg: float,
+                 surface_radius_m: float, other_names: list[str] = None,
+                 composition: Composition = None,
+                 planettype: PlanetType | None = None,
+                 ):
         super().__init__(uuid, name, mass_kg, other_names, composition)
         self.planettype = planettype
         self.surface_radius_m = surface_radius_m  # m
-        self.std_gravity = std_gravity  # m/s^2
 
         # Properties to be set by function
         self.atmosphere = None
-        self.outer_radius_m = None
-
-        # Setter function call
-        self.set_outer_radius_m()
+        self.outer_radius_m: float = surface_radius_m  # default: no atmosphere
+        self.surface_gravity_m_per_s2: float = (
+            self._set_surface_gravity_m_per_s2())  # Set automatically
 
     def set_atmosphere(self, atmosphere: Atmosphere):
         """ Set an Atmosphere object to the Celestial body. """
         self.atmosphere = atmosphere
-        self.set_outer_radius_m()
+        self._set_outer_radius_m()
 
-    def set_outer_radius_m(self):
-        """ Sets outer radius as the sum of surface radius and athmospheric
-        thickness (if defined).
+    def _set_outer_radius_m(self):
+        """ Sets outer radius (m) as the sum of the surface radius (m) and
+        athmospheric thickness (m), if defined.
         """
         if self.atmosphere is not None:
             self.outer_radius_m = (
                 self.surface_radius_m + self.atmosphere.atm_upper_limit_m
             )
         else:
+            logger.debug("Atmosphere not defined.")
             self.outer_radius_m = self.surface_radius_m
+
+        logger.info("Planet %s outer radius is set to %s.3f (m).",
+                    self.name, self.outer_radius_m)
+
+    def _set_surface_gravity_m_per_s2(self) -> float:
+        """ Set surface gravity for planet using the surface radius and the
+        standard gravitational parameter.
+
+        .. math::
+          g = \\mu / r^2 \\qquad (m/s^2)
+
+        :return: Surface gravity (m/s^2)
+        """
+        return (self.get_std_gravitational_param()
+                / pow(self.surface_radius_m, 2))
 
 
 class PlanetLocation:
@@ -89,18 +109,17 @@ class LaunchSite(PlanetLocation):
     def __init__(self, planet: Planet, location_name: str,
                  latitude: float, longitude: float,
                  launch_azimuth_range: tuple[float, float] | None = None):
-        # self.surface_radius = self.planet.surface_radius_m
         super().__init__(planet, location_name, latitude, longitude,
                          planet.surface_radius_m)
+        # self.surface_radius = self.planet.surface_radius_m
         self.launch_azimuth_range = launch_azimuth_range
         self.angular_velocity = self.planet.angular_velocity_rad_per_s
-        # TODO: ez kell ide?
-        self.std_gravity = self.planet.std_gravity  # m/s^2
+        # TODO: ez kell ide, ha kell akkor use: surface gravity
+        # self.std_gravity = self.planet.std_gravity  # m/s^2
 
-        # TODO: work on implementation ??
         # For zero-mass spacecraft
         self.std_gravitational_parameter = (
-            self.planet.std_gravitational_parameter)  # m^3/s^2
+            self.planet.get_std_gravitational_param())  # m^3/s^2
 
     def get_density(self, altitude) -> float:
         """ Get atmospheric density at altitude. """
