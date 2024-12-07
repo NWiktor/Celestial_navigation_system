@@ -64,6 +64,7 @@ class CelestialBody:
         self.parent_object = parent_object
         self.orbit = orbit
 
+    # TODO: think about reversing implementation or keep both methods?
     def set_rotation_params(self, rotation_vector: np.array):
         """ Set a rotation vector, which describes the celestial body rotation
         in the parent object inertial reference frame.
@@ -73,8 +74,8 @@ class CelestialBody:
         self.rotation_vector = rotation_vector
         self.axial_tilt: float = angle_of_vectors(
                 np.array([0.0, 0.0, 1.0]),
-                rotation_vector)  # rad
-        self.angular_velocity_rad_per_s: float = unit_vector(rotation_vector)
+                unit_vector(rotation_vector))  # deg
+        self.angular_velocity_rad_per_s: float = np.linalg.norm(rotation_vector)
 
     # NOTE: This is valid for a given object-pair!
     def get_std_gravitational_param(self, mass2_kg: float = 0.0):
