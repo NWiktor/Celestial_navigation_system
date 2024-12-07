@@ -114,8 +114,6 @@ class LaunchSite(PlanetLocation):
         # self.surface_radius = self.planet.surface_radius_m
         self.launch_azimuth_range = launch_azimuth_range
         self.angular_velocity = self.planet.angular_velocity_rad_per_s
-        # TODO: ez kell ide, ha kell akkor use: surface gravity
-        # self.std_gravity = self.planet.std_gravity  # m/s^2
 
         # For zero-mass spacecraft
         self.std_gravitational_parameter = (
