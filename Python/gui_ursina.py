@@ -53,12 +53,12 @@ START_TIME = tf.j2000_date(datetime.datetime.now())
 SIMULATION_TIME = tf.j2000_date(datetime.datetime.now())
 RUN = True
 
+ROTATION_INFO = None
+
 # TODO: implement central body and satellites - simulate a system
 CENTRAL_BODY: Entity | None = None  # Only one
 SATELLITES = []  # Satellites (keplerian elements) - list
 SPACECRAFT = []  # Spacecraft (calculated by gravity) - list (at least 2)
-
-moon_orbit: Entity | None = None
 
 
 class CelestialBodyVisual(Entity):
@@ -111,8 +111,7 @@ class Trajectory(Entity):
 
 
 def update():
-    global CAMERA_AZIMUTH, CAMERA_POLAR, CAMERA_RADIUS, \
-        SIMULATION_TIME, moon_orbit
+    global CAMERA_AZIMUTH, CAMERA_POLAR, CAMERA_RADIUS, SIMULATION_TIME
 
     # Camera
     CAMERA_AZIMUTH += held_keys['d'] * 20 * time.dt
@@ -141,17 +140,20 @@ def update():
             * TIME_SCALE_FACTOR * time.dt
     )
 
-    pos = (moon_orbit.get_position(SIMULATION_TIME)
-           / DIMENSION_SCALE_FACTOR / SECOND_SCALE)
-    moon.world_x = pos[0]
-    moon.world_y = pos[1]
-    moon.world_z = -pos[2]
+    # Calculate satellites
+    for satelit in SATELLITES:
+        pos = (satelit.celestial_body.orbit.get_position(SIMULATION_TIME)
+               / DIMENSION_SCALE_FACTOR / SECOND_SCALE)
+        satelit.world_x = pos[0]
+        satelit.world_y = pos[1]
+        satelit.world_z = -pos[2]
 
-    # Tidal-lock
-    moon.rotation_z -= (moon_orbit.mean_angular_motion * 365.25
-                        * TIME_SCALE_FACTOR * time.dt / YEARS_TO_SECS)
+        # Tidal-lock for moon
+        satelit.rotation_z -= (satelit.celestial_body.orbit.mean_angular_motion
+                               * 365.25 * TIME_SCALE_FACTOR * time.dt
+                               / YEARS_TO_SECS)
 
-    rotation_info.text = (
+    ROTATION_INFO.text = (
             f"Simulation start: \t{tf.gregorian_date(START_TIME)} "
             f"({TIME_SCALE_FACTOR}x)\n"
             f"Simulation time: \t{tf.gregorian_date(SIMULATION_TIME)}\n"
@@ -183,66 +185,69 @@ def input(key):
         RUN = True
 
 
-def create_central_body():
+def create_central_body(central_body: CelestialBody) -> None:
     """ Set central body of the system. """
     global CENTRAL_BODY
-    CENTRAL_BODY = CelestialBodyVisual(Earth(), (0, 0, 0),
-                                       'resource/2k_earth_daymap.jpg')
+    CENTRAL_BODY = CelestialBodyVisual(
+        central_body, (0, 0, 0), central_body.texture)
 
 
-def create_celestial_objects():
+def create_satellites(celestial_bodies: list[CelestialBody] = None):
     """ Function for creating celestial objects (entities). """
-    global SATELLITES, moon_orbit
+    global SATELLITES
 
-    # Set satellites
-    moon_orbit = CircularOrbit(384_748, 28.58,
-                               45, 90,
-                               0)
-    moon_orbit.calculate_orbital_period(5.972E24, 7.34767309E22)
-    moon = CelestialBodyVisual(Moon(), (0, 0, 0),
-                               'resource/lroc_color_poles_1k.jpg')
+    for satelit in celestial_bodies:
 
-    # NOTE: create a function for this, and put it in a loop
-    long_asc_node = Entity(
-        model=Cylinder(6,
-                       radius=0.1,
-                       direction=(1, 0, 0),
-                       height=384_748 / DIMENSION_SCALE_FACTOR / SECOND_SCALE,
-                       thickness=2),
-        rotation_z=-45,
-        parent=scene,
-        world_scale=1,
-        color=color.hsv(60, 1, 1, .3)
-    )
+        # Set satellites
+        satelit.orbit.calculate_orbital_period(
+            satelit.mass_kg, CENTRAL_BODY.celestial_body.mass_kg)
+        satelit_visual = CelestialBodyVisual(
+            satelit, (0, 0, 0), satelit.texture)
 
-    orbit = Entity(
-        model=Circle(120,
-                     radius=384_748 / DIMENSION_SCALE_FACTOR / SECOND_SCALE,
-                     mode='line',
-                     thickness=2),
-        color=color.hsv(60, 1, 1, .3),
-        rotation_x=-28.58,
-        parent=long_asc_node
-    )
+        # NOTE: create a function for this, and put it in a loop
+        long_asc_node = Entity(
+            model=Cylinder(
+                6, radius=0.1, direction=(1, 0, 0), thickness=2,
+                height=satelit.orbit.radius_km
+                       / DIMENSION_SCALE_FACTOR / SECOND_SCALE),
+            rotation_z=-45,
+            parent=scene,
+            world_scale=1,
+            color=color.hsv(60, 1, 1, .3)
+        )
 
-    periapsis = Entity(
-        model=Cylinder(6,
-                       radius=0.1,
-                       direction=(1, 0, 0),
-                       height=384_748 / DIMENSION_SCALE_FACTOR / SECOND_SCALE,
-                       thickness=2),
-        rotation_z=-90,
-        parent=orbit,
-        world_scale=1,
-        color=color.hsv(60, 1, 1, .3)
-    )
+        orbit = Entity(
+            model=Circle(
+                120, mode='line', thickness=2,
+                radius=satelit.orbit.radius_km
+                       / DIMENSION_SCALE_FACTOR / SECOND_SCALE),
+            color=color.hsv(60, 1, 1, .3),
+            rotation_x=-28.58,
+            parent=long_asc_node
+        )
 
-    mean_anomaly = moon_orbit.get_current_mean_anomaly(SIMULATION_TIME)
-    moon.parent = periapsis
-    moon.position = Vec3(384_748 / DIMENSION_SCALE_FACTOR / SECOND_SCALE, 0, 0)
-    moon.rotate(Vec3(0, 0, 180 - mean_anomaly))
+        periapsis = Entity(
+            model=Cylinder(
+                6, radius=0.1, direction=(1, 0, 0), thickness=2,
+                height=satelit.orbit.radius_km
+                       / DIMENSION_SCALE_FACTOR / SECOND_SCALE),
+            rotation_z=-90,
+            parent=orbit,
+            world_scale=1,
+            color=color.hsv(60, 1, 1, .3)
+        )
 
-    return moon
+        mean_anomaly = satelit.orbit.get_current_mean_anomaly(SIMULATION_TIME)
+        satelit_visual.parent = periapsis
+        satelit_visual.position = Vec3(
+            satelit.orbit.radius_km / DIMENSION_SCALE_FACTOR / SECOND_SCALE,
+            0,
+            0
+        )
+        satelit_visual.rotate(Vec3(0, 0, 180 - mean_anomaly))
+
+        create_unit_vectors(satelit_visual, scale=3, right_handed=True)
+        SATELLITES.append(satelit_visual)
 
 
 def create_unit_vectors(parent=scene, scale=1, right_handed=False):
@@ -283,17 +288,20 @@ def create_grid(grid_nbr: int = 10):
     subgrid.color = color.azure
 
 
-if __name__ == '__main__':
+def main():
+    global ROTATION_INFO
     app = Ursina(vsync=False, fullscreen=True)
     window.color = color.black
 
-    rotation_info = Text(position=window.top_left)
-    create_central_body()
-    moon = create_celestial_objects()
+    ROTATION_INFO = Text(position=window.top_left)
+    create_central_body(Earth())
+    create_satellites([Moon()])
     create_unit_vectors(scale=3)
     create_unit_vectors(CENTRAL_BODY, scale=3, right_handed=True)
-    create_unit_vectors(moon, scale=3, right_handed=True)
-
     create_grid()
 
     app.run()
+
+
+if __name__ == '__main__':
+    main()
