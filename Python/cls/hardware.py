@@ -118,6 +118,21 @@ class RocketAttitudeStatus(Enum):
     GRAVITY_ASSIST = 3
 
 
+""" Falcon 9 hardware specs:
+
+Note: 2nd stage empty mass minus payload fairing
+
+Sorurces:
+* https://aerospaceweb.org/question/aerodynamics/q0231.shtml
+* https://spaceflight101.com/spacerockets/falcon-9-ft/
+* https://en.wikipedia.org/wiki/Falcon_9#Design
+"""
+FALCON9_1ST = Stage(25600, 395700, 9,
+                    934e3, [312, 283])
+FALCON9_2ND = Stage(2000, 92670, 1,
+                    934e3, 348)
+
+
 # Include guard
 if __name__ == '__main__':
     pass

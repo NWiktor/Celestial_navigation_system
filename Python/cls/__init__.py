@@ -7,4 +7,5 @@ from cls.celestial_body import CelestialBody
 from cls.planet import Planet, LaunchSite
 from cls.atmosphere import Atmosphere, EarthAtmosphereUS1976
 from cls.kepler_orbit import KeplerOrbit, CircularOrbit
-from cls.hardware import Stage, RocketAttitudeStatus, RocketEngineStatus
+from cls.hardware import (Stage, RocketAttitudeStatus, RocketEngineStatus,
+                          FALCON9_1ST, FALCON9_2ND)

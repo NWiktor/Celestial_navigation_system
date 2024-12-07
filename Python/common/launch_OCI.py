@@ -32,7 +32,7 @@ from utils import (secs_to_mins, convert_spherical_to_cartesian_coords,
                    runge_kutta_4, unit_vector, rodrigues_rotation,
                    angle_of_vectors)
 from cls import (LaunchSite, CircularOrbit, Stage, RocketAttitudeStatus,
-                 RocketEngineStatus)
+                 RocketEngineStatus, FALCON9_1ST, FALCON9_2ND)
 from database import CAPE_TEST, CAPE_CANEVERAL
 
 logger = logging.getLogger(__name__)
@@ -659,18 +659,7 @@ def main():
     
     The function calculates and plots flight parameters during and after
     liftoff.
-
-    Falcon 9 flight data sources:
-    * https://aerospaceweb.org/question/aerodynamics/q0231.shtml
-    * https://spaceflight101.com/spacerockets/falcon-9-ft/
-    * https://en.wikipedia.org/wiki/Falcon_9#Design
     """
-    # Falcon9 hardware specs:  # 2nd stage empty mass minus payload fairing
-    first_stage = Stage(25600, 395700, 9,
-                        934e3, [312, 283])
-    second_stage = Stage(2000, 92670, 1,
-                         934e3, 348)
-
     # TODO: Modelling throttle to 80% properly, and test it
     throttle_map = [[70, 80, 81, 150, 550],
                     [0.8, 0.8, 1.0, 0.88, 0.88]]
@@ -686,7 +675,7 @@ def main():
                                        1900,
                                        0.25,
                                        5.2,
-                                       [first_stage, second_stage],
+                                       [FALCON9_1ST, FALCON9_2ND],
                                        flight_program, targetorbit,
                                        CAPE_TEST)
 
