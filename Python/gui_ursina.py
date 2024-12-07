@@ -30,7 +30,7 @@ from ursina import (Ursina, Entity, scene, Mesh, Cylinder, Circle, Grid, Text,
 
 # Local application imports
 from cls import CelestialBody, CircularOrbit, Planet
-from database import Earth
+from database import Earth, Moon
 from utils import time_functions as tf
 
 logger = logging.getLogger(__name__)
@@ -195,13 +195,11 @@ def create_celestial_objects():
     global SATELLITES, moon_orbit
 
     # Set satellites
-    hold = Planet("0002", "Hold", 7.34767309E22, None,
-                  None, None, 9.81, 1_737_000)
     moon_orbit = CircularOrbit(384_748, 28.58,
                                45, 90,
                                0)
     moon_orbit.calculate_orbital_period(5.972E24, 7.34767309E22)
-    moon = CelestialBodyVisual(hold, (0, 0, 0),
+    moon = CelestialBodyVisual(Moon(), (0, 0, 0),
                                'resource/lroc_color_poles_1k.jpg')
 
     # NOTE: create a function for this, and put it in a loop
