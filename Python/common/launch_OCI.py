@@ -459,7 +459,7 @@ class RocketLaunch:
         a = a_gravity + a_thrust + a_drag  # 2nd order ODE function (acc.)
         m_dot = (- thrust_force
                  / (self.get_isp(pressure_ratio)
-                    * self.launchsite.std_gravity * dt
+                    * self.launchsite.planet.surface_gravity_m_per_s2 * dt
                     * self.flightprogram.get_throttle(time)  # throttle corr.
                     )
                  )
