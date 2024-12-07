@@ -83,7 +83,7 @@ class CelestialBody:
         as it is considered negligible.
 
         .. math::
-           \\mu = G \cdot (M + m) \\approx GM  (m^3/s^2)
+          \\mu = G \cdot (M + m) \\approx GM \\qquad (m^3 / s^2)
 
         :param mass2_kg: Mass of second object (kg)
         :return: standard gravitational parameter (m^3/s^2)
