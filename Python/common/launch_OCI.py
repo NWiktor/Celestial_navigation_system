@@ -42,15 +42,25 @@ launch_plane_normal: np.array = np.array([0, 0, 0])
 
 
 class RocketFlightProgram:
-    """ Describes the rocket launch program (staging, engine throttling, roll
-    and pitch maneuvers).
+    """ Describes the rocket launch program - staging, engine throttling, roll
+    and pitch maneuvers in function of time (seconds) as well as fairing
+    jettison. The class main function is to collect constants and return the
+    status Enums depending on time.
 
-    EXAMPLE VALUES (LEO)
-    * MECO: 145 s
-    * STAGE_SEPARATION: MECO + 3 s
-    * SES_1: MECO + 11s
-    * fairing jettison = 195 s (LEO) - 222 s (GTO)
-    * https://spaceflight101.com/falcon-9-ses-10/flight-profile/#google_vignette
+    Example values for LEO: meco: 145 s, stage separation: meco + 3 s,
+    Second engine start-1: meco + 11s,
+    fairing jettison: 195 s (LEO) - 222 s (GTO).
+
+    :param float meco: Main engine cut-off time in T+seconds.
+    :param float ses_1: Second engine start-1 in T+seconds.
+    :param float seco_1: Second engine cut-off in T+seconds.
+    :param throttle_program: Throttle program: time (s) - throttle (%)
+        value-pairs.
+    :param float fairing_jettison: Time of jettison in T+seconds.
+    :param float pitch_maneuver_start: Time of pitch manuever start in T+seconds.
+    :param float pitch_maneuver_end: Time of pitch manuever end in T+seconds.
+    :param float ss_1: Time of stage separation in T+seconds
+        (default: meco+3 s).
     """
     # pylint: disable = too-many-arguments
     def __init__(self,
