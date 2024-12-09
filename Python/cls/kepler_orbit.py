@@ -184,7 +184,4 @@ class CircularOrbit(KeplerOrbit):
 
 # Include guard
 if __name__ == '__main__':
-    moon_orbit = CircularOrbit(384_748, 28.58,
-                               45, 90,
-                               0)
-    moon_orbit.calculate_orbital_period(5.972E24, 7.34767309E22)
+    pass
