@@ -3,12 +3,12 @@ import unittest
 from cls import EarthAtmosphereUS1976
 
 
+# pylint: missing-class-docstring
 class TestEarthAtmosphereUS1976(unittest.TestCase):
-    """ Unittest functions for EarthAtmosphereUS1976 class. """
 
     @classmethod
-    def setUpClass(self):
-        self.atm = EarthAtmosphereUS1976()
+    def setUpClass(cls):
+        cls.atm = EarthAtmosphereUS1976()
 
     def test_tempretatures(self):
         """ Test temperatures. """

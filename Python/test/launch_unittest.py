@@ -4,8 +4,8 @@ from common.launch_OCI import RocketFlightProgram, RocketLaunch
 from cls.hardware import RocketEngineStatus, RocketAttitudeStatus
 
 
+# pylint: missing-class-docstring
 class TestRocketFlightProgram(unittest.TestCase):
-    """ Unittest functions for EarthAtmosphereUS1976 class. """
 
     @classmethod
     def setUpClass(cls):
@@ -14,11 +14,6 @@ class TestRocketFlightProgram(unittest.TestCase):
         cls.test_class = RocketFlightProgram(
                 145, 156, 514, throttle_map, 195
         )
-        cls.meco = cls.test_class.meco
-        cls.ses_1 = cls.test_class.ses_1
-        cls.seco_1 = cls.test_class.seco_1
-        # cls.pitch_start = cls.test_class.pitch_maneuver_start
-        # cls.pitch_end = cls.test_class.pitch_maneuver_end
 
     def test_get_engine_status(self):
         self.assertEqual(
