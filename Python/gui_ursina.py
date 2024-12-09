@@ -209,7 +209,7 @@ def create_satellites(celestial_bodies: list[CelestialBody] = None):
             model=Cylinder(
                 6, radius=0.1, direction=(1, 0, 0), thickness=2,
                 height=satelit.orbit.radius_km
-                       / DIMENSION_SCALE_FACTOR / SECOND_SCALE),
+                / DIMENSION_SCALE_FACTOR / SECOND_SCALE),
             rotation_z=-45,
             parent=scene,
             world_scale=1,
@@ -220,7 +220,7 @@ def create_satellites(celestial_bodies: list[CelestialBody] = None):
             model=Circle(
                 120, mode='line', thickness=2,
                 radius=satelit.orbit.radius_km
-                       / DIMENSION_SCALE_FACTOR / SECOND_SCALE),
+                / DIMENSION_SCALE_FACTOR / SECOND_SCALE),
             color=color.hsv(60, 1, 1, .3),
             rotation_x=-28.58,
             parent=long_asc_node
@@ -230,7 +230,7 @@ def create_satellites(celestial_bodies: list[CelestialBody] = None):
             model=Cylinder(
                 6, radius=0.1, direction=(1, 0, 0), thickness=2,
                 height=satelit.orbit.radius_km
-                       / DIMENSION_SCALE_FACTOR / SECOND_SCALE),
+                / DIMENSION_SCALE_FACTOR / SECOND_SCALE),
             rotation_z=-90,
             parent=orbit,
             world_scale=1,
