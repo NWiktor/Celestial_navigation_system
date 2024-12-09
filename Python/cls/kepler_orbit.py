@@ -28,7 +28,6 @@ import logging
 import numpy as np
 
 # Local application imports
-# from logger import MAIN_LOGGER as L
 
 # Class initializations and global variables
 gravitational_constant = 6.67430e-11  # m^3 kg^-1 s^-2
@@ -58,9 +57,9 @@ class KeplerOrbit:
         self.rotational_matrix = None
 
         # Calculate known attributes
-        self.calculate_rotational_matrix()
+        self._calculate_rotational_matrix()
 
-    def calculate_rotational_matrix(self):
+    def _calculate_rotational_matrix(self):
         """ Calculates the rotational matrix (Euler rotation 3-1-3 (Z-X-Z))
         between the orbital plane and the inertial reference frame.
         """
@@ -79,16 +78,18 @@ class KeplerOrbit:
              m.sin(incl) * m.cos(aop),
              m.cos(incl)]])
 
-    def calculate_mean_angular_motion(self) -> None:
+    def _calculate_mean_angular_motion(self) -> None:
         """ Calculate mean angular motion from orbital period. """
         self.mean_angular_motion = 360 / self.orbital_period  # deg/day
+        logging.debug("Mean angular motion is %s °/solar day",
+                      self.mean_angular_motion)
 
     def set_orbital_period(self, orbital_period: float) -> None:
         """ Set the value of orbital period attribute directly (from external
         source), and calculates mean angular motion.
         """
         self.orbital_period = orbital_period  # 24*60*60 seconds aka 1 solar day
-        self.calculate_mean_angular_motion()
+        self._calculate_mean_angular_motion()
 
     def calculate_orbital_period(self, mass1_kg: float, mass2_kg: float = 0.0):
         """ Calculate orbital period from keplerian elements. """
@@ -97,7 +98,7 @@ class KeplerOrbit:
             pow(self.semimajor_axis_km * 1000, 3)
             / ((mass1_kg + mass2_kg) * gravitational_constant)) / 86400
         logging.debug("Orbital period is %s", self.orbital_period)
-        self.calculate_mean_angular_motion()
+        self._calculate_mean_angular_motion()
 
     def get_current_mean_anomaly(self, j2000_years: float) -> float:
         """ Calculate mean anomaly at current time, in deg.
