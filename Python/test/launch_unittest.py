@@ -1,49 +1,85 @@
 # pylint: disable = missing-module-docstring
 import unittest
 from common.launch_OCI import RocketFlightProgram, RocketLaunch
+from cls.hardware import RocketEngineStatus, RocketAttitudeStatus
 
 
-class TestEarthAtmosphereUS1976(unittest.TestCase):
+class TestRocketFlightProgram(unittest.TestCase):
     """ Unittest functions for EarthAtmosphereUS1976 class. """
 
     @classmethod
-    def setUpClass(self):
+    def setUpClass(cls):
         """ Setting up instance for testing. """
         throttle_map = [[70, 80, 81, 150, 550], [0.8, 0.8, 1.0, 0.88, 0.88]]
-        self.rocketflightprogram = RocketFlightProgram(
+        cls.test_class = RocketFlightProgram(
                 145, 156, 514, throttle_map, 195
         )
+        cls.meco = cls.test_class.meco
+        cls.ses_1 = cls.test_class.ses_1
+        cls.seco_1 = cls.test_class.seco_1
+        # cls.pitch_start = cls.test_class.pitch_maneuver_start
+        # cls.pitch_end = cls.test_class.pitch_maneuver_end
 
     def test_get_engine_status(self):
-        pass
+        self.assertEqual(
+            self.test_class.get_engine_status(1),
+            RocketEngineStatus.STAGE_1_BURN,
+            "Shuld be STAGE_1_BURN at the first (1) second!")
+        self.assertEqual(
+            self.test_class.get_engine_status(self.test_class.meco),
+            RocketEngineStatus.STAGE_1_COAST,
+            f"Should be STAGE_1_COAST at {self.test_class.meco} s.")
+        self.assertEqual(
+            self.test_class.get_engine_status(self.test_class.ses_1 - 1),
+            RocketEngineStatus.STAGE_1_COAST,
+            f"Should be STAGE_1_COAST at {self.test_class.ses_1-1} s.")
+        self.assertEqual(
+            self.test_class.get_engine_status(self.test_class.ses_1),
+            RocketEngineStatus.STAGE_2_BURN,
+            f"Should be STAGE_2_BURN at {self.test_class.ses_1} s.")
+        self.assertEqual(
+            self.test_class.get_engine_status(self.test_class.seco_1),
+            RocketEngineStatus.STAGE_2_COAST,
+            f"Should be STAGE_2_COAST at {self.test_class.seco_1} s.")
 
     def test_get_throttle(self):
-        pass
+        self.assertAlmostEqual(self.test_class.get_throttle(1),
+                               1.0, 3,
+                               "Should be 1.0 at start!")
+        self.assertAlmostEqual(self.test_class.get_throttle(70),
+                               0.8, 3,
+                               "Should be 0.8 at 70 s!")
+        self.assertAlmostEqual(self.test_class.get_throttle(81),
+                               1.0, 3,
+                               "Should be 1.0 at 81 s!")
+        self.assertAlmostEqual(self.test_class.get_throttle(150),
+                               0.88, 3,
+                               "Should be 0.88 at 150 s!")
 
     def test_get_attitude_status(self):
-        pass
+        self.assertEqual(
+            self.test_class.get_attitude_status(1),
+            RocketAttitudeStatus.VERTICAL_FLIGHT,
+            "Shuld be VERTICAL_FLIGHT at the first (1) second!")
+        self.assertEqual(
+            self.test_class.get_attitude_status(
+                self.test_class.pitch_maneuver_start),
+            RocketAttitudeStatus.PITCH_PROGRAM,
+            f"Should be PITCH_PROGRAM at "
+            f"{self.test_class.pitch_maneuver_start} s.")
+        self.assertEqual(
+            self.test_class.get_attitude_status(
+                self.test_class.pitch_maneuver_end - 1),
+            RocketAttitudeStatus.PITCH_PROGRAM,
+            f"Should be PITCH_PROGRAM at "
+            f"{self.test_class.pitch_maneuver_end - 1} s.")
+        self.assertEqual(
+            self.test_class.get_attitude_status(
+                self.test_class.pitch_maneuver_end),
+            RocketAttitudeStatus.GRAVITY_ASSIST,
+            f"Should be GRAVITY_ASSIST at "
+            f"{self.test_class.pitch_maneuver_end} s.")
     
-
-    def test_xxx(self):
-        """ Test temperatures. """
-        self.assertAlmostEqual(self.atm.get_temperature(0), 288.15, 3,
-                               "Should be 288.15 K° at ground!")
-        self.assertAlmostEqual(self.atm.get_temperature(11000), 216.65, 3,
-                               "Should be 216.65 K° for 11000 (m) altitude!")
-        self.assertAlmostEqual(self.atm.get_temperature(20000), 216.65, 3,
-                               "Should be 216.65 K° for 20000 (m) altitude!")
-        self.assertAlmostEqual(self.atm.get_temperature(100000), 0, 3,
-                               "Should be 0 K° for 100000 (m) altitude!")
-
-    def test_pressure(self):
-        """ Test pressures. """
-        self.assertAlmostEqual(self.atm.get_pressure(0), 101.325, 3,
-                               "Should be 101.325 kPa at ground!")
-        self.assertAlmostEqual(self.atm.get_pressure(11000), 22.632, 3,
-                               "Should be 22.632 kPa for 11000 (m) altitude!")
-        self.assertAlmostEqual(self.atm.get_pressure(100_000), 0, 3,
-                               "Should be 0 kPa for 100000 (m) altitude!")
-
 
 if __name__ == '__main__':
     unittest.main()
