@@ -51,6 +51,13 @@ class RocketFlightProgram:
     Second engine start-1: meco + 11s,
     fairing jettison: 195 s (LEO) - 222 s (GTO).
 
+    Example for throttle_program - tuple(list[t], list[y]):
+    t is the list of time-points since launch, and y is the list of throttling
+    factor at the corresponding t values. Outside the given timerange, 1.0
+    (100%) is the default value. Burn duration, staging is not considered!
+    Example: 80% throttling between 34 and 45 seconds after burn. Before and
+    after no throttling (100%) => throttle_map = ([34, 45], [0.8, 0.8])
+
     :param float meco: Main engine cut-off time in T+seconds.
     :param float ses_1: Second engine start-1 in T+seconds.
     :param float seco_1: Second engine cut-off in T+seconds.
@@ -73,15 +80,6 @@ class RocketFlightProgram:
                  pitch_maneuver_end: float = 15,
                  ss_1: float = None  # Stage separation-1
                  ):
-        """
-        throttle_map - tuple(t, y): t is the list of time-points since launch,
-        and y is the list of throttling factor at the corresponding t values.
-        Outside the given timerange, 100% is the default value. Burn duration,
-        staging is not evaluated with t.
-        Example: 80% throttling between 34 and 45 seconds after burn. Before and
-        after no throttling (100%).
-            throttle_map = ([34, 45], [0.8, 0.8])
-        """
         # Staging parameters
         self.meco = meco  # s
         self.ses_1 = ses_1  # s
