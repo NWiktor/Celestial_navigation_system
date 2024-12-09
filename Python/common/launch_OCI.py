@@ -22,6 +22,7 @@ Contents
 # First import should be the logging module if any!
 import logging
 import math as m
+from datetime import datetime
 
 # Third party imports
 import numpy as np
@@ -98,7 +99,7 @@ class RocketFlightProgram:
         self.pitch_maneuver_end = pitch_maneuver_end  # s
 
         # Log data
-        self.print_program()
+        self._log_rocketflightprogram()
 
     def get_engine_status(self, t: float) -> RocketEngineStatus:
         """ Return RocketEngineStatus at a given t time since launch. """
@@ -133,7 +134,7 @@ class RocketFlightProgram:
 
         return RocketAttitudeStatus.GRAVITY_ASSIST
 
-    def print_program(self):
+    def _log_rocketflightprogram(self):
         """ Print flight program. """
         logger.info("--- FLIGHT PROFILE DATA ---")
         logger.info("MAIN ENGINE CUT OFF at T+%s (%s s)",
@@ -153,10 +154,13 @@ class RocketLaunch:
     """ RocketLaunch class, defined by name, payload mass, drag coefficient and
     diameter; and stages.
     """
+    # TODO: fairing mass should be in hardware specs as well as diameter and drag coef
+
     def __init__(self, name: str, payload_mass: float, fairing_mass: float,
                  coefficient_of_drag: float, diameter: float,
                  stages: list[Stage], flightprogram: RocketFlightProgram,
                  target_orbit: CircularOrbit, launchsite: LaunchSite,
+                 earliest_launch_date: float = None,
                  flight_angle_corr: float = 0.87):
         self.name = name
         self.stage_status = RocketEngineStatus.STAGE_0
@@ -167,6 +171,13 @@ class RocketLaunch:
         self.launch_azimuth: list[float | None] = [None, None]
         self.flight_angle_corr = flight_angle_corr
         self._density_at_surface: float = 0.0  # Automatically set
+        self.earliest_launch_date = earliest_launch_date
+
+        if earliest_launch_date is None:
+            pass
+            # FIXME: self.earliest_launch_date = time.now()
+        else:
+            self.earliest_launch_date = earliest_launch_date
 
         # Check if orbit is reachable
         self.check_radius()
@@ -174,7 +185,7 @@ class RocketLaunch:
             self.target_orbit.radius_km * 1000)
         self.check_inclination()
         self.get_launch_azimuth()  # Calculate lauch azimuth
-        self.get_launch_time()  # Time of launch to get desired LoAN
+        self.get_launch_date()  # Time of launch to get desired LoAN
 
         # Launchsite vectors
         self.r_launch = None
@@ -315,7 +326,7 @@ class RocketLaunch:
         logger.info(f"Target velocity for orbit: {target_velocity:.3f} m/s")
         return target_velocity
 
-    def get_launch_time(self):
+    def get_launch_date(self):
         """ xxx """
         # TODO: implement
         pass
@@ -361,7 +372,7 @@ class RocketLaunch:
         self.launch_plane_unit = unit_vector(launch_plane_normal)
 
     # pylint: disable = too-many-locals
-    def launch_ode(self, time, state, dt):
+    def launch_ode(self, time: float, state, dt: float):
         """ 2nd order ODE of the state-vectors, during launch.
 
         The function returns the second derivative of position vector at a given
@@ -473,7 +484,7 @@ class RocketLaunch:
                  )
         return np.concatenate((v, a, [m_dot]))  # vx, vy, vz, ax, ay, az, m_dot
 
-    def launch(self, simulation_end_time: int = 16000, timestep: int = 1):
+    def launch(self, total_steps: int = 16000, increment: int = 1):
         """ Yield rocket's status variables during launch, every second. """
 
         # Update state vector with initial conditions, and calculate
@@ -484,10 +495,10 @@ class RocketLaunch:
         yield 0, self.state, np.array([0.0, 0.0, 0.0])  # time, state, acc.
 
         logger.info("--- FLIGHT CALCULATION START ---")
-        time = 0  # Current step
-        while time <= simulation_end_time:
+        time_step = 0  # Current step
+        while time_step <= total_steps:
             # Calculate stage status according to time
-            self.stage_status = self.flightprogram.get_engine_status(time)
+            self.stage_status = self.flightprogram.get_engine_status(time_step)
 
             # Calculate state-vector, acceleration and delta_m
             # NOTE: The ODE is solved for the acceleration vector and m_dot,
@@ -497,28 +508,29 @@ class RocketLaunch:
             #  to the RK4, we can numerically integrate twice with one
             #  function-call, thus we get back the full state-vector.
             self.state, state_dot = runge_kutta_4(
-                self.launch_ode, time, self.state, timestep, timestep
+                self.launch_ode, time_step, self.state, increment, increment
             )
             acceleration = state_dot[3:6]
 
             # Set mass for rocket: burn mass, and evaluate staging events
             # Burn mass from stage
             if self.stage_status == RocketEngineStatus.STAGE_1_BURN:
-                self.stages[0].burn_mass(state_dot[6], time)
+                self.stages[0].burn_mass(state_dot[6], time_step)
             if self.stage_status == RocketEngineStatus.STAGE_2_BURN:
-                self.stages[1].burn_mass(state_dot[6], time)
+                self.stages[1].burn_mass(state_dot[6], time_step)
 
             # Evaluate staging events, and refresh state-vector to remove
             # excess mass.
-            if time == self.flightprogram.fairing_jettison:
+            if time_step == self.flightprogram.fairing_jettison:
                 self.fairing_mass = 0
                 self.state[6] = self.get_total_mass()
-            if time == self.flightprogram.ss_1:
+            if time_step == self.flightprogram.ss_1:
                 self.stages[0].onboard = False
                 self.state[6] = self.get_total_mass()
 
             # Log new data and end-conditions
-            # TODO: implement checks for mass, target velocity, etc.
+            # TODO: implement checks for target height, arget velocity, and
+            #  flight angle. Implement report for deviations to refine params
             r_current = np.linalg.norm(self.state[0:3])
             v_current = np.linalg.norm(self.state[3:6])
             altitude_above_surface = (r_current - self.launchsite.radius)
@@ -533,25 +545,56 @@ class RocketLaunch:
             limit_v = self.target_velocity * 0.01
 
             if abs(delta_r) <= limit_r and abs(delta_v) <= limit_v:
-                logger.info(f"Target orbit reached at {time} s:"
+                logger.info(f"Target orbit reached at {time_step} s:"
                             f"{altitude_above_surface:.3f} m, "
                             f"{v_current:.3f} m/s")
                 break
 
             delta_v2 = self.get_target_velocity(r_current) - v_current
             if delta_r <= 0 and abs(delta_v2) <= limit_v:
-                logger.info(f"Stable orbit reached at {time} s: "
+                logger.info(f"Stable orbit reached at {time_step} s: "
                             f"{altitude_above_surface:.3f} m, "
                             f"{v_current:.3f} m/s")
                 break
 
             # Yield values
-            time += timestep
-            yield time, self.state, acceleration
+            time_step += increment
+            yield time_step, self.state, acceleration
+
+
+class RocketLanding:
+
+    def __init__(self):
+        # TODO: use the same with launch but in reverse order
+        pass
+
+
+# TODO: implement this
+class LaunchTrajectory3D:
+    """ xxx """
+
+    def __init__(self, name: str, rocketlaunch: RocketLaunch,
+                 no_earlier_date: datetime):
+        self.name = name
+        self.rocketlaunch = rocketlaunch
+        self.no_earlier_date = no_earlier_date
+
+    def get_position(self, time):
+        """  """
+        # return postion at given time, just like the orbit functions
+
+        # if no stable orbit: return launch func
+
+        # if stable orbit, create orbit and return values from there - to skip iteration
+
+        return
 
 
 # Main function for module testing
 # pylint: disable = too-many-statements
+# TODO: keep plotting but delete sphere, add new plot for flight angle variation
+#  add option for continous plotting?
+# TODO: use 3d visualization with ursina
 def plot(rocketlaunch: RocketLaunch):
     """ Plots the given RocketLaunch parameters. """
     global launch_plane_normal
