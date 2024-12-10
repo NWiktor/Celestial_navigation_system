@@ -69,6 +69,7 @@ class RocketFlightProgram:
     :param float pitch_maneuver_end: Time of pitch manuever end in T+seconds.
     :param float ss_1: Time of stage separation in T+seconds
         (default: meco+3 s).
+    :param bool manned: The flight includes humans or not (limits acceleration)
     """
     # pylint: disable = too-many-arguments
     def __init__(self,
@@ -79,7 +80,8 @@ class RocketFlightProgram:
                  fairing_jettison: float,
                  pitch_maneuver_start: float = 5,
                  pitch_maneuver_end: float = 15,
-                 ss_1: float = None  # Stage separation-1
+                 ss_1: float = None,  # Stage separation-1
+                 manned: bool = False
                  ):
         # Staging parameters
         self.meco = meco  # s
@@ -87,6 +89,7 @@ class RocketFlightProgram:
         self.seco_1 = seco_1  # s
         self.throttle_program = throttle_program  # second - % mapping
         self.fairing_jettison = fairing_jettison  # s
+        self.manned = manned
 
         # Stage separation
         if ss_1 is None:
@@ -283,6 +286,10 @@ class RocketLaunch:
         # TODO: implement
         pass
 
+    # TODO: implement
+    def _check_end_condition(self):
+        pass
+
     def _set_inital_params(self):
         """  """
         global launch_plane_normal
@@ -291,6 +298,9 @@ class RocketLaunch:
             self.launchsite.radius,
             self.launchsite.latitude * m.pi / 180,
             self.launchsite.longitude * m.pi / 180
+        )
+        self.v_init = np.cross(
+            np.array([0, 0, self.launchsite.angular_velocity]), self.r_launch
         )
 
         # TODO: check this in alfonso's program, how to account for j2000 frame
@@ -361,11 +371,11 @@ class RocketLaunch:
         thrust = thrust_force / mass
 
         # Orbital parameters
-        # NOTE: angular velocity is a one-time addition, only the initial value
-        #  must be substracted, and not the running value! However v_rel is
-        #  dynamic value, because of 'v' is derived from the state vector.
-        v_rel = v - np.cross(
-            np.array([0, 0, self.launchsite.angular_velocity]), self.r_launch)
+        # NOTE: angular velocity bc. of the planet rotation is a one-time
+        #  addition, only the initial value (v_init) must be substracted, and
+        #  not the running value! However v_rel is dynamic value, because of
+        #  'v' is derived from the state vector.
+        v_rel = v - self.v_init
         # NOTE: flight angle represents the angle between the local zenith, and
         #  the rocket relative velocity vector. It should start from 0°
         #  (vertical flight) to 90° as the rocket reaches orbit.
@@ -400,31 +410,6 @@ class RocketLaunch:
                 self.launch_plane_unit,
                 flight_angle * m.pi / 180)
             a_thrust = thrust * unit_vector(v_pitch)
-
-        # Print flight data
-        # NOTE: Deviation should increase with time, as the rocket is affected
-        #  by the planet rotation
-        deviation = angle_of_vectors(unit_vector(r), self.launch_plane_unit)-90
-        # NOTE: the current orbital plane is determined by the current pos. and
-        #  velocity vectors. It is changing because of the planet rotation.
-        orbital_plane_current = np.cross(unit_vector(r), unit_vector(v))
-        # NOTE: current inclination is changing as the current orbital plane
-        #  changes. It should reach the target value at the same time as orbital
-        #  radius and velocity.
-        inclination_current = angle_of_vectors(
-            unit_vector(orbital_plane_current),
-            np.array([0, 0, 1])
-        )
-        thrust_deviation = angle_of_vectors(a_thrust, launch_plane_normal)
-        logger.debug(
-            f"Deviation from orbital plane: {deviation:.3f}° ({time} s)")
-        logger.debug(
-            f"Current inclination: {inclination_current:.3f}° ({time} s)")
-        logger.debug(
-            f"Flight angle: {flight_angle:.3f}° ({time} s)")
-        logger.debug(
-            f"Angle between thrust and launch plane: "
-            f"{thrust_deviation:.3f}° ({time} s)")
 
         # Calculate acceleration (v_dot) and m_dot
         a = a_gravity + a_thrust + a_drag  # 2nd order ODE function (acc.)
@@ -465,7 +450,40 @@ class RocketLaunch:
             )
             acceleration = state_dot[3:6]
 
-            # Set mass for rocket: burn mass, and evaluate staging events
+            # Post-processing
+            # NOTE: angular velocity bc. of the planet rotation is a one-time
+            #  addition, only the initial value (v_init) must be substracted,
+            #  and not the running value! However v_rel is dynamic value,
+            #  because of 'v' is derived from the state vector.
+            v_rel = self.state[3:6] - self.v_init
+            # NOTE: flight angle represents the angle between the local zenith,
+            #  and the rocket relative velocity vector. It should start from 0°
+            #  (vertical flight) to 90° as the rocket reaches orbit.
+            flight_angle = angle_of_vectors(
+                unit_vector(self.state[0:3]), unit_vector(v_rel))
+            # NOTE: the current orbital plane is determined by the current pos.
+            #  and velocity vectors. It is changing bc. of the planet rotation.
+            orbital_plane_current = np.cross(
+                unit_vector(self.state[0:3]), unit_vector(self.state[3:6])
+            )
+            # NOTE: current inclination is changing as the current orbital plane
+            #  changes. It should reach the target value at the same time as
+            #  orbital radius and velocity.
+            inclination_current = angle_of_vectors(
+                unit_vector(orbital_plane_current),
+                np.array([0, 0, 1])
+            )
+            acc_deviation = angle_of_vectors(
+                state_dot[3:6], launch_plane_normal
+            )
+
+            # Logging variables
+            logger.debug(f"--- TIMESTEP: T+{time_step} s ---")
+            logger.debug(f"Current inclination: {inclination_current:.3f}°")
+            logger.debug(f"Flight angle: {flight_angle:.3f}°")
+            logger.debug(
+                f"Angle between thrust and launch plane: {acc_deviation:.3f}°")
+
             # Burn mass from stage
             # TODO: remove ifs
             stage_status = self.rocket.get_stage_status()
@@ -474,7 +492,7 @@ class RocketLaunch:
             if stage_status == RocketEngineStatus.STAGE_2_BURN:
                 self.rocket.stages[1].burn_mass(state_dot[6], time_step)
 
-            # Evaluate staging events, and update statevector to with new mass
+            # Evaluate staging events, and update statevector with new mass
             if time_step == self.flightprogram.fairing_jettison:
                 self.state[6] = self.rocket.fairing_jettison_event()
             if time_step == self.flightprogram.ss_1:
