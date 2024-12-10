@@ -151,6 +151,20 @@ class Rocket:
         self.drag_constant = coefficient_of_drag * (
                 m.pi * pow(diameter_m, 2) / 4)
 
+    def staging_event_1(self) -> float:
+        """ Sets first stage 'onboard' attribute to False, and returns the
+        recalculated total mass of the rocket.
+        """
+        self.stages[0].onboard = False
+        return self.get_total_mass_kg()
+
+    def fairing_jettison_event(self) -> float:
+        """ Sets 'fairing_mass_kg' attribute to 0.0, and returns the
+        recalculated total mass of the rocket.
+        """
+        self.fairing_mass_kg = 0.0
+        return self.get_total_mass_kg()
+
     def set_stage_status(self, status: RocketEngineStatus):
         self._stage_status = status
 
@@ -160,6 +174,7 @@ class Rocket:
     def set_payload_mass_kg(self, mass_kg: float):
         """ Sets payload mass (kg). """
         self._payload_mass_kg = mass_kg
+        self.total_mass = self.get_total_mass_kg()
 
     def get_payload_mass(self) -> float:
         """ Gets payload mass (kg). """
