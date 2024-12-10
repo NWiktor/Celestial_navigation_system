@@ -31,7 +31,7 @@ import matplotlib.pyplot as plt
 # Local application imports
 from utils import (secs_to_mins, convert_spherical_to_cartesian_coords,
                    runge_kutta_4, unit_vector, rodrigues_rotation,
-                   angle_of_vectors)
+                   angle_of_vectors, cross)
 from cls import (LaunchSite, CircularOrbit, Rocket, RocketAttitudeStatus,
                  RocketEngineStatus, FALCON9)
 from database import CAPE_TEST, CAPE_CANEVERAL
@@ -299,7 +299,7 @@ class RocketLaunch:
             self.launchsite.latitude * m.pi / 180,
             self.launchsite.longitude * m.pi / 180
         )
-        self.v_init = np.cross(
+        self.v_init = cross(
             np.array([0, 0, self.launchsite.angular_velocity]), self.r_launch
         )
 
@@ -308,7 +308,7 @@ class RocketLaunch:
             [0, 0, self.launchsite.angular_velocity])  # rad/s
         self.state = np.concatenate(
             (self.r_launch,
-             np.cross(omega_planet, self.r_launch),
+             cross(omega_planet, self.r_launch),
              [self.rocket.total_mass])
         )
 
@@ -321,7 +321,7 @@ class RocketLaunch:
             ((self.launchsite.longitude + 90) % 360) * m.pi / 180
         )
         self.local_east = unit_vector(east_launch)
-        self.local_north = unit_vector(np.cross(self.r_launch, east_launch))
+        self.local_north = unit_vector(cross(self.r_launch, east_launch))
         local_zenith = unit_vector(self.r_launch)
 
         # NOTE: launch plane vector is static, it represents the initial plane,
@@ -463,7 +463,7 @@ class RocketLaunch:
                 unit_vector(self.state[0:3]), unit_vector(v_rel))
             # NOTE: the current orbital plane is determined by the current pos.
             #  and velocity vectors. It is changing bc. of the planet rotation.
-            orbital_plane_current = np.cross(
+            orbital_plane_current = cross(
                 unit_vector(self.state[0:3]), unit_vector(self.state[3:6])
             )
             # NOTE: current inclination is changing as the current orbital plane

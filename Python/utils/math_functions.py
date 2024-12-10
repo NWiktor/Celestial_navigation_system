@@ -29,6 +29,13 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 
+def cross(vec_a: np.array, vec_b: np.array) -> np.array:
+    """ Overload function for 'np.cross' because Numpy bug:
+     https://github.com/microsoft/pylance-release/issues/3277#issuecomment-1237782014
+     """
+    return np.cross(vec_a, vec_b)
+
+
 def unit_vector(vector: np.array) -> np.array:
     """ Returns the unit vector of the given vector. Length of vector must
     be non-zero."""
@@ -118,7 +125,7 @@ def rodrigues_rotation(vector_v: np.array, vector_k: np.array,
 
     """
     v_rot = ((vector_v * m.cos(theta_rad))
-             + (np.cross(vector_k, vector_v) * m.sin(theta_rad))
+             + (cross(vector_k, vector_v) * m.sin(theta_rad))
              + (vector_k * np.dot(vector_k, vector_v) * (1 - m.cos(theta_rad))))
     return v_rot
 
