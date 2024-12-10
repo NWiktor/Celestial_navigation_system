@@ -182,11 +182,11 @@ class RocketLaunch:
 
         # Check if orbit is reachable
         self._check_radius()
-        self.target_velocity = self.get_target_velocity(
+        self.target_velocity = self._get_target_velocity(
             self.target_orbit.radius_km * 1000)
         self._check_inclination()
         self._get_launch_azimuth()  # Calculate lauch azimuth
-        self.get_launch_date()  # Time of launch to get desired LoAN
+        self._get_launch_date()  # Time of launch to get desired LoAN
 
         # Launchsite vectors
         self.r_launch = None
@@ -273,7 +273,7 @@ class RocketLaunch:
             self.launch_azimuth[0] = launch_azimuth1
             self.launch_azimuth[1] = launch_azimuth2
 
-    def get_target_velocity(self, radius_m):
+    def _get_target_velocity(self, radius_m):
         """ Calculates orbital velocity for the given radius (m). """
         target_velocity = m.sqrt(
                 self.launchsite.std_gravitational_parameter / radius_m
@@ -281,7 +281,7 @@ class RocketLaunch:
         logger.info(f"Target velocity for orbit: {target_velocity:.3f} m/s")
         return target_velocity
 
-    def get_launch_date(self):
+    def _get_launch_date(self):
         """ xxx """
         # TODO: implement
         pass
@@ -334,7 +334,7 @@ class RocketLaunch:
         self.launch_plane_unit = unit_vector(launch_plane_normal)
 
     # pylint: disable = too-many-locals
-    def launch_ode(self, time: float, state, dt: float):
+    def _launch_ode(self, time: float, state, dt: float):
         """ 2nd order ODE of the state-vectors, during launch.
 
         The function returns the second derivative of position vector at a given
@@ -446,7 +446,7 @@ class RocketLaunch:
             #  to the RK4, we can numerically integrate twice with one
             #  function-call, thus we get back the full state-vector.
             self.state, state_dot = runge_kutta_4(
-                self.launch_ode, time_step, self.state, increment, increment
+                self._launch_ode, time_step, self.state, increment, increment
             )
             acceleration = state_dot[3:6]
 
@@ -520,7 +520,7 @@ class RocketLaunch:
                             f"{v_current:.3f} m/s")
                 break
 
-            delta_v2 = self.get_target_velocity(r_current) - v_current
+            delta_v2 = self._get_target_velocity(r_current) - v_current
             if delta_r <= 0 and abs(delta_v2) <= limit_v:
                 logger.info(f"Stable orbit reached at {time_step} s: "
                             f"{altitude_above_surface:.3f} m, "
