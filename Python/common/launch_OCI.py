@@ -32,8 +32,8 @@ import matplotlib.pyplot as plt
 from utils import (secs_to_mins, convert_spherical_to_cartesian_coords,
                    runge_kutta_4, unit_vector, rodrigues_rotation,
                    angle_of_vectors)
-from cls import (LaunchSite, CircularOrbit, Stage, RocketAttitudeStatus,
-                 RocketEngineStatus, FALCON9_1ST, FALCON9_2ND)
+from cls import (LaunchSite, CircularOrbit, Rocket, RocketAttitudeStatus,
+                 RocketEngineStatus, FALCON9)
 from database import CAPE_TEST, CAPE_CANEVERAL
 
 logger = logging.getLogger(__name__)
@@ -154,17 +154,15 @@ class RocketLaunch:
     """ RocketLaunch class, defined by name, payload mass, drag coefficient and
     diameter; and stages.
     """
-    # TODO: fairing mass should be in hardware specs as well as diameter and drag coef
 
-    def __init__(self, name: str, payload_mass: float, fairing_mass: float,
-                 coefficient_of_drag: float, diameter: float,
-                 stages: list[Stage], flightprogram: RocketFlightProgram,
+    def __init__(self, name: str, rocket: Rocket, payload_mass: float,
+                 flightprogram: RocketFlightProgram,
                  target_orbit: CircularOrbit, launchsite: LaunchSite,
                  earliest_launch_date: float = None,
                  flight_angle_corr: float = 0.87):
         self.name = name
-        self.stage_status = RocketEngineStatus.STAGE_0
-        self.stages = stages
+        self.rocket = rocket
+        self.rocket.set_payload_mass_kg(payload_mass)  # Call to set payload!
         self.flightprogram = flightprogram
         self.target_orbit = target_orbit
         self.launchsite = launchsite
@@ -180,11 +178,11 @@ class RocketLaunch:
             self.earliest_launch_date = earliest_launch_date
 
         # Check if orbit is reachable
-        self.check_radius()
+        self._check_radius()
         self.target_velocity = self.get_target_velocity(
             self.target_orbit.radius_km * 1000)
-        self.check_inclination()
-        self.get_launch_azimuth()  # Calculate lauch azimuth
+        self._check_inclination()
+        self._get_launch_azimuth()  # Calculate lauch azimuth
         self.get_launch_date()  # Time of launch to get desired LoAN
 
         # Launchsite vectors
@@ -193,69 +191,23 @@ class RocketLaunch:
         self.local_east = None
         self.launch_plane_unit = None
 
-        # Physical properties
-        # Drag coefficient (-) times cross-sectional area of rocket (m2)
-        self.drag_constant = coefficient_of_drag * (m.pi * pow(diameter, 2) / 4)
-
         # State variables / dynamic vectors and mass (m, m/s and kg)
         self.state = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
-        # Mass properties
-        self.payload_mass = payload_mass  # kg
-        self.fairing_mass = fairing_mass  # kg
-        self.total_mass = self.get_total_mass()  # kg
-
-    def get_total_mass(self) -> float:
-        """ Calculates the actual total mass of the rocket, when called. """
-        return self.get_stage_mass() + self.fairing_mass + self.payload_mass
-
-    def get_stage_mass(self) -> float:
-        """ Sums the mass of each rocket stage, depending on actual staging. """
-        mass = 0
-        for stage in self.stages:
-            if stage.onboard:
-                mass += stage.get_mass()
-        return mass
-
-    def get_thrust(self) -> float:
-        """ Calculates actual thrust (force) of the rocket, depending on actual
-        staging.
-        """
-        if self.stage_status == RocketEngineStatus.STAGE_1_BURN:
-            return self.stages[0].get_thrust()
-
-        if self.stage_status == RocketEngineStatus.STAGE_2_BURN:
-            return self.stages[1].get_thrust()
-
-        return 0
-
-    def get_isp(self, pressure_ratio: float) -> float:
-        """ Calculates actual specific impulse of the rocket, depending on
-        actual staging.
-        """
-        if self.stage_status == RocketEngineStatus.STAGE_1_BURN:
-            return self.stages[0].get_specific_impulse(pressure_ratio)
-
-        if self.stage_status == RocketEngineStatus.STAGE_2_BURN:
-            return self.stages[1].get_specific_impulse(pressure_ratio)
-
-        # NOTE: when engine is not generating thrust, isp is not valid, but 1
-        #  is returned to avoid ZeroDivisionError and NaN values
-        return 1
-
-    def check_radius(self):
+    def _check_radius(self):
         """ Check if specified target orbit radius is valid: greater than the
         planet surface.
         """
         if (self.target_orbit.radius_km * 1000 <=
                 self.launchsite.planet.surface_radius_m):
-            logger.error(f"ERROR: orbit radius ({self.target_orbit.radius_km:.3f}"
-                         f" km) is smaller than surface radius!")
+            logger.error(f"ERROR: orbit radius"
+                         f"({self.target_orbit.radius_km:.3f} km) is smaller "
+                         f"than surface radius!")
             raise ValueError
 
         logger.info(f"Orbit radius: {self.target_orbit.radius_km:.3f} km")
 
-    def check_inclination(self):
+    def _check_inclination(self):
         """ Check if specified target orbit inclination is valid: greater than
         the launch-site latitude.
         """
@@ -268,7 +220,7 @@ class RocketLaunch:
         logger.info(f"Inclination: {self.target_orbit.inclination_deg:.3f}°")
 
     # TODO: test baikonour and korou azimuth limit (349 to 90)
-    def get_launch_azimuth(self):
+    def _get_launch_azimuth(self):
         """ Check if target orbit is feasible.
 
         A handy formula to remember is: cos(i) = cos(φ) * sin(β), where i is
@@ -331,7 +283,7 @@ class RocketLaunch:
         # TODO: implement
         pass
 
-    def set_inital_params(self):
+    def _set_inital_params(self):
         """  """
         global launch_plane_normal
         # Update state vector with initial conditions
@@ -347,7 +299,7 @@ class RocketLaunch:
         self.state = np.concatenate(
             (self.r_launch,
              np.cross(omega_planet, self.r_launch),
-             [self.total_mass])
+             [self.rocket.total_mass])
         )
 
         self._density_at_surface = self.launchsite.get_density(0.0)
@@ -395,7 +347,7 @@ class RocketLaunch:
         v_relative = self.launchsite.get_relative_velocity(state)
         air_density = self.launchsite.get_density(
             np.linalg.norm(r) - self.launchsite.radius)
-        drag_const = self.drag_constant * air_density / 2
+        drag_const = self.rocket.drag_constant * air_density / 2
 
         # Calculate acceleration
         # Calculate drag and gravity
@@ -404,7 +356,8 @@ class RocketLaunch:
                      / np.linalg.norm(r) ** 3)
 
         # Calculate thrust
-        thrust_force = self.get_thrust() * self.flightprogram.get_throttle(time)
+        thrust_force = (self.rocket.get_thrust()
+                        * self.flightprogram.get_throttle(time))
         thrust = thrust_force / mass
 
         # Orbital parameters
@@ -477,7 +430,7 @@ class RocketLaunch:
         pressure_ratio = air_density / self._density_at_surface
         a = a_gravity + a_thrust + a_drag  # 2nd order ODE function (acc.)
         m_dot = (- thrust_force
-                 / (self.get_isp(pressure_ratio)
+                 / (self.rocket.get_isp(pressure_ratio)
                     * self.launchsite.planet.surface_gravity_m_per_s2 * dt
                     * self.flightprogram.get_throttle(time)  # throttle corr.
                     )
@@ -489,7 +442,7 @@ class RocketLaunch:
 
         # Update state vector with initial conditions, and calculate
         # orientation vectors at launchsite
-        self.set_inital_params()
+        self._set_inital_params()
 
         # Yield initial values
         yield 0, self.state, np.array([0.0, 0.0, 0.0])  # time, state, acc.
@@ -498,7 +451,9 @@ class RocketLaunch:
         time_step = 0  # Current step
         while time_step <= total_steps:
             # Calculate stage status according to time
-            self.stage_status = self.flightprogram.get_engine_status(time_step)
+            # self.stage_status = self.flightprogram.get_engine_status(time_step)
+            self.rocket.set_stage_status(
+                self.flightprogram.get_engine_status(time_step))
 
             # Calculate state-vector, acceleration and delta_m
             # NOTE: The ODE is solved for the acceleration vector and m_dot,
@@ -514,19 +469,18 @@ class RocketLaunch:
 
             # Set mass for rocket: burn mass, and evaluate staging events
             # Burn mass from stage
-            if self.stage_status == RocketEngineStatus.STAGE_1_BURN:
-                self.stages[0].burn_mass(state_dot[6], time_step)
-            if self.stage_status == RocketEngineStatus.STAGE_2_BURN:
-                self.stages[1].burn_mass(state_dot[6], time_step)
+            # TODO: remove ifs
+            stage_status = self.rocket.get_stage_status()
+            if stage_status == RocketEngineStatus.STAGE_1_BURN:
+                self.rocket.stages[0].burn_mass(state_dot[6], time_step)
+            if stage_status == RocketEngineStatus.STAGE_2_BURN:
+                self.rocket.stages[1].burn_mass(state_dot[6], time_step)
 
-            # Evaluate staging events, and refresh state-vector to remove
-            # excess mass.
+            # Evaluate staging events, and update statevector to with new mass
             if time_step == self.flightprogram.fairing_jettison:
-                self.fairing_mass = 0
-                self.state[6] = self.get_total_mass()
+                self.state[6] = self.rocket.fairing_jettison_event()
             if time_step == self.flightprogram.ss_1:
-                self.stages[0].onboard = False
-                self.state[6] = self.get_total_mass()
+                self.state[6] = self.rocket.staging_event_1()
 
             # Log new data and end-conditions
             # TODO: implement checks for target height, arget velocity, and
@@ -720,12 +674,10 @@ def main():
                                 -45,
                                 90,
                                 0)
-    mission_414_falcon9 = RocketLaunch("Falcon 9", 15000,
-                                       1900,
-                                       0.25,
-                                       5.2,
-                                       [FALCON9_1ST, FALCON9_2ND],
-                                       flight_program, targetorbit,
+    mission_414_falcon9 = RocketLaunch("Mission 414",
+                                       FALCON9, 15000,
+                                       flight_program,
+                                       targetorbit,
                                        CAPE_TEST)
 
     # Plot launch
