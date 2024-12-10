@@ -83,6 +83,7 @@ class Stage:
         """
         if self._propellant_mass_kg > 0:
             return self.stage_thrust_N  # N aka kg/m/s
+        logger.warning("Fuel tanks empty!")
         return 0.0
 
     def get_mass(self) -> float:
