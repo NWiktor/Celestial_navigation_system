@@ -286,9 +286,49 @@ class RocketLaunch:
         # TODO: implement
         pass
 
-    # TODO: implement
-    def _check_end_condition(self):
-        pass
+    def _check_end_condition_crash(self) -> bool:
+        """ Calculates altitude from planet surface, if it's negative, crash
+        has been occured. """
+        altitude = (np.linalg.norm(self.state[0:3]) - self.launchsite.radius)
+        if altitude <= 0:
+            logger.warning("WARNING! LITHOBRAKING!")
+            return True
+
+        return False
+
+    def _check_end_condition_orbit(self, time_step: int) -> bool:
+        """ Calculates if the vehicle speed, altitude and flight angle match
+        with the target orbit.
+        """
+        r_current = np.linalg.norm(self.state[0:3])
+        v_current = np.linalg.norm(self.state[3:6])
+        altitude_m = (r_current - self.launchsite.radius)
+
+        v_rel = self.state[3:6] - self.v_init
+        flight_angle = angle_of_vectors(
+            unit_vector(self.state[0:3]),
+            unit_vector(v_rel)
+        )
+
+        delta_r = self.target_orbit.radius_km - r_current
+        delta_v = self.target_velocity - v_current
+        limit_r = self.target_orbit.radius_km * 0.01
+        limit_v = self.target_velocity * 0.01
+        limit_beta = 90 * 0.01
+
+        if abs(delta_r) <= limit_r and abs(delta_v) <= limit_v:
+            logger.info(f"Target orbit reached at T+{time_step} s:"
+                        f"{altitude_m:.3f} m, "
+                        f"{v_current:.3f} m/s")
+            return True
+
+        delta_v2 = self._get_target_velocity(r_current) - v_current
+        if delta_r <= 0 and abs(delta_v2) <= limit_v:
+            logger.info(f"Stable orbit reached at T+{time_step} s: "
+                        f"{altitude_m:.3f} m, "
+                        f"{v_current:.3f} m/s")
+            return True
+        return False
 
     def _set_inital_params(self):
         """  """
@@ -382,7 +422,8 @@ class RocketLaunch:
         flight_angle = angle_of_vectors(unit_vector(r), unit_vector(v_rel))
 
         # Vertical flight until tower is cleared in non-inertial frame
-        if time < self.flightprogram.pitch_maneuver_start:
+        if (self.flightprogram.get_attitude_status(time) ==
+                RocketAttitudeStatus.VERTICAL_FLIGHT):
             # NOTE: should use dynamic 'r_tower' vector, because launch site is
             #  rotating in the inertial frame with the central body; however
             #  this is very hard to compensate later with hand-made
@@ -391,8 +432,8 @@ class RocketLaunch:
             a_thrust = thrust * unit_vector(self.r_launch)
 
         # Initial pitch-over maneuver -> Slight offset of thrust from velocity
-        elif (self.flightprogram.pitch_maneuver_start <= time
-              < self.flightprogram.pitch_maneuver_end):
+        elif (self.flightprogram.get_attitude_status(time) ==
+                RocketAttitudeStatus.PITCH_PROGRAM):
             # NOTE: incrementally rotating the relative velocity vector in the
             #  orbital plane, to imitate pitch manuever and start gravity assist
             # TODO: find universally applicable parameters, or implement checks
@@ -428,8 +469,8 @@ class RocketLaunch:
         # orientation vectors at launchsite
         self._set_inital_params()
 
-        # Yield initial values
-        yield 0, self.state, np.array([0.0, 0.0, 0.0])  # time, state, acc.
+        # Yield initial values - time, state, acc., alt., flight angle
+        yield 0, self.state, np.array([0.0, 0.0, 0.0]), 0, 90
 
         logger.info("--- FLIGHT CALCULATION START ---")
         time_step = 0  # Current step
@@ -502,34 +543,19 @@ class RocketLaunch:
             # TODO: implement checks for target height, arget velocity, and
             #  flight angle. Implement report for deviations to refine params
             r_current = np.linalg.norm(self.state[0:3])
-            v_current = np.linalg.norm(self.state[3:6])
+            # v_current = np.linalg.norm(self.state[3:6])
             altitude_above_surface = (r_current - self.launchsite.radius)
 
-            if altitude_above_surface <= 0:
-                logger.warning("WARNING! LITHOBRAKING!")
+            if self._check_end_condition_crash():
                 break
 
-            delta_r = self.target_orbit.radius_km - r_current
-            delta_v = self.target_velocity - v_current
-            limit_r = self.target_orbit.radius_km * 0.01
-            limit_v = self.target_velocity * 0.01
-
-            if abs(delta_r) <= limit_r and abs(delta_v) <= limit_v:
-                logger.info(f"Target orbit reached at {time_step} s:"
-                            f"{altitude_above_surface:.3f} m, "
-                            f"{v_current:.3f} m/s")
-                break
-
-            delta_v2 = self._get_target_velocity(r_current) - v_current
-            if delta_r <= 0 and abs(delta_v2) <= limit_v:
-                logger.info(f"Stable orbit reached at {time_step} s: "
-                            f"{altitude_above_surface:.3f} m, "
-                            f"{v_current:.3f} m/s")
+            if self._check_end_condition_orbit(time_step):
                 break
 
             # Yield values
             time_step += increment
-            yield time_step, self.state, acceleration
+            yield (time_step, self.state, acceleration,
+                   altitude_above_surface, flight_angle)
 
 
 class RocketLanding:
@@ -584,7 +610,7 @@ def plot(rocketlaunch: RocketLaunch):
     plot_title = (f"{rocketlaunch.name} launch from"
                   f" {rocketlaunch.launchsite.name}")
 
-    for time, state, acc, in rocketlaunch.launch(500, 1):
+    for time, state, acc, _, _ in rocketlaunch.launch(500, 1):
         time_data.append(time)
         rx.append(state[0])
         ry.append(state[1])
