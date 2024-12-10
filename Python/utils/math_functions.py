@@ -30,11 +30,12 @@ logger = logging.getLogger(__name__)
 
 
 def unit_vector(vector: np.array) -> np.array:
-    """ Returns the unit vector of the given vector. """
+    """ Returns the unit vector of the given vector. Length of vector must
+    be non-zero."""
     return vector / np.linalg.norm(vector)
 
 
-def angle_of_vectors(vector_a, vector_b) -> float:
+def angle_of_vectors(vector_a: np.array, vector_b: np.array) -> float:
     """ Returns the angle (deg) between two unit vectors. """
     return m.acos(np.dot(vector_a, vector_b)
                   / np.linalg.norm(vector_a)
@@ -74,8 +75,8 @@ def runge_kutta_4(func, t0: float, y0, h: float, *args):
     return y0 + h / 6.0 * (k1 + 2 * k2 + 2 * k3 + k4), k4
 
 
-def convert_spherical_to_cartesian_coords(radius: float, theta: float,
-                                          phi: float):
+def convert_spherical_to_cartesian_coords(
+        radius: float, theta: float, phi: float) -> np.array:
     """
     Convert spherical coordinates to cartesian coordinates.
     theta - latitude, rad (-90° to +90°)
@@ -89,14 +90,15 @@ def convert_spherical_to_cartesian_coords(radius: float, theta: float,
     return np.array([x, y, z])
 
 
-def rotation_z(angle: float):
+def rotation_z(angle: float) -> np.array:
     """ Principal Z axis active rotation matrix by an angle (rad). """
     return np.array([[m.cos(angle), -m.sin(angle), 0],
                      [m.sin(angle), m.cos(angle), 0],
                      [0, 0, 1]])
 
 
-def rodrigues_rotation(vector_v, vector_k, theta_rad):
+def rodrigues_rotation(vector_v: np.array, vector_k: np.array,
+                       theta_rad: float) -> np.array:
     # ReST syntax generates 'invalid-escape-sequence' warning
     # pylint: disable = anomalous-backslash-in-string
     """Implements Rodrigues rotation.
