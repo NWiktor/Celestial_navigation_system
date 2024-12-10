@@ -347,15 +347,15 @@ class RocketLaunch:
         v_relative = self.launchsite.get_relative_velocity(state)
         air_density = self.launchsite.get_density(
             np.linalg.norm(r) - self.launchsite.radius)
+        pressure_ratio = air_density / self._density_at_surface
         drag_const = self.rocket.drag_constant * air_density / 2
 
-        # Calculate acceleration
-        # Calculate drag and gravity
+        # Calculate acceleration: drag and gravity
         a_drag = - unit_vector(v) * drag_const * v_relative ** 2 / mass
         a_gravity = (-r * self.launchsite.std_gravitational_parameter
                      / np.linalg.norm(r) ** 3)
 
-        # Calculate thrust
+        # Calculate acceleration: thrust
         thrust_force = (self.rocket.get_thrust()
                         * self.flightprogram.get_throttle(time))
         thrust = thrust_force / mass
@@ -423,11 +423,10 @@ class RocketLaunch:
         logger.debug(
             f"Flight angle: {flight_angle:.3f}° ({time} s)")
         logger.debug(
-            f"Angle between thrust and launch plane:"
+            f"Angle between thrust and launch plane: "
             f"{thrust_deviation:.3f}° ({time} s)")
 
         # Calculate acceleration (v_dot) and m_dot
-        pressure_ratio = air_density / self._density_at_surface
         a = a_gravity + a_thrust + a_drag  # 2nd order ODE function (acc.)
         m_dot = (- thrust_force
                  / (self.rocket.get_isp(pressure_ratio)
@@ -451,7 +450,6 @@ class RocketLaunch:
         time_step = 0  # Current step
         while time_step <= total_steps:
             # Calculate stage status according to time
-            # self.stage_status = self.flightprogram.get_engine_status(time_step)
             self.rocket.set_stage_status(
                 self.flightprogram.get_engine_status(time_step))
 
