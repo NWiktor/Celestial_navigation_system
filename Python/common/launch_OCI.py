@@ -78,8 +78,9 @@ class RocketFlightProgram:
                  seco_1: float,  # Second engine cut-off-1
                  throttle_program: list[list[float]] | None,
                  fairing_jettison: float,
-                 pitch_maneuver_start: float = 5,
-                 pitch_maneuver_end: float = 15,
+                 pitch_maneuver_start: float = 15,
+                 pitch_maneuver_end: float = 25,
+                 pitch_angle: float = 6.7,
                  ss_1: float = None,  # Stage separation-1
                  manned: bool = False
                  ):
@@ -100,6 +101,7 @@ class RocketFlightProgram:
         # Attitude control
         self.pitch_maneuver_start = pitch_maneuver_start  # s
         self.pitch_maneuver_end = pitch_maneuver_end  # s
+        self.pitch_angle = pitch_angle  # deg
 
         # Log data
         self._log_rocketflightprogram()
@@ -154,23 +156,28 @@ class RocketFlightProgram:
 
 
 class RocketLaunch:
-    """ RocketLaunch class, defined by name, payload mass, drag coefficient and
-    diameter; and stages.
+    """ RocketLaunch class.
+
+    :param str mission_name: Name of the launch (misson).
+    :param Rocket rocket: Launch-vehicle from Rocket class.
+    :param float payload_mass: Mass of payload (kg).
+    :param flightprogram: Flightprogram.
+    :param target_orbit: Target orbit of launch.
+    :param launchsite: Location data of launch.
+    :param float earliest_launch_date: Earlist date of launch.
     """
 
-    def __init__(self, name: str, rocket: Rocket, payload_mass: float,
+    def __init__(self, mission_name: str, rocket: Rocket, payload_mass: float,
                  flightprogram: RocketFlightProgram,
                  target_orbit: CircularOrbit, launchsite: LaunchSite,
-                 earliest_launch_date: float = None,
-                 flight_angle_corr: float = 0.87):
-        self.name = name
+                 earliest_launch_date: float = None):
+        self.mission_name = mission_name
         self.rocket = rocket
         self.rocket.set_payload_mass_kg(payload_mass)  # Call to set payload!
         self.flightprogram = flightprogram
         self.target_orbit = target_orbit
         self.launchsite = launchsite
         self.launch_azimuth: list[float | None] = [None, None]
-        self.flight_angle_corr = flight_angle_corr
         self._density_at_surface: float = 0.0  # Automatically set
         self.earliest_launch_date = earliest_launch_date
 
@@ -441,7 +448,7 @@ class RocketLaunch:
             v_pitch = rodrigues_rotation(
                     unit_vector(r),
                     self.launch_plane_unit,
-                    (flight_angle + self.flight_angle_corr) * m.pi / 180)
+                    (flight_angle + self.flightprogram.pitch_angle) * m.pi / 180)
             a_thrust = thrust * unit_vector(v_pitch)
 
         else:  # Gravity assist -> Thrust is parallel with velocity
@@ -470,7 +477,7 @@ class RocketLaunch:
         self._set_inital_params()
 
         # Yield initial values - time, state, acc., alt., flight angle
-        yield 0, self.state, np.array([0.0, 0.0, 0.0]), 0, 90
+        yield 0, self.state, np.array([0.0, 0.0, 0.0]), 0, 0
 
         logger.info("--- FLIGHT CALCULATION START ---")
         time_step = 0  # Current step
@@ -578,11 +585,8 @@ class LaunchTrajectory3D:
     def get_position(self, time):
         """  """
         # return postion at given time, just like the orbit functions
-
         # if no stable orbit: return launch func
-
         # if stable orbit, create orbit and return values from there - to skip iteration
-
         return
 
 
@@ -606,11 +610,12 @@ def plot(rocketlaunch: RocketLaunch):
     vel_data = []
     acc_data = []
     mass_data = []
+    beta_data = []
     cbsr = rocketlaunch.launchsite.radius
-    plot_title = (f"{rocketlaunch.name} launch from"
+    plot_title = (f"{rocketlaunch.mission_name} launch from"
                   f" {rocketlaunch.launchsite.name}")
 
-    for time, state, acc, _, _ in rocketlaunch.launch(500, 1):
+    for time, state, acc, _, beta in rocketlaunch.launch(500, 1):
         time_data.append(time)
         rx.append(state[0])
         ry.append(state[1])
@@ -622,6 +627,7 @@ def plot(rocketlaunch: RocketLaunch):
         vel_data.append(np.linalg.norm(state[3:6]))  # Velocity - m/s
         acc_data.append(np.linalg.norm(acc) / 9.82)  # Acceleration - g
         mass_data.append(state[6] / 1000)  # Mass - 1000 kg
+        beta_data.append(beta)  # Flight angle - °
 
     pts_x = []
     pts_y = []
@@ -669,32 +675,41 @@ def plot(rocketlaunch: RocketLaunch):
     ax6.set_ylim(0, 600)
     ax6.scatter(time_data, mass_data, s=0.5, color="b")
 
+    # Flight angle
+    ax6 = fig.add_subplot(2, 2, 4)
+    ax6.set_title("Flight angle")
+    ax6.set_xlabel('time (s)')
+    ax6.set_ylabel('flight angle (°)')
+    ax6.set_xlim(0, len(time_data))
+    ax6.set_ylim(0, 120)
+    ax6.scatter(time_data, beta_data, s=0.5, color="b")
+
     # Plot trajectory in 3D
-    ax5 = fig.add_subplot(2, 2, 4, projection='3d')
-    ax5.set_title("Flight trajectory")
-    ax5.plot(rx, ry, rz, label="Trajectory", color="m")
-
-    ax5.plot(pts_x, pts_y, pts_z, label="Orbit_plane", color="y")
-
-    # Plot CB surface
-    u = np.linspace(0, 2 * np.pi, 100)
-    v = np.linspace(0, np.pi, 100)
-    x = cbsr * np.outer(np.cos(u), np.sin(v))
-    y = cbsr * np.outer(np.sin(u), np.sin(v))
-    z = cbsr * np.outer(np.ones(np.size(u)), np.cos(v))
-    ax5.plot_surface(x, y, z)
-    ax5.set_aspect('equal')
-
-    # Reference vectors
-    ax5.plot([0, launch_plane_normal[0] * cbsr * 1.1],
-             [0, launch_plane_normal[1] * cbsr * 1.1],
-             [0, launch_plane_normal[2] * cbsr * 1.1],
-             label="launch_plane_normal", color="y")
-    ax5.plot([0, cbsr * 1.1], [0, 0], [0, 0], label="x axis", color="r")
-    ax5.plot([0, 0], [0, cbsr * 1.1], [0, 0], label="y axis", color="g")
-    ax5.plot([0, 0], [0, 0], [0, cbsr * 1.1], label="z axis", color="b")
-    # Launch site:
-    ax5.plot([0, rx[0]], [0, ry[0]], [0, rz[0]], label="launch", color="w")
+    # ax5 = fig.add_subplot(2, 2, 4, projection='3d')
+    # ax5.set_title("Flight trajectory")
+    # ax5.plot(rx, ry, rz, label="Trajectory", color="m")
+    #
+    # ax5.plot(pts_x, pts_y, pts_z, label="Orbit_plane", color="y")
+    #
+    # # Plot CB surface
+    # u = np.linspace(0, 2 * np.pi, 100)
+    # v = np.linspace(0, np.pi, 100)
+    # x = cbsr * np.outer(np.cos(u), np.sin(v))
+    # y = cbsr * np.outer(np.sin(u), np.sin(v))
+    # z = cbsr * np.outer(np.ones(np.size(u)), np.cos(v))
+    # ax5.plot_surface(x, y, z)
+    # ax5.set_aspect('equal')
+    #
+    # # Reference vectors
+    # ax5.plot([0, launch_plane_normal[0] * cbsr * 1.1],
+    #          [0, launch_plane_normal[1] * cbsr * 1.1],
+    #          [0, launch_plane_normal[2] * cbsr * 1.1],
+    #          label="launch_plane_normal", color="y")
+    # ax5.plot([0, cbsr * 1.1], [0, 0], [0, 0], label="x axis", color="r")
+    # ax5.plot([0, 0], [0, cbsr * 1.1], [0, 0], label="y axis", color="g")
+    # ax5.plot([0, 0], [0, 0], [0, cbsr * 1.1], label="z axis", color="b")
+    # # Launch site:
+    # ax5.plot([0, rx[0]], [0, ry[0]], [0, rz[0]], label="launch", color="w")
 
     plt.show()
 
