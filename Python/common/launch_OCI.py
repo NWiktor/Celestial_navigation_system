@@ -77,7 +77,7 @@ class RocketFlightProgram:
                  fairing_jettison: float,
                  pitch_maneuver_start: float = 15,
                  pitch_maneuver_end: float = 25,
-                 pitch_angle: float = 5.8,
+                 pitch_angle: float = 6.2,
                  ss_1: float = None,  # Stage separation-1
                  manned: bool = False
                  ):
@@ -216,7 +216,7 @@ class RocketLaunch:
         """ Check if specified target orbit inclination is valid: greater than
         the launch-site latitude.
         """
-        if self.target_orbit.inclination_deg < self.launchsite.latitude:
+        if self.target_orbit.inclination_deg < self.launchsite.latitude_deg:
             logger.error("ERROR: Cannot launch directly into orbit with"
                          f"inclination ({self.target_orbit.inclination_deg:.3f}°)"
                          "smaller than launchsite latitude!")
@@ -235,7 +235,7 @@ class RocketLaunch:
         """
         launch_azimuth = m.asin(
                 m.cos(self.target_orbit.inclination_deg * m.pi / 180)
-                / m.cos(self.launchsite.latitude * m.pi / 180)
+                / m.cos(self.launchsite.latitude_deg * m.pi / 180)
                 )  # rad
 
         v_eqrot = (self.launchsite.planet.surface_radius_m
@@ -243,7 +243,7 @@ class RocketLaunch:
 
         launch_azimuth_corr = m.atan2(
                 self.target_velocity * m.sin(launch_azimuth)
-                - v_eqrot * m.cos(self.launchsite.latitude * m.pi / 180),
+                - v_eqrot * m.cos(self.launchsite.latitude_deg * m.pi / 180),
                 self.target_velocity * m.cos(launch_azimuth)
         ) / m.pi * 180  # (for deg)
 
@@ -280,7 +280,7 @@ class RocketLaunch:
         target_velocity = m.sqrt(
                 self.launchsite.std_gravitational_parameter / radius_m
         )
-        logger.debug("Target velocity for orbit: %s.3f m/s", target_velocity)
+        logger.debug("Target velocity for orbit: %.3f m/s", target_velocity)
         return target_velocity
 
     def _get_launch_date(self):
@@ -291,7 +291,7 @@ class RocketLaunch:
     def _check_end_condition_crash(self) -> bool:
         """ Calculates altitude from planet surface, if it's negative, crash
         has been occured. """
-        altitude = (np.linalg.norm(self.state[0:3]) - self.launchsite.radius)
+        altitude = (np.linalg.norm(self.state[0:3]) - self.launchsite.radius_m)
         if altitude <= 0:
             logger.warning("WARNING! LITHOBRAKING!")
             return True
@@ -305,27 +305,33 @@ class RocketLaunch:
         """
         r_current = np.linalg.norm(self.state[0:3])
         v_current = np.linalg.norm(self.state[3:6])
-        altitude_m = (r_current - self.launchsite.radius)
-
-        flight_angle = angle_of_vectors(
+        altitude_m = (r_current - self.launchsite.radius_m)
+        flight_angle_deg = angle_of_vectors(
             unit_vector(self.state[0:3]),
             unit_vector(self.state[3:6])
         )
 
         delta_r = self.target_orbit.radius_km * 1000 - r_current
         delta_v = self.target_velocity - v_current
-        limit_r = self.target_orbit.radius_km * 0.1
+        limit_r = self.target_orbit.radius_km * 0.01
         limit_v = self.target_velocity * 0.01
-        limit_beta = 90 * 0.01
+        limit_beta = 90 * 0.1
 
+        # If radius and velocity is close to target orbit:
         if abs(delta_r) <= limit_r and abs(delta_v) <= limit_v:
-            logger.info(f"Target orbit reached: {altitude_m:.3f}+-{limit_r:.3f} m, {v_current:.3f}+-{limit_v:.3f} m/s")
+            logger.info(f"Targeted orbit reached at %.3f (m), %.3f (m/s)",
+                        altitude_m, v_current)
             return True
 
+        # If radius is bigger than target orbit, but close to circular r-v pair
         delta_v2 = self._get_target_velocity(r_current) - v_current
         if delta_r <= 0 and abs(delta_v2) <= limit_v:
-            logger.info(f"Stable orbit reached: {altitude_m:.3f}+-{limit_r:.3f} m, {v_current:.3f}+-{limit_v:.3f} m/s")
+            logger.info(f"Stable orbit reached at %.3f (m), %.3f (m/s)",
+                        altitude_m, v_current)
             return True
+
+        logger.info("Deviation from target orbit: %.3f (m), %.3f (m/s)",
+                    delta_r, delta_v)
         return False
 
     def _set_inital_conditions(self):
@@ -335,11 +341,11 @@ class RocketLaunch:
 
         # Calculate initial conditions
         self.r_launch = convert_spherical_to_cartesian_coords(
-            self.launchsite.radius,
-            self.launchsite.latitude * m.pi / 180,
-            (self.launchsite.longitude + angle_offset_deg) * m.pi / 180
+            self.launchsite.radius_m,
+            self.launchsite.latitude_deg * m.pi / 180,
+            (self.launchsite.longitude_deg + angle_offset_deg) * m.pi / 180
         )
-        omega_cb = np.array([0, 0, self.launchsite.angular_velocity])  # rad/s
+        omega_cb = np.array([0, 0, self.launchsite.angular_velocity_rad_per_s])
         v_cb_rotation = cross(omega_cb, self.r_launch)
 
         # TODO: check this in alfonso's program, how to account for j2000 frame
@@ -389,7 +395,7 @@ class RocketLaunch:
         v_rel_skalar = np.linalg.norm(
             self.launchsite.get_relative_velocity_vector(state)
         )
-        altitude_m = np.linalg.norm(r) - self.launchsite.radius
+        altitude_m = np.linalg.norm(r) - self.launchsite.radius_m
         air_density = self.launchsite.get_density(altitude_m)
         pressure_ratio = air_density / self._density_at_surface
         drag_const = self.rocket.drag_constant * air_density / 2
@@ -425,7 +431,7 @@ class RocketLaunch:
             r_tower = rodrigues_rotation(
                 self.r_launch,
                 np.array([0, 0, 1]),
-                self.launchsite.angular_velocity * m.pi / 180 * time)  # Not dt!
+                self.launchsite.angular_velocity_rad_per_s * m.pi / 180 * time)  # Not dt!
             a_thrust = thrust * unit_vector(r_tower)  # self.r_launch)
             a_drag = - drag * unit_vector(r_tower)
 
@@ -546,12 +552,12 @@ class RocketLaunch:
             #  flight angle. Implement report for deviations to refine params
             r_current = np.linalg.norm(self.state[0:3])
             # v_current = np.linalg.norm(self.state[3:6])
-            altitude_above_surface = (r_current - self.launchsite.radius)
+            altitude_above_surface = (r_current - self.launchsite.radius_m)
 
             if self._check_end_condition_crash():
                 break
 
-            if self._check_end_condition_orbit(time_step):
+            if self._check_end_condition_orbit():
                 break
 
             # Yield values
@@ -605,7 +611,7 @@ def plot(rocketlaunch: RocketLaunch):
     acc_data = []
     mass_data = []
     beta_data = []
-    cbsr = rocketlaunch.launchsite.radius
+    cbsr = rocketlaunch.launchsite.radius_m
     plot_title = (f"{rocketlaunch.mission_name} launch from"
                   f" {rocketlaunch.launchsite.name}")
 
@@ -721,8 +727,7 @@ def main():
                     [0.8, 0.8, 1.0, 0.88, 0.88]]
     flight_program = RocketFlightProgram(145, 156, 514,
                                          throttle_map, 195)
-    targetorbit = CircularOrbit(355 + 6_378, 51.6,
-                                -45,
+    targetorbit = CircularOrbit(300 + 6_378, 51.6, -45,
                                 90,
                                 0)
     mission_414_falcon9 = RocketLaunch("Mission 414",
