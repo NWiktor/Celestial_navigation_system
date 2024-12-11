@@ -97,36 +97,38 @@ class PlanetLocation:
     (spherical body).
     """
     def __init__(self, planet: Planet, location_name: str,
-                 latitude: float, longitude: float, radius: float):
+                 latitude_deg: float, longitude_deg: float, radius_m: float):
         self.planet = planet
         self.name = f"{location_name} ({self.planet.name})"
-        self.latitude = latitude
-        self.longitude = longitude
-        self.radius = radius
+        self.latitude_deg = latitude_deg
+        self.longitude_deg = longitude_deg
+        self.radius_m = radius_m
 
 
 class LaunchSite(PlanetLocation):
     """ Class for representing a launch-site on a planet. """
     def __init__(self, planet: Planet, location_name: str,
-                 latitude: float, longitude: float,
+                 latitude_deg: float, longitude_deg: float,
                  launch_azimuth_range: tuple[float, float] | None = None):
-        super().__init__(planet, location_name, latitude, longitude,
+        super().__init__(planet, location_name, latitude_deg, longitude_deg,
                          planet.surface_radius_m)
-        # self.surface_radius = self.planet.surface_radius_m
         self.launch_azimuth_range = launch_azimuth_range
-        self.angular_velocity = self.planet.angular_velocity_rad_per_s
+
+        # Create shortcuts for internal parameters
+        self.surface_radius = self.planet.surface_radius_m
+        self.angular_velocity_rad_per_s = self.planet.angular_velocity_rad_per_s
 
         # For zero-mass spacecraft
         self.std_gravitational_parameter = (
             self.planet.get_std_gravitational_param())  # m^3/s^2
 
-    def get_density(self, altitude) -> float:
-        """ Get atmospheric density at altitude. """
-        return self.planet.atmosphere.get_density(altitude)
+    def get_density(self, altitude_m) -> float:
+        """ Get atmospheric density at altitude (m). """
+        return self.planet.atmosphere.get_density(altitude_m)
 
-    def get_pressure(self, altitude) -> float:
-        """ Get atmospheric pressure at altitude. """
-        return self.planet.atmosphere.get_pressure(altitude)
+    def get_pressure(self, altitude_m) -> float:
+        """ Get atmospheric pressure at altitude (m). """
+        return self.planet.atmosphere.get_pressure(altitude_m)
 
     def get_relative_velocity_vector(self, state: np.array) -> np.array:
         """ Returns the velocity vector relative to the planet surface in
@@ -139,9 +141,9 @@ class LaunchSite(PlanetLocation):
         """
         pos_inertial = state[0:3]  # Rocket position
         vel_inertial = state[3:6]  # Rocket velocity
+        omega_planet = np.array([0, 0, self.angular_velocity_rad_per_s])
         # NOTE: Cross product of the angular velocity and the position, which is
         #  the speed of the atmosphere at the given location
-        omega_planet = np.array([0, 0, self.angular_velocity])
         vel_atmosphere = cross(omega_planet, pos_inertial)
         return vel_inertial - vel_atmosphere
 
