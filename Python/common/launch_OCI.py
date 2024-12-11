@@ -276,11 +276,11 @@ class RocketLaunch:
             self.launch_azimuth[1] = launch_azimuth2
 
     def _get_target_velocity(self, radius_m):
-        """ Calculates orbital velocity for the given radius (m). """
+        """ Calculates orbital velocity (m/s) for the given radius (m). """
         target_velocity = m.sqrt(
                 self.launchsite.std_gravitational_parameter / radius_m
         )
-        logger.debug(f"Target velocity for orbit: {target_velocity:.3f} m/s")
+        logger.debug("Target velocity for orbit: %s.3f m/s", target_velocity)
         return target_velocity
 
     def _get_launch_date(self):
@@ -299,7 +299,7 @@ class RocketLaunch:
         return False
 
     # TODO: refactor this
-    def _check_end_condition_orbit(self, time_step: int) -> bool:
+    def _check_end_condition_orbit(self) -> bool:
         """ Calculates if the vehicle speed, altitude and flight angle match
         with the target orbit.
         """
@@ -312,19 +312,19 @@ class RocketLaunch:
             unit_vector(self.state[3:6])
         )
 
-        delta_r = self.target_orbit.radius_km - r_current
+        delta_r = self.target_orbit.radius_km * 1000 - r_current
         delta_v = self.target_velocity - v_current
         limit_r = self.target_orbit.radius_km * 0.1
         limit_v = self.target_velocity * 0.01
         limit_beta = 90 * 0.01
 
         if abs(delta_r) <= limit_r and abs(delta_v) <= limit_v:
-            logger.info(f"Target orbit reached at T+{time_step} s: {altitude_m:.3f}+-{limit_r:.3f} m, {v_current:.3f}+-{limit_v:.3f} m/s")
+            logger.info(f"Target orbit reached: {altitude_m:.3f}+-{limit_r:.3f} m, {v_current:.3f}+-{limit_v:.3f} m/s")
             return True
 
         delta_v2 = self._get_target_velocity(r_current) - v_current
         if delta_r <= 0 and abs(delta_v2) <= limit_v:
-            logger.info(f"Stable orbit reached at T+{time_step} s: {altitude_m:.3f}+-{limit_r:.3f} m, {v_current:.3f}+-{limit_v:.3f} m/s")
+            logger.info(f"Stable orbit reached: {altitude_m:.3f}+-{limit_r:.3f} m, {v_current:.3f}+-{limit_v:.3f} m/s")
             return True
         return False
 
@@ -398,8 +398,6 @@ class RocketLaunch:
         a_gravity = (-r * self.launchsite.std_gravitational_parameter
                      / np.linalg.norm(r) ** 3)
 
-        # a_drag = - unit_vector(v) * drag_const * v_rel_skl ** 2 / mass
-        a_drag = np.array((0, 0, 0))
         drag = drag_const * v_rel_skalar ** 2 / mass
 
         # Calculate acceleration: thrust
@@ -625,10 +623,10 @@ def plot(rocketlaunch: RocketLaunch):
         mass_data.append(state[6] / 1000)  # Mass - 1000 kg
         beta_data.append(beta)  # Flight angle - °
 
-    pts_x = []
-    pts_y = []
-    pts_z = []
-    vector = np.array([rx[0], ry[0], rz[0]])
+    # pts_x = []
+    # pts_y = []
+    # pts_z = []
+    # vector = np.array([rx[0], ry[0], rz[0]])
     # for i in range(0, 90):
     #     rot_v = rodrigues_rotation(vector, launch_plane_normal, i * m.pi / 180)
     #     pts_x.append(rot_v[0])
