@@ -24,6 +24,7 @@ import numpy as np
 from cls.atmosphere import Atmosphere
 from cls.celestial_body import CelestialBody
 from cls.celestial_body_utils import Composition
+from utils.math_functions import cross
 # Class initializations and global variables
 logger = logging.getLogger(__name__)
 
@@ -127,20 +128,22 @@ class LaunchSite(PlanetLocation):
         """ Get atmospheric pressure at altitude. """
         return self.planet.atmosphere.get_pressure(altitude)
 
-    def get_relative_velocity(self, state: np.array) -> float:
-        """ Returns the speed of the rocket relative to the atmosphere.
+    def get_relative_velocity_vector(self, state: np.array) -> np.array:
+        """ Returns the velocity vector relative to the planet surface in
+        inertial frame.
 
         The atmosphere of the planet is modelled as static (no winds). The
-        function calculates the atmospheric velocity (in inertial ref. frame),
-        and substracts it from the rocket's speed in inertial frame, then takes
-        the norm of the resulting vector.
+        function calculates the cross product of the angular velocity vector
+        and the position vector, and substracts it from the given speed in
+        inertial frame.
         """
-        pos = state[0:3]  # Rocket position
-        vel = state[3:6]  # Rocket velocity
+        pos_inertial = state[0:3]  # Rocket position
+        vel_inertial = state[3:6]  # Rocket velocity
         # NOTE: Cross product of the angular velocity and the position, which is
-        #  the speed of the atmosphere at this given location
-        atm_velocity = np.cross(np.array([0, 0, self.angular_velocity]), pos)
-        return float(np.linalg.norm(vel - atm_velocity))
+        #  the speed of the atmosphere at the given location
+        omega_planet = np.array([0, 0, self.angular_velocity])
+        vel_atmosphere = cross(omega_planet, pos_inertial)
+        return vel_inertial - vel_atmosphere
 
 
 # Include guard
