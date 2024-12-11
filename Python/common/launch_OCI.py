@@ -77,7 +77,7 @@ class RocketFlightProgram:
                  fairing_jettison: float,
                  pitch_maneuver_start: float = 15,
                  pitch_maneuver_end: float = 25,
-                 pitch_angle: float = 6.2,
+                 pitch_angle: float = 6.4,
                  ss_1: float = None,  # Stage separation-1
                  manned: bool = False
                  ):
@@ -247,25 +247,32 @@ class RocketLaunch:
                 self.target_velocity * m.cos(launch_azimuth)
         ) / m.pi * 180  # (for deg)
 
-        launch_azimuth1 = launch_azimuth_corr
-        launch_azimuth2 = (180 - launch_azimuth_corr)
+        launch_azimuth1 = launch_azimuth_corr  # range is -90° - 90° ??
+        launch_azimuth2 = (180 - launch_azimuth_corr) #  range is 90° - 270°
 
         if self.launchsite.launch_azimuth_range is not None:
-            if not (self.launchsite.launch_azimuth_range[0]
-                    <= launch_azimuth1
-                    <= self.launchsite.launch_azimuth_range[1]):
+
+            # Check values
+            start_lim = self.launchsite.launch_azimuth_range[0]  # 0-360°
+            end_lim = self.launchsite.launch_azimuth_range[1]  # 0-360°
+
+            # if end_lim < start_lim:
+            #     end_lim += 360
+
+            if not start_lim <= launch_azimuth1 <= end_lim:
                 logger.warning(f"WARNING: Launch azimuth for ascending node "
                                f"({launch_azimuth1:.3f}°) "
                                "is out of permitted range!")
             self.launch_azimuth[0] = launch_azimuth1
-            if not (self.launchsite.launch_azimuth_range[0]
-                    <= launch_azimuth2
-                    <= self.launchsite.launch_azimuth_range[1]):
+
+            if not start_lim <= launch_azimuth2 <= end_lim:
                 logger.warning(f"WARNING: Launch azimuth for descending node "
                                f"({launch_azimuth2:.3f}°) "
                                "is out of permitted range!")
             self.launch_azimuth[1] = launch_azimuth2
-            if not self.launch_azimuth:
+
+            if (self.launch_azimuth[0] is None and
+               self.launch_azimuth[1] is None):
                 logger.error("ERROR: Launch is not possible from this location"
                              "because of launch azimuth limitations!")
                 raise ValueError
@@ -298,7 +305,6 @@ class RocketLaunch:
 
         return False
 
-    # TODO: refactor this
     def _check_end_condition_orbit(self) -> bool:
         """ Calculates if the vehicle speed, altitude and flight angle match
         with the target orbit.
@@ -306,37 +312,38 @@ class RocketLaunch:
         r_current = np.linalg.norm(self.state[0:3])
         v_current = np.linalg.norm(self.state[3:6])
         altitude_m = (r_current - self.launchsite.radius_m)
-        flight_angle_deg = angle_of_vectors(
-            unit_vector(self.state[0:3]),
-            unit_vector(self.state[3:6])
-        )
+        # flight_angle_deg = angle_of_vectors(
+        #     unit_vector(self.state[0:3]),
+        #     unit_vector(self.state[3:6])
+        # )
 
         delta_r = self.target_orbit.radius_km * 1000 - r_current
         delta_v = self.target_velocity - v_current
-        limit_r = self.target_orbit.radius_km * 0.01
-        limit_v = self.target_velocity * 0.01
-        limit_beta = 90 * 0.1
+        limit_r = self.target_orbit.radius_km * 0.1
+        limit_v = self.target_velocity * 0.001
+        # limit_beta = 90 * 0.1
 
         # If radius and velocity is close to target orbit:
         if abs(delta_r) <= limit_r and abs(delta_v) <= limit_v:
-            logger.info(f"Targeted orbit reached at %.3f (m), %.3f (m/s)",
+            logger.info(f"Targeted orbit reached at %.3f m, %.3f m/s",
                         altitude_m, v_current)
             return True
 
         # If radius is bigger than target orbit, but close to circular r-v pair
         delta_v2 = self._get_target_velocity(r_current) - v_current
         if delta_r <= 0 and abs(delta_v2) <= limit_v:
-            logger.info(f"Stable orbit reached at %.3f (m), %.3f (m/s)",
+            logger.info(f"Stable orbit reached at %.3f m, %.3f m/s",
                         altitude_m, v_current)
             return True
 
-        logger.info("Deviation from target orbit: %.3f (m), %.3f (m/s)",
+        logger.info("Deviation from target orbit: %.3f m, %.3f m/s",
                     delta_r, delta_v)
         return False
 
     def _set_inital_conditions(self):
         """ Set initial conditions before launch calculation. """
 
+        # TODO: check this in alfonso's program, how to account for j2000 frame
         angle_offset_deg = 0.0
 
         # Calculate initial conditions
@@ -347,8 +354,6 @@ class RocketLaunch:
         )
         omega_cb = np.array([0, 0, self.launchsite.angular_velocity_rad_per_s])
         v_cb_rotation = cross(omega_cb, self.r_launch)
-
-        # TODO: check this in alfonso's program, how to account for j2000 frame
 
         # Update state vector with initial conditions
         self.state = np.concatenate(
@@ -548,16 +553,14 @@ class RocketLaunch:
                 self.state[6] = self.rocket.staging_event_1()
 
             # Log new data and end-conditions
-            # TODO: implement checks for target height, arget velocity, and
-            #  flight angle. Implement report for deviations to refine params
             r_current = np.linalg.norm(self.state[0:3])
-            # v_current = np.linalg.norm(self.state[3:6])
             altitude_above_surface = (r_current - self.launchsite.radius_m)
 
             if self._check_end_condition_crash():
                 break
 
             if self._check_end_condition_orbit():
+                logger.info("--- ORBITAL INSERTION SUCCESFUL ---")
                 break
 
             # Yield values
@@ -615,7 +618,7 @@ def plot(rocketlaunch: RocketLaunch):
     plot_title = (f"{rocketlaunch.mission_name} launch from"
                   f" {rocketlaunch.launchsite.name}")
 
-    for time, state, acc, _, beta in rocketlaunch.launch(500, 1):
+    for time, state, acc, _, beta in rocketlaunch.launch(550, 1):
         time_data.append(time)
         rx.append(state[0])
         ry.append(state[1])
@@ -727,7 +730,7 @@ def main():
                     [0.8, 0.8, 1.0, 0.88, 0.88]]
     flight_program = RocketFlightProgram(145, 156, 514,
                                          throttle_map, 195)
-    targetorbit = CircularOrbit(300 + 6_378, 51.6, -45,
+    targetorbit = CircularOrbit(310 + 6_378, 51.6, -45,
                                 90,
                                 0)
     mission_414_falcon9 = RocketLaunch("Mission 414",
