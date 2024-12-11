@@ -38,9 +38,6 @@ from database import CAPE_TEST, CAPE_CANEVERAL
 
 logger = logging.getLogger(__name__)
 
-# NOTE: for visualizing only
-launch_plane_normal: np.array = np.array([0, 0, 0])
-
 
 class RocketFlightProgram:
     """ Describes the rocket launch program - staging, engine throttling, roll
@@ -80,7 +77,7 @@ class RocketFlightProgram:
                  fairing_jettison: float,
                  pitch_maneuver_start: float = 15,
                  pitch_maneuver_end: float = 25,
-                 pitch_angle: float = 6.7,
+                 pitch_angle: float = 5.8,
                  ss_1: float = None,  # Stage separation-1
                  manned: bool = False
                  ):
@@ -178,7 +175,6 @@ class RocketLaunch:
         self.target_orbit = target_orbit
         self.launchsite = launchsite
         self.launch_azimuth: list[float | None] = [None, None]
-        self._density_at_surface: float = 0.0  # Automatically set
         self.earliest_launch_date = earliest_launch_date
 
         if earliest_launch_date is None:
@@ -196,9 +192,8 @@ class RocketLaunch:
         self._get_launch_date()  # Time of launch to get desired LoAN
 
         # Launchsite vectors
+        self._density_at_surface = self.launchsite.get_density(0.0)
         self.r_launch = None
-        self.local_north = None
-        self.local_east = None
         self.launch_plane_unit = None
 
         # State variables / dynamic vectors and mass (m, m/s and kg)
@@ -285,7 +280,7 @@ class RocketLaunch:
         target_velocity = m.sqrt(
                 self.launchsite.std_gravitational_parameter / radius_m
         )
-        logger.info(f"Target velocity for orbit: {target_velocity:.3f} m/s")
+        logger.debug(f"Target velocity for orbit: {target_velocity:.3f} m/s")
         return target_velocity
 
     def _get_launch_date(self):
@@ -303,6 +298,7 @@ class RocketLaunch:
 
         return False
 
+    # TODO: refactor this
     def _check_end_condition_orbit(self, time_step: int) -> bool:
         """ Calculates if the vehicle speed, altitude and flight angle match
         with the target orbit.
@@ -311,77 +307,67 @@ class RocketLaunch:
         v_current = np.linalg.norm(self.state[3:6])
         altitude_m = (r_current - self.launchsite.radius)
 
-        v_rel = self.state[3:6] - self.v_init
         flight_angle = angle_of_vectors(
             unit_vector(self.state[0:3]),
-            unit_vector(v_rel)
+            unit_vector(self.state[3:6])
         )
 
         delta_r = self.target_orbit.radius_km - r_current
         delta_v = self.target_velocity - v_current
-        limit_r = self.target_orbit.radius_km * 0.01
+        limit_r = self.target_orbit.radius_km * 0.1
         limit_v = self.target_velocity * 0.01
         limit_beta = 90 * 0.01
 
         if abs(delta_r) <= limit_r and abs(delta_v) <= limit_v:
-            logger.info(f"Target orbit reached at T+{time_step} s:"
-                        f"{altitude_m:.3f} m, "
-                        f"{v_current:.3f} m/s")
+            logger.info(f"Target orbit reached at T+{time_step} s: {altitude_m:.3f}+-{limit_r:.3f} m, {v_current:.3f}+-{limit_v:.3f} m/s")
             return True
 
         delta_v2 = self._get_target_velocity(r_current) - v_current
         if delta_r <= 0 and abs(delta_v2) <= limit_v:
-            logger.info(f"Stable orbit reached at T+{time_step} s: "
-                        f"{altitude_m:.3f} m, "
-                        f"{v_current:.3f} m/s")
+            logger.info(f"Stable orbit reached at T+{time_step} s: {altitude_m:.3f}+-{limit_r:.3f} m, {v_current:.3f}+-{limit_v:.3f} m/s")
             return True
         return False
 
-    def _set_inital_params(self):
-        """  """
-        global launch_plane_normal
-        # Update state vector with initial conditions
+    def _set_inital_conditions(self):
+        """ Set initial conditions before launch calculation. """
+
+        angle_offset_deg = 0.0
+
+        # Calculate initial conditions
         self.r_launch = convert_spherical_to_cartesian_coords(
             self.launchsite.radius,
             self.launchsite.latitude * m.pi / 180,
-            self.launchsite.longitude * m.pi / 180
+            (self.launchsite.longitude + angle_offset_deg) * m.pi / 180
         )
-        self.v_init = cross(
-            np.array([0, 0, self.launchsite.angular_velocity]), self.r_launch
-        )
+        omega_cb = np.array([0, 0, self.launchsite.angular_velocity])  # rad/s
+        v_cb_rotation = cross(omega_cb, self.r_launch)
 
         # TODO: check this in alfonso's program, how to account for j2000 frame
-        omega_planet = np.array(
-            [0, 0, self.launchsite.angular_velocity])  # rad/s
+
+        # Update state vector with initial conditions
         self.state = np.concatenate(
-            (self.r_launch,
-             cross(omega_planet, self.r_launch),
-             [self.rocket.total_mass])
+            (self.r_launch, v_cb_rotation, [self.rocket.total_mass])
         )
 
-        self._density_at_surface = self.launchsite.get_density(0.0)
+    def _set_launch_plane_normal(self, r_vector: np.array):
+        """ Calculate launch plane's normal vector from the given 'r'
+        position vector.
 
-        # Local orientations at lauchsite
-        east_launch = convert_spherical_to_cartesian_coords(
-            self.launchsite.radius,
-            0,
-            ((self.launchsite.longitude + 90) % 360) * m.pi / 180
-        )
-        self.local_east = unit_vector(east_launch)
-        self.local_north = unit_vector(cross(self.r_launch, east_launch))
-        local_zenith = unit_vector(self.r_launch)
-
-        # NOTE: launch plane vector is static, it represents the initial plane,
-        #  in which the rocket launched.
+        Launch plane normalvector is static, it represents the initial plane,
+        in which the rocket is launched.
+        """
+        east_launch = cross(np.array((0, 0, 1)), r_vector)
+        local_north = unit_vector(cross(r_vector, east_launch))
+        local_zenith = unit_vector(r_vector)
         launch_plane_normal = rodrigues_rotation(
-            self.local_north,
+            local_north,
             local_zenith,
             (90 - self.launch_azimuth[0]) * m.pi / 180
         )
         self.launch_plane_unit = unit_vector(launch_plane_normal)
 
     # pylint: disable = too-many-locals
-    def _launch_ode(self, time: float, state, dt: float):
+    def _launch_ode(self, time: float, state: np.array, dt: float):
         """ 2nd order ODE of the state-vectors, during launch.
 
         The function returns the second derivative of position vector at a given
@@ -395,22 +381,26 @@ class RocketLaunch:
         State-vector: rx, ry, rz, vx, vy, vz, m
         State-vector_dot: vx, vy, vz, ax, ay, az, m_dot
         """
-        global launch_plane_normal
         r = state[:3]  # Position vector
         v = state[3:6]  # Velocity vector
         mass = state[6]  # Mass
 
         # Calculate flight characteristics at the actual step
-        v_relative = self.launchsite.get_relative_velocity(state)
-        air_density = self.launchsite.get_density(
-            np.linalg.norm(r) - self.launchsite.radius)
+        v_rel_skalar = np.linalg.norm(
+            self.launchsite.get_relative_velocity_vector(state)
+        )
+        altitude_m = np.linalg.norm(r) - self.launchsite.radius
+        air_density = self.launchsite.get_density(altitude_m)
         pressure_ratio = air_density / self._density_at_surface
         drag_const = self.rocket.drag_constant * air_density / 2
 
-        # Calculate acceleration: drag and gravity
-        a_drag = - unit_vector(v) * drag_const * v_relative ** 2 / mass
+        # Calculate acceleration: gravity and drag
         a_gravity = (-r * self.launchsite.std_gravitational_parameter
                      / np.linalg.norm(r) ** 3)
+
+        # a_drag = - unit_vector(v) * drag_const * v_rel_skl ** 2 / mass
+        a_drag = np.array((0, 0, 0))
+        drag = drag_const * v_rel_skalar ** 2 / mass
 
         # Calculate acceleration: thrust
         thrust_force = (self.rocket.get_thrust()
@@ -418,14 +408,12 @@ class RocketLaunch:
         thrust = thrust_force / mass
 
         # Orbital parameters
-        # NOTE: angular velocity bc. of the planet rotation is a one-time
-        #  addition, only the initial value (v_init) must be substracted, and
-        #  not the running value! However v_rel is dynamic value, because of
-        #  'v' is derived from the state vector.
-        v_rel = v - self.v_init
+        # NOTE: flight angle calculation must be corrected for planet rotation,
+        #  so dynamic relative velocity vector must be used.
         # NOTE: flight angle represents the angle between the local zenith, and
         #  the rocket relative velocity vector. It should start from 0°
         #  (vertical flight) to 90° as the rocket reaches orbit.
+        v_rel = self.launchsite.get_relative_velocity_vector(state)
         flight_angle = angle_of_vectors(unit_vector(r), unit_vector(v_rel))
 
         # Vertical flight until tower is cleared in non-inertial frame
@@ -436,7 +424,16 @@ class RocketLaunch:
             #  this is very hard to compensate later with hand-made
             #  thrust-vectoring, so just use 'r_launch' to eliminate offset
             #  from the launch-plane
-            a_thrust = thrust * unit_vector(self.r_launch)
+            r_tower = rodrigues_rotation(
+                self.r_launch,
+                np.array([0, 0, 1]),
+                self.launchsite.angular_velocity * m.pi / 180 * time)  # Not dt!
+            a_thrust = thrust * unit_vector(r_tower)  # self.r_launch)
+            a_drag = - drag * unit_vector(r_tower)
+
+            # Calculate launch plane, which is needed only at the last step
+            # before the pitch program
+            self._set_launch_plane_normal(r)
 
         # Initial pitch-over maneuver -> Slight offset of thrust from velocity
         elif (self.flightprogram.get_attitude_status(time) ==
@@ -450,6 +447,7 @@ class RocketLaunch:
                     self.launch_plane_unit,
                     (flight_angle + self.flightprogram.pitch_angle) * m.pi / 180)
             a_thrust = thrust * unit_vector(v_pitch)
+            a_drag = - drag * unit_vector(v_pitch)
 
         else:  # Gravity assist -> Thrust is parallel with velocity
             # NOTE: keep velocity vector in launch plane
@@ -458,13 +456,13 @@ class RocketLaunch:
                 self.launch_plane_unit,
                 flight_angle * m.pi / 180)
             a_thrust = thrust * unit_vector(v_pitch)
+            a_drag = - drag * unit_vector(v_pitch)
 
         # Calculate acceleration (v_dot) and m_dot
         a = a_gravity + a_thrust + a_drag  # 2nd order ODE function (acc.)
-        m_dot = (- thrust_force
+        m_dot = (- thrust_force  # Thrust force is already throttled
                  / (self.rocket.get_isp(pressure_ratio)
                     * self.launchsite.planet.surface_gravity_m_per_s2 * dt
-                    * self.flightprogram.get_throttle(time)  # throttle corr.
                     )
                  )
         return np.concatenate((v, a, [m_dot]))  # vx, vy, vz, ax, ay, az, m_dot
@@ -472,9 +470,8 @@ class RocketLaunch:
     def launch(self, total_steps: int = 16000, increment: int = 1):
         """ Yield rocket's status variables during launch, every second. """
 
-        # Update state vector with initial conditions, and calculate
-        # orientation vectors at launchsite
-        self._set_inital_params()
+        # Update state vector with initial conditions
+        self._set_inital_conditions()
 
         # Yield initial values - time, state, acc., alt., flight angle
         yield 0, self.state, np.array([0.0, 0.0, 0.0]), 0, 0
@@ -499,11 +496,9 @@ class RocketLaunch:
             acceleration = state_dot[3:6]
 
             # Post-processing
-            # NOTE: angular velocity bc. of the planet rotation is a one-time
-            #  addition, only the initial value (v_init) must be substracted,
-            #  and not the running value! However v_rel is dynamic value,
-            #  because of 'v' is derived from the state vector.
-            v_rel = self.state[3:6] - self.v_init
+            # NOTE: relative velocity vector used for flight angle calculation,
+            #  this way planet rotation is corrected.
+            v_rel = self.launchsite.get_relative_velocity_vector(self.state)
             # NOTE: flight angle represents the angle between the local zenith,
             #  and the rocket relative velocity vector. It should start from 0°
             #  (vertical flight) to 90° as the rocket reaches orbit.
@@ -522,15 +517,17 @@ class RocketLaunch:
                 np.array([0, 0, 1])
             )
             acc_deviation = angle_of_vectors(
-                state_dot[3:6], launch_plane_normal
+                state_dot[3:6], self.launch_plane_unit
             )
 
             # Logging variables
-            logger.debug(f"--- TIMESTEP: T+{time_step} s ---")
-            logger.debug(f"Current inclination: {inclination_current:.3f}°")
-            logger.debug(f"Flight angle: {flight_angle:.3f}°")
-            logger.debug(
-                f"Angle between thrust and launch plane: {acc_deviation:.3f}°")
+            logger.info(f"--- TIMESTEP: T+{time_step} s ---")
+            # print(f"--- TIMESTEP: T+{time_step} s ---")
+            logger.info(f"Relative velocity vector: {v_rel} m/s")
+            logger.info(f"Current inclination: {inclination_current:.3f}°")
+            logger.info(f"Flight angle: {flight_angle:.3f}°")
+            logger.info(f"Angle between accelaration and launch "
+                        f"plane: {acc_deviation:.3f}°")
 
             # Burn mass from stage
             # TODO: remove ifs
@@ -597,7 +594,6 @@ class LaunchTrajectory3D:
 # TODO: use 3d visualization with ursina
 def plot(rocketlaunch: RocketLaunch):
     """ Plots the given RocketLaunch parameters. """
-    global launch_plane_normal
     # Launch
     time_data = []
     alt_data = []
@@ -633,11 +629,11 @@ def plot(rocketlaunch: RocketLaunch):
     pts_y = []
     pts_z = []
     vector = np.array([rx[0], ry[0], rz[0]])
-    for i in range(0, 90):
-        rot_v = rodrigues_rotation(vector, launch_plane_normal, i * m.pi / 180)
-        pts_x.append(rot_v[0])
-        pts_y.append(rot_v[1])
-        pts_z.append(rot_v[2])
+    # for i in range(0, 90):
+    #     rot_v = rodrigues_rotation(vector, launch_plane_normal, i * m.pi / 180)
+    #     pts_x.append(rot_v[0])
+    #     pts_y.append(rot_v[1])
+    #     pts_z.append(rot_v[2])
 
     # Plotting
     plt.style.use('_mpl-gallery')
@@ -727,7 +723,7 @@ def main():
                     [0.8, 0.8, 1.0, 0.88, 0.88]]
     flight_program = RocketFlightProgram(145, 156, 514,
                                          throttle_map, 195)
-    targetorbit = CircularOrbit(300 + 6_378, 51.6,
+    targetorbit = CircularOrbit(355 + 6_378, 51.6,
                                 -45,
                                 90,
                                 0)
