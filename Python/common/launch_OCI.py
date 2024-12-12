@@ -186,9 +186,9 @@ class RocketLaunch:
         # Check if orbit is reachable
         self._check_radius()
         self.target_velocity = self._get_target_velocity(
-            self.target_orbit.radius_km * 1000)
+            self.target_orbit.radius_km * 1000)  # m/s
         self._check_inclination()
-        self._get_launch_azimuth()  # Calculate lauch azimuth
+        self._get_launch_azimuth()  # Calculate laumch azimuth
         self._get_launch_date()  # Time of launch to get desired LoAN
 
         # Launchsite vectors
@@ -210,7 +210,7 @@ class RocketLaunch:
                          f"than surface radius!")
             raise ValueError
 
-        logger.info(f"Orbit radius: {self.target_orbit.radius_km:.3f} km")
+        logger.info("Orbit radius: %.3f km", self.target_orbit.radius_km)
 
     def _check_inclination(self):
         """ Check if specified target orbit inclination is valid: greater than
@@ -218,15 +218,17 @@ class RocketLaunch:
         """
         if self.target_orbit.inclination_deg < self.launchsite.latitude_deg:
             logger.error("ERROR: Cannot launch directly into orbit with"
-                         f"inclination ({self.target_orbit.inclination_deg:.3f}°)"
-                         "smaller than launchsite latitude!")
+                         "inclination (%.3f°) smaller than launchsite"
+                         "latitude (%.3f)!",
+                         self.target_orbit.inclination_deg,
+                         self.launchsite.latitude_deg)
             raise ValueError
 
-        logger.info(f"Inclination: {self.target_orbit.inclination_deg:.3f}°")
+        logger.info("Inclination: %.3f°", self.target_orbit.inclination_deg)
 
     # TODO: test baikonour and korou azimuth limit (349 to 90)
     def _get_launch_azimuth(self):
-        """ Check if target orbit is feasible.
+        """ Check if target orbit is reacheable by direct orbit insertion.
 
         A handy formula to remember is: cos(i) = cos(φ) * sin(β), where i is
         the inclination, β is the launch azimuth, and φ is the launch
@@ -237,18 +239,18 @@ class RocketLaunch:
                 m.cos(self.target_orbit.inclination_deg * m.pi / 180)
                 / m.cos(self.launchsite.latitude_deg * m.pi / 180)
                 )  # rad
-
         v_eqrot = (self.launchsite.planet.surface_radius_m
-                   * self.launchsite.planet.angular_velocity_rad_per_s)
-
+                   * self.launchsite.planet.angular_velocity_rad_per_s)  # m/s
         launch_azimuth_corr = m.atan2(
                 self.target_velocity * m.sin(launch_azimuth)
                 - v_eqrot * m.cos(self.launchsite.latitude_deg * m.pi / 180),
                 self.target_velocity * m.cos(launch_azimuth)
-        ) / m.pi * 180  # (for deg)
+        ) / m.pi * 180  # deg
 
         launch_azimuth1 = launch_azimuth_corr  # range is -90° - 90° ??
         launch_azimuth2 = (180 - launch_azimuth_corr)  # range is 90° - 270°
+        logger.info("Launch azimuth for AN: %.3f°", launch_azimuth1)
+        logger.info("Launch azimuth for DN: %.3f°", launch_azimuth2)
 
         if self.launchsite.launch_azimuth_range is not None:
 
@@ -291,8 +293,24 @@ class RocketLaunch:
         return target_velocity
 
     def _get_launch_date(self):
-        """ xxx """
+        """
+        cos(i) = cos(φ) * sin(β), where i is
+        the inclination, β is the launch azimuth, and φ is the launch
+        latitude. """
         # TODO: implement
+
+        # alfa - inclination auxiliary variable
+        # delta - launch-window location angle
+        # gamma - launch-direction auxiliary variable, γ,
+        # cos delta = cos(gamma) / sin(alfa)
+
+        # North hemisphere:
+        # LWST_AN = Ω + δ
+        # LWST_DN = Ω + (180º – δ)
+        # South hemisphere:
+        # LWSTAN  = Ω – δ
+        # LWSTDN  = Ω + (180º + δ)
+
         pass
 
     def _check_end_condition_crash(self) -> bool:
@@ -433,10 +451,11 @@ class RocketLaunch:
             #  this is very hard to compensate later with hand-made
             #  thrust-vectoring, so just use 'r_launch' to eliminate offset
             #  from the launch-plane
+            # NOTE: Use time and not dt!
             r_tower = rodrigues_rotation(
                 self.r_launch,
                 np.array([0, 0, 1]),
-                self.launchsite.angular_velocity_rad_per_s * m.pi / 180 * time)  # Not dt!
+                self.launchsite.angular_velocity_rad_per_s * m.pi / 180 * time)
             a_thrust = thrust * unit_vector(r_tower)  # self.r_launch)
             a_drag = - drag * unit_vector(r_tower)
 
@@ -454,7 +473,8 @@ class RocketLaunch:
             v_pitch = rodrigues_rotation(
                     unit_vector(r),
                     self.launch_plane_unit,
-                    (flight_angle + self.flightprogram.pitch_angle) * m.pi / 180)
+                    (flight_angle
+                     + self.flightprogram.pitch_angle) * m.pi / 180)
             a_thrust = thrust * unit_vector(v_pitch)
             a_drag = - drag * unit_vector(v_pitch)
 
