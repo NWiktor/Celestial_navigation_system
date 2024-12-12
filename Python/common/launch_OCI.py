@@ -247,10 +247,14 @@ class RocketLaunch:
                 self.target_velocity * m.cos(launch_azimuth)
         ) / m.pi * 180  # deg
 
+        # TODO: Test out range of launch_azimuth1 and launch_azimuth2
         launch_azimuth1 = launch_azimuth_corr  # range is -90° - 90° ??
         launch_azimuth2 = (180 - launch_azimuth_corr)  # range is 90° - 270°
         logger.info("Launch azimuth for AN: %.3f°", launch_azimuth1)
         logger.info("Launch azimuth for DN: %.3f°", launch_azimuth2)
+
+        # launch_azimuth1 = (launch_azimuth1 + 360) % 360
+        # launch_azimuth2 = (launch_azimuth2 + 360) % 360
 
         if self.launchsite.launch_azimuth_range is not None:
 
@@ -706,7 +710,7 @@ def plot(rocketlaunch: RocketLaunch):
     ax6.set_ylabel('flight angle (°)')
     ax6.set_xlim(0, len(time_data))
     ax6.set_ylim(0, 120)
-    ax6.scatter(time_data, beta_data, s=0.5, color="b")
+    ax6.plot(time_data, beta_data, color="y")
 
     # Plot trajectory in 3D
     # ax5 = fig.add_subplot(2, 2, 4, projection='3d')
