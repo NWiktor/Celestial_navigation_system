@@ -427,23 +427,23 @@ class RocketLaunch:
         pressure_ratio = air_density / self._density_at_surface
         drag_const = self.rocket.drag_constant * air_density / 2
 
-        # Calculate acceleration: gravity and drag
+        # Calculate acceleration: gravity
         a_gravity = (-r * self.launchsite.std_gravitational_parameter
                      / np.linalg.norm(r) ** 3)
-
+        # Calculate acceleration: drag (numeric value only, direction later)
         drag = drag_const * v_rel_skalar ** 2 / mass
 
-        # Calculate acceleration: thrust
+        # Calculate acceleration: thrust (numeric value only, direction later)
         thrust_force = (self.rocket.get_thrust()
                         * self.flightprogram.get_throttle(time))
         thrust = thrust_force / mass
 
         # Orbital parameters
-        # NOTE: flight angle calculation must be corrected for planet rotation,
-        #  so dynamic relative velocity vector must be used.
         # NOTE: flight angle represents the angle between the local zenith, and
         #  the rocket relative velocity vector. It should start from 0°
         #  (vertical flight) to 90° as the rocket reaches orbit.
+        # NOTE: flight angle calculation must be corrected for planet rotation,
+        #  so dynamic relative velocity vector must be used.
         v_rel = self.launchsite.get_relative_velocity_vector(state)
         flight_angle = angle_of_vectors(unit_vector(r), unit_vector(v_rel))
 
@@ -470,8 +470,8 @@ class RocketLaunch:
         # Initial pitch-over maneuver -> Slight offset of thrust from velocity
         elif (self.flightprogram.get_attitude_status(time) ==
                 RocketAttitudeStatus.PITCH_PROGRAM):
-            # NOTE: incrementally rotating the relative velocity vector in the
-            #  orbital plane, to imitate pitch manuever and start gravity assist
+            # NOTE: incrementally rotating the acceleration vector around the
+            #  launch plane normal vector, to imitate pitch manuever
             # TODO: find universally applicable parameters, or implement checks
             #  to set it automatically
             v_pitch = rodrigues_rotation(
@@ -483,7 +483,7 @@ class RocketLaunch:
             a_drag = - drag * unit_vector(v_pitch)
 
         else:  # Gravity assist -> Thrust is parallel with velocity
-            # NOTE: keep velocity vector in launch plane
+            # NOTE: keep acceleration vector in launch plane
             v_pitch = rodrigues_rotation(
                 unit_vector(r),
                 self.launch_plane_unit,
@@ -593,11 +593,12 @@ class RocketLaunch:
                    altitude_above_surface, flight_angle)
 
 
+# TODO: implement this
 class RocketLanding:
     """ xxxx """
 
     def __init__(self):
-        # TODO: use the same with launch but in reverse order
+        # use the same with launch but in reverse order
         pass
 
 
@@ -615,14 +616,14 @@ class LaunchTrajectory3D:
         """ xxxx """
         # return postion at given time, just like the orbit functions
         # if no stable orbit: return launch func
-        # if stable orbit, create orbit and return values from there - to skip iteration
+        # if stable orbit reached, create orbit inst and return values from
+        # there to skip iteration
         return
 
 
 # Main function for module testing
 # pylint: disable = too-many-statements
-# TODO: keep plotting but delete sphere, add new plot for flight angle variation
-#  add option for continous plotting?
+# TODO: add option for continous plotting?
 # TODO: use 3d visualization with ursina
 def plot(rocketlaunch: RocketLaunch):
     """ Plots the given RocketLaunch parameters. """
