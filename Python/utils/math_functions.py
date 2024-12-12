@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 def cross(vec_a: np.array, vec_b: np.array) -> np.array:
     """ Overload function for 'np.cross' because Numpy bug:
-     https://github.com/microsoft/pylance-release/issues/3277#issuecomment-1237782014
+     https://github.com/microsoft/pylance-release/issues/3277
      """
     return np.cross(vec_a, vec_b)
 
