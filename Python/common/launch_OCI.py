@@ -248,7 +248,7 @@ class RocketLaunch:
         ) / m.pi * 180  # (for deg)
 
         launch_azimuth1 = launch_azimuth_corr  # range is -90° - 90° ??
-        launch_azimuth2 = (180 - launch_azimuth_corr) #  range is 90° - 270°
+        launch_azimuth2 = (180 - launch_azimuth_corr)  # range is 90° - 270°
 
         if self.launchsite.launch_azimuth_range is not None:
 
@@ -570,6 +570,7 @@ class RocketLaunch:
 
 
 class RocketLanding:
+    """ xxxx """
 
     def __init__(self):
         # TODO: use the same with launch but in reverse order
@@ -587,7 +588,7 @@ class LaunchTrajectory3D:
         self.no_earlier_date = no_earlier_date
 
     def get_position(self, time):
-        """  """
+        """ xxxx """
         # return postion at given time, just like the orbit functions
         # if no stable orbit: return launch func
         # if stable orbit, create orbit and return values from there - to skip iteration
