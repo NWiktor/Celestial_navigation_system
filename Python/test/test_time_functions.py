@@ -1,4 +1,6 @@
-# pylint: disable = missing-module-docstring
+# -*- coding: utf-8 -*-
+# !/usr/bin/python3
+""" Unittesting time_functions.py """
 import unittest
 from datetime import datetime
 from utils import time_functions as tf
