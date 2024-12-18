@@ -23,6 +23,7 @@ Contents
 # Standard library imports
 import logging
 import math as m
+from abc import ABC, abstractmethod
 import matplotlib.pyplot as plt
 
 # Local application imports
@@ -52,25 +53,29 @@ MarsAthmosphericComposition = Composition([
     Component("Water vapour", 0.03, "H2O")
     ],
     source=["https://en.wikipedia.org/wiki/Atmosphere_of_Mars",
-            "https://www.sciencedirect.com/topics/earth-and-planetary-sciences/martian-atmosphere"])
+            "https://www.sciencedirect.com/topics/earth-and-planetary-sciences/martian-atmosphere"
+            ])
 
 
-class Atmosphere:
-    """ Baseclass for a generic atmospheric model. """
+class Atmosphere(ABC):
+    """ Abstratc baseclass for a generic atmospheric model.
+
+    The subclasses should implement the '_atmospheric model' method. The ABC
+    contains convenience methods for this.
+    """
 
     def __init__(self, model_name: str, atm_upper_limit_m: int):
         self.model_name = model_name
-        self.atm_upper_limit_m = atm_upper_limit_m  # Upper limit
+        self.atm_upper_limit_m = atm_upper_limit_m
         self.composition = None
 
-    # pylint: disable = unused-argument
-    # @override
+    @abstractmethod
     def _atmospheric_model(self, altitude_m) -> tuple[float, float, float]:
         """ Returns the temperature, pressure, density values.
 
-        When the altitude is lass than 0, there is solid ground, no atmosphere;
-        when altitude is above the upper limit, there is space (no pressure, no
-        atmosphere).
+        Altitude 0 represents the lower limit of the atmosphere; below that it
+        is solid ground, or it is otherwise incomprehensible. When altitude is
+        above the upper limit, there is space (no pressure, no atmosphere).
         """
         return 0.0, 0.0, 0.0
 
