@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 # !/usr/bin/python3
-
 """ This module describes the rocket hardware.
 
 Defines a rocket Stage class and a Rocket class, as well as utility classes for
@@ -34,7 +33,7 @@ import math as m
 logger = logging.getLogger(__name__)
 
 
-class RocketEngineStatus(Enum):
+class EngineStatus(Enum):
     """ Describes the status of the rocket engine during liftoff. """
     STAGE_0 = 0
     STAGE_1_BURN = 1
@@ -45,16 +44,6 @@ class RocketEngineStatus(Enum):
     STAGE_3_COAST = 30
     STAGE_4_BURN = 4
     STAGE_4_COAST = 40
-
-
-class RocketAttitudeStatus(Enum):
-    """ Describes the status of the rocket attitude control programs during
-    liftoff.
-    """
-    VERTICAL_FLIGHT = 0
-    ROLL_PROGRAM = 1
-    PITCH_PROGRAM = 2
-    GRAVITY_ASSIST = 3
 
 
 class Stage:
@@ -141,7 +130,7 @@ class Rocket:
 
         self.name = name
         self.stages = stages
-        self._stage_status: RocketEngineStatus = RocketEngineStatus.STAGE_0
+        self._stage_status: EngineStatus = EngineStatus.STAGE_0
 
         # Mass properties
         self._payload_mass_kg = 0.0
@@ -166,10 +155,10 @@ class Rocket:
         self.fairing_mass_kg = 0.0
         return self.get_total_mass_kg()
 
-    def set_stage_status(self, status: RocketEngineStatus):
+    def set_stage_status(self, status: EngineStatus):
         self._stage_status = status
 
-    def get_stage_status(self) -> RocketEngineStatus:
+    def get_stage_status(self) -> EngineStatus:
         return self._stage_status
 
     def set_payload_mass_kg(self, mass_kg: float):
@@ -201,10 +190,10 @@ class Rocket:
         actual staging.
         """
         # TODO: simplify this, by using one statement -> remove if-else
-        if self._stage_status == RocketEngineStatus.STAGE_1_BURN:
+        if self._stage_status == EngineStatus.STAGE_1_BURN:
             return self.stages[0].get_thrust()
 
-        if self._stage_status == RocketEngineStatus.STAGE_2_BURN:
+        if self._stage_status == EngineStatus.STAGE_2_BURN:
             return self.stages[1].get_thrust()
 
         return 0
@@ -216,10 +205,10 @@ class Rocket:
         :param float pressure_ratio: Ratio of sea-level and current pressure.
         """
         # TODO: simplify this, by using one statement -> remove if-else
-        if self._stage_status == RocketEngineStatus.STAGE_1_BURN:
+        if self._stage_status == EngineStatus.STAGE_1_BURN:
             return self.stages[0].get_specific_impulse(pressure_ratio)
 
-        if self._stage_status == RocketEngineStatus.STAGE_2_BURN:
+        if self._stage_status == EngineStatus.STAGE_2_BURN:
             return self.stages[1].get_specific_impulse(pressure_ratio)
 
         # NOTE: when engine is not generating thrust, isp is not valid, but 1
