@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 # !/usr/bin/python3
-
 """ This module contains all relevant class and function for orbit propagation
 around a celestial body. The module calculates the trajectory of a two-stage
 rocket launched from surface in Object-Centered Inertial reference frame (OCI).
@@ -29,127 +28,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Local application imports
-from utils import (secs_to_mins, convert_spherical_to_cartesian_coords,
+from utils import (convert_spherical_to_cartesian_coords,
                    runge_kutta_4, unit_vector, rodrigues_rotation,
                    angle_of_vectors, cross)
-from cls import (LaunchSite, CircularOrbit, Rocket, RocketAttitudeStatus,
-                 RocketEngineStatus, FALCON9)
+from cls import (LaunchSite, CircularOrbit, Rocket,
+                 EngineStatus, FALCON9,
+                 FlightProgram, AttitudeStatus)
 from database import CAPE_TEST, CAPE_CANEVERAL
 
 logger = logging.getLogger(__name__)
-
-
-class RocketFlightProgram:
-    """ Describes the rocket launch program - staging, engine throttling, roll
-    and pitch maneuvers in function of time (seconds) as well as fairing
-    jettison. The class main function is to collect constants and return the
-    status Enums depending on time.
-
-    Example values for LEO: meco: 145 s, stage separation: meco + 3 s,
-    Second engine start-1: meco + 11s,
-    fairing jettison: 195 s (LEO) - 222 s (GTO).
-
-    Example for throttle_program - tuple(list[t], list[y]):
-    t is the list of time-points since launch, and y is the list of throttling
-    factor at the corresponding t values. Outside the given timerange, 1.0
-    (100%) is the default value. Burn duration, staging is not considered!
-    Example: 80% throttling between 34 and 45 seconds after burn. Before and
-    after no throttling (100%) => throttle_map = ([34, 45], [0.8, 0.8])
-
-    :param float meco: Main engine cut-off time in T+seconds.
-    :param float ses_1: Second engine start-1 in T+seconds.
-    :param float seco_1: Second engine cut-off in T+seconds.
-    :param throttle_program: Throttle program: time (s) - throttle (%)
-        value-pairs.
-    :param float fairing_jettison: Time of jettison in T+seconds.
-    :param float pitch_maneuver_start: Time of pitch manuever start in T+seconds.
-    :param float pitch_maneuver_end: Time of pitch manuever end in T+seconds.
-    :param float ss_1: Time of stage separation in T+seconds
-        (default: meco+3 s).
-    :param bool manned: The flight includes humans or not (limits acceleration)
-    """
-    # pylint: disable = too-many-arguments
-    def __init__(self,
-                 meco: float,  # Main (most) engine cut-off
-                 ses_1: float,  # Second engine start-1
-                 seco_1: float,  # Second engine cut-off-1
-                 throttle_program: list[list[float]] | None,
-                 fairing_jettison: float,
-                 pitch_maneuver_start: float = 15,
-                 pitch_maneuver_end: float = 25,
-                 pitch_angle: float = 6.4,
-                 ss_1: float = None,  # Stage separation-1
-                 manned: bool = False
-                 ):
-        # Staging parameters
-        self.meco = meco  # s
-        self.ses_1 = ses_1  # s
-        self.seco_1 = seco_1  # s
-        self.throttle_program = throttle_program  # second - % mapping
-        self.fairing_jettison = fairing_jettison  # s
-        self.manned = manned
-
-        # Stage separation
-        if ss_1 is None:
-            self.ss_1 = meco + 3  # s
-        else:
-            self.ss_1 = ss_1  # s
-
-        # Attitude control
-        self.pitch_maneuver_start = pitch_maneuver_start  # s
-        self.pitch_maneuver_end = pitch_maneuver_end  # s
-        self.pitch_angle = pitch_angle  # deg
-
-        # Log data
-        self._log_rocketflightprogram()
-
-    def get_engine_status(self, t: float) -> RocketEngineStatus:
-        """ Return RocketEngineStatus at a given t time since launch. """
-        if t < self.meco:
-            return RocketEngineStatus.STAGE_1_BURN
-        if self.meco <= t < self.ses_1:
-            return RocketEngineStatus.STAGE_1_COAST
-        if self.ses_1 <= t < self.seco_1:
-            return RocketEngineStatus.STAGE_2_BURN
-
-        return RocketEngineStatus.STAGE_2_COAST
-
-    def get_throttle(self, time: float) -> float:
-        """ Return engine throttling factor (0 - 1) at a given t (s) time
-        since launch.
-        """
-        if self.throttle_program is None:
-            return 1  # If no throttle_program - always use full throttle
-
-        throttle = np.interp(
-            time, self.throttle_program[0], self.throttle_program[1],
-            left=1, right=1
-            )
-        return float(throttle)
-
-    def get_attitude_status(self, t: float) -> RocketAttitudeStatus:
-        """ Return RocketAttitudeStatus at a given t time since launch. """
-        if t < self.pitch_maneuver_start:
-            return RocketAttitudeStatus.VERTICAL_FLIGHT
-        if self.pitch_maneuver_start <= t < self.pitch_maneuver_end:
-            return RocketAttitudeStatus.PITCH_PROGRAM
-
-        return RocketAttitudeStatus.GRAVITY_ASSIST
-
-    def _log_rocketflightprogram(self):
-        """ Print flight program. """
-        logger.info("--- FLIGHT PROFILE DATA ---")
-        logger.info("MAIN ENGINE CUT OFF at T+%s (%s s)",
-                    secs_to_mins(self.meco), self.meco)
-        logger.info("STAGE SEPARATION 1 at T+%s (%s s)",
-                    secs_to_mins(self.ss_1), self.ss_1)
-        logger.info("SECOND ENGINE START 1 at T+%s (%s s)",
-                    secs_to_mins(self.ses_1), self.ses_1)
-        logger.info("PAYLOAD FAIRING JETTISON at T+%s (%s s)",
-                    secs_to_mins(self.fairing_jettison),
-                    self.fairing_jettison)
-        logger.info("SECOND ENGINE CUT OFF 1 at T+%s (%s s)",
-                    secs_to_mins(self.seco_1), self.seco_1)
 
 
 class RocketLaunch:
@@ -165,7 +52,7 @@ class RocketLaunch:
     """
 
     def __init__(self, mission_name: str, rocket: Rocket, payload_mass: float,
-                 flightprogram: RocketFlightProgram,
+                 flightprogram: FlightProgram,
                  target_orbit: CircularOrbit, launchsite: LaunchSite,
                  earliest_launch_date: float = None):
         self.mission_name = mission_name
@@ -418,6 +305,9 @@ class RocketLaunch:
         v = state[3:6]  # Velocity vector
         mass = state[6]  # Mass
 
+        # Get attutude status
+        att_status = self.flightprogram.get_attitude_status(time)
+
         # Calculate flight characteristics at the actual step
         v_rel_skalar = np.linalg.norm(
             self.launchsite.get_relative_velocity_vector(state)
@@ -448,8 +338,7 @@ class RocketLaunch:
         flight_angle = angle_of_vectors(unit_vector(r), unit_vector(v_rel))
 
         # Vertical flight until tower is cleared in non-inertial frame
-        if (self.flightprogram.get_attitude_status(time) ==
-                RocketAttitudeStatus.VERTICAL_FLIGHT):
+        if att_status == AttitudeStatus.VERTICAL_FLIGHT:
             # NOTE: should use dynamic 'r_tower' vector, because launch site is
             #  rotating in the inertial frame with the central body; however
             #  this is very hard to compensate later with hand-made
@@ -468,8 +357,7 @@ class RocketLaunch:
             self._set_launch_plane_normal(r)
 
         # Initial pitch-over maneuver -> Slight offset of thrust from velocity
-        elif (self.flightprogram.get_attitude_status(time) ==
-                RocketAttitudeStatus.PITCH_PROGRAM):
+        elif att_status == AttitudeStatus.PITCH_PROGRAM:
             # NOTE: incrementally rotating the acceleration vector around the
             #  launch plane normal vector, to imitate pitch manuever
             # TODO: find universally applicable parameters, or implement checks
@@ -565,9 +453,9 @@ class RocketLaunch:
             # Burn mass from stage
             # TODO: remove ifs
             stage_status = self.rocket.get_stage_status()
-            if stage_status == RocketEngineStatus.STAGE_1_BURN:
+            if stage_status == EngineStatus.STAGE_1_BURN:
                 self.rocket.stages[0].burn_mass(state_dot[6], time_step)
-            if stage_status == RocketEngineStatus.STAGE_2_BURN:
+            if stage_status == EngineStatus.STAGE_2_BURN:
                 self.rocket.stages[1].burn_mass(state_dot[6], time_step)
 
             # Evaluate staging events, and update statevector with new mass
@@ -754,8 +642,8 @@ def main():
     # TODO: Modelling throttle to 80% properly, and test it
     throttle_map = [[70, 80, 81, 150, 550],
                     [0.8, 0.8, 1.0, 0.88, 0.88]]
-    flight_program = RocketFlightProgram(145, 156, 514,
-                                         throttle_map, 195)
+    flight_program = FlightProgram(145, 156, 514,
+                                   throttle_map, 195)
     targetorbit = CircularOrbit(310 + 6_378, 51.6, -45,
                                 90,
                                 0)
