@@ -1,11 +1,12 @@
-# pylint: disable = missing-module-docstring
+# -*- coding: utf-8 -*-
+# !/usr/bin/python3
+""" Unittesting atmosphere.py """
 import unittest
 from cls import EarthAtmosphereUS1976
 
 
-# pylint: missing-class-docstring
 class TestEarthAtmosphereUS1976(unittest.TestCase):
-
+    """ Testing EarthAtmosphereUS1976 class. """
     @classmethod
     def setUpClass(cls):
         cls.atm = EarthAtmosphereUS1976()
