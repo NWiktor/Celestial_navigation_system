@@ -58,16 +58,16 @@ MarsAthmosphericComposition = Composition([
 
 
 class Atmosphere(ABC):
-    """ Abstratc baseclass for a generic atmospheric model.
+    """ Abstract baseclass for a generic atmospheric model.
 
-    The subclasses should implement the '_atmospheric model' method. The ABC
-    contains convenience methods for this.
+    All subclass should implement the '_atmospheric model' method. The ABC
+    contains concrete convenience methods for this.
     """
 
     def __init__(self, model_name: str, atm_upper_limit_m: int):
         self.model_name = model_name
         self.atm_upper_limit_m = atm_upper_limit_m
-        self.composition = None
+        self._composition = None
 
     @abstractmethod
     def _atmospheric_model(self, altitude_m) -> tuple[float, float, float]:
@@ -99,11 +99,51 @@ class Atmosphere(ABC):
 
     def set_composition(self, composition: Composition) -> None:
         """ Sets the chemical composition of the atmosphere. """
-        self.composition = composition
+        self._composition = composition
 
     def get_composition(self) -> Composition:
         """ Returns the chemical composition of the atmosphere. """
-        return self.composition
+        return self._composition
+
+    def plot(self, resolution_m: int = 20) -> None:
+        """ Plot pressure, temperature and density data of the given model
+        against altitude, primarily to verify the model data.
+        """
+        alt, tmp, pres, rho = [], [], [], []
+        for i in range(0, int(self.atm_upper_limit_m), resolution_m):
+            data = self.get_atm_params(i)
+            alt.append(i)
+            tmp.append(data[0])
+            pres.append(data[1])
+            rho.append(data[2])
+
+        # Plotting
+        plt.style.use('_mpl-gallery')
+
+        fig = plt.figure(layout='tight', figsize=(19, 9.5))
+        fig.suptitle(f"Atmospheric parameters ({self.model_name})")
+        ax1 = fig.add_subplot(2, 2, 1)
+        ax1.set_title("Temperature")
+        ax1.set_xlabel('altitude (m)')
+        ax1.set_ylabel('temperature (K)', color="m")
+        ax1.plot(alt, tmp, color="m")
+        ax1.tick_params(axis='y', labelcolor="m")
+
+        ax2 = fig.add_subplot(2, 2, 2)
+        ax2.set_title("Pressure")
+        ax2.set_xlabel('altitude (m)')
+        ax2.set_ylabel('pressure (kPa)', color="b")
+        ax2.plot(alt, pres, color="b")
+        ax2.tick_params(axis='y', labelcolor="b")
+
+        ax3 = fig.add_subplot(2, 2, 3)
+        ax3.set_title("Atmospheric density")
+        ax3.set_xlabel('altitude (m)')
+        ax3.set_ylabel('atmospheric density (kg/m3)', color="g")
+        ax3.plot(alt, rho, color="g")
+        ax3.tick_params(axis='y', labelcolor="g")
+
+        plt.show()
 
 
 class EarthAtmosphere(Atmosphere):
@@ -257,56 +297,11 @@ class MarsAtmosphere(Atmosphere):
         return temp_kelvin, pressure_kpa, air_density
 
 
-def plot_atmosphere(model: Atmosphere):
-    """ Plot pressure, temperature and density data of the given model,
-    to check its validity.
-    """
-
-    alt = []
-    tmp = []
-    pres = []
-    rho = []
-    for i in range(1, int(model.atm_upper_limit_m/10 * 1.1)):
-        data = model.get_atm_params(i * 10)
-        alt.append(i*10)
-        tmp.append(data[0])
-        pres.append(data[1])
-        rho.append(data[2])
-
-    # Plotting
-    plt.style.use('_mpl-gallery')
-
-    fig = plt.figure(layout='tight', figsize=(19, 9.5))
-    fig.suptitle(f"Atmospheric parameters ({model.model_name})")
-    ax1 = fig.add_subplot(2, 2, 1)
-    ax1.set_title("Temperature")
-    ax1.set_xlabel('altitude (m)')
-    ax1.set_ylabel('temperature (K)', color="m")
-    ax1.plot(alt, tmp, color="m")
-    ax1.tick_params(axis='y', labelcolor="m")
-
-    ax2 = fig.add_subplot(2, 2, 2)
-    ax2.set_title("Pressure")
-    ax2.set_xlabel('altitude (m)')
-    ax2.set_ylabel('pressure (kPa)', color="b")
-    ax2.plot(alt, pres, color="b")
-    ax2.tick_params(axis='y', labelcolor="b")
-
-    ax3 = fig.add_subplot(2, 2, 3)
-    ax3.set_title("Atmospheric density")
-    ax3.set_xlabel('altitude (m)')
-    ax3.set_ylabel('atmospheric density (kg/m3)', color="g")
-    ax3.plot(alt, rho, color="g")
-    ax3.tick_params(axis='y', labelcolor="g")
-
-    plt.show()
-
-
 # Include guard
 if __name__ == '__main__':
-    plot_atmosphere(EarthAtmosphere())
-    # plot_atmosphere(EarthAtmosphereUS1976())
-    # plot_atmosphere(MarsAtmosphere())
+    # EarthAtmosphere().plot()
+    EarthAtmosphereUS1976().plot()
+    # MarsAtmosphere().plot()
     # for comp in MarsAthmosphericComposition.get_composition():
     #    print(comp)
     # plot_atmosphere(MarsAtmosphere())
