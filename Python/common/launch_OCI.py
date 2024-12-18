@@ -516,30 +516,16 @@ class LaunchTrajectory3D:
 def plot(rocketlaunch: RocketLaunch):
     """ Plots the given RocketLaunch parameters. """
     # Launch
-    time_data = []
-    alt_data = []
-    rx = []
-    ry = []
-    rz = []
-    vx = []
-    vy = []
-    vz = []
-    vel_data = []
-    acc_data = []
-    mass_data = []
-    beta_data = []
+    time_data, state_data, alt_data, vel_data, acc_data = [], [], [], [], []
+    mass_data, beta_data = [], []
+
     cbsr = rocketlaunch.launchsite.radius_m
     plot_title = (f"{rocketlaunch.mission_name} launch from"
                   f" {rocketlaunch.launchsite.name}")
 
     for time, state, acc, _, beta in rocketlaunch.launch(550, 1):
         time_data.append(time)
-        rx.append(state[0])
-        ry.append(state[1])
-        rz.append(state[2])
-        vx.append(state[3])
-        vy.append(state[4])
-        vz.append(state[5])
+        state_data.append(state)
         alt_data.append((np.linalg.norm(state[0:3]) - cbsr) / 1000)  # Alt. - km
         vel_data.append(np.linalg.norm(state[3:6]))  # Velocity - m/s
         acc_data.append(np.linalg.norm(acc) / 9.82)  # Acceleration - g
