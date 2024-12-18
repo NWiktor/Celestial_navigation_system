@@ -17,8 +17,8 @@ Contents
 # Standard library imports
 # First import should be the logging module if any!
 import logging
-import numpy as np
 from enum import Enum
+import numpy as np
 from cls import EngineStatus
 from utils import secs_to_mins
 

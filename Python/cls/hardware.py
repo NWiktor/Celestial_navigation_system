@@ -24,8 +24,8 @@ Contents
 import logging
 from typing import Union, Any
 from enum import Enum
-import numpy as np
 import math as m
+import numpy as np
 
 # Local application imports
 
@@ -156,9 +156,11 @@ class Rocket:
         return self.get_total_mass_kg()
 
     def set_stage_status(self, status: EngineStatus):
+        """ Set stage engine status. """
         self._stage_status = status
 
     def get_stage_status(self) -> EngineStatus:
+        """ Get stage engine status. """
         return self._stage_status
 
     def set_payload_mass_kg(self, mass_kg: float):

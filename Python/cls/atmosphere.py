@@ -70,7 +70,7 @@ class Atmosphere(ABC):
         self._composition = None
 
     @abstractmethod
-    def _atmospheric_model(self, altitude_m) -> tuple[float, float, float]:
+    def _atmospheric_model(self, alt_m) -> tuple[float, float, float]:
         """ Returns the temperature, pressure, density values.
 
         Altitude 0 represents the lower limit of the atmosphere; below that it

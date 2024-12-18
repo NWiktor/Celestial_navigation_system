@@ -92,9 +92,9 @@ class RocketLaunch:
         """
         if (self.target_orbit.radius_km * 1000 <=
                 self.launchsite.planet.surface_radius_m):
-            logger.error(f"ERROR: orbit radius"
-                         f"({self.target_orbit.radius_km:.3f} km) is smaller "
-                         f"than surface radius!")
+            logger.error("ERROR: orbit radius (%.3f km) is smaller "
+                         "than surface radius!",
+                         self.target_orbit.radius_km)
             raise ValueError
 
         logger.info("Orbit radius: %.3f km", self.target_orbit.radius_km)
@@ -136,7 +136,7 @@ class RocketLaunch:
 
         # TODO: Test out range of launch_azimuth1 and launch_azimuth2
         launch_azimuth1 = launch_azimuth_corr  # range is -90° - 90° ??
-        launch_azimuth2 = (180 - launch_azimuth_corr)  # range is 90° - 270°
+        launch_azimuth2 = 180 - launch_azimuth_corr  # range is 90° - 270°
         logger.info("Launch azimuth for AN: %.3f°", launch_azimuth1)
         logger.info("Launch azimuth for DN: %.3f°", launch_azimuth2)
 
@@ -153,15 +153,15 @@ class RocketLaunch:
             #     end_lim += 360
 
             if not start_lim <= launch_azimuth1 <= end_lim:
-                logger.warning(f"WARNING: Launch azimuth for ascending node "
-                               f"({launch_azimuth1:.3f}°) "
-                               "is out of permitted range!")
+                logger.warning("WARNING: Launch azimuth for ascending "
+                               "node (%.3f°) is out of permitted range!",
+                               launch_azimuth1)
             self.launch_azimuth[0] = launch_azimuth1
 
             if not start_lim <= launch_azimuth2 <= end_lim:
-                logger.warning(f"WARNING: Launch azimuth for descending node "
-                               f"({launch_azimuth2:.3f}°) "
-                               "is out of permitted range!")
+                logger.warning("WARNING: Launch azimuth for descending "
+                               "node (%.3f°) is out of permitted range!",
+                               launch_azimuth2)
             self.launch_azimuth[1] = launch_azimuth2
 
             if (self.launch_azimuth[0] is None and
@@ -202,12 +202,10 @@ class RocketLaunch:
         # LWSTAN  = Ω – δ
         # LWSTDN  = Ω + (180º + δ)
 
-        pass
-
     def _check_end_condition_crash(self) -> bool:
         """ Calculates altitude from planet surface, if it's negative, crash
         has been occured. """
-        altitude = (np.linalg.norm(self.state[0:3]) - self.launchsite.radius_m)
+        altitude = np.linalg.norm(self.state[0:3]) - self.launchsite.radius_m
         if altitude <= 0:
             logger.warning("WARNING! LITHOBRAKING!")
             return True
@@ -220,7 +218,7 @@ class RocketLaunch:
         """
         r_current = np.linalg.norm(self.state[0:3])
         v_current = np.linalg.norm(self.state[3:6])
-        altitude_m = (r_current - self.launchsite.radius_m)
+        altitude_m = r_current - self.launchsite.radius_m
         # flight_angle_deg = angle_of_vectors(
         #     unit_vector(self.state[0:3]),
         #     unit_vector(self.state[3:6])
@@ -234,14 +232,14 @@ class RocketLaunch:
 
         # If radius and velocity is close to target orbit:
         if abs(delta_r) <= limit_r and abs(delta_v) <= limit_v:
-            logger.info(f"Targeted orbit reached at %.3f m, %.3f m/s",
+            logger.info("Targeted orbit reached at %.3f m, %.3f m/s",
                         altitude_m, v_current)
             return True
 
         # If radius is bigger than target orbit, but close to circular r-v pair
         delta_v2 = self._get_target_velocity(r_current) - v_current
         if delta_r <= 0 and abs(delta_v2) <= limit_v:
-            logger.info(f"Stable orbit reached at %.3f m, %.3f m/s",
+            logger.info("Stable orbit reached at %.3f m, %.3f m/s",
                         altitude_m, v_current)
             return True
 
@@ -442,13 +440,12 @@ class RocketLaunch:
             )
 
             # Logging variables
-            logger.info(f"--- TIMESTEP: T+{time_step} s ---")
-            # print(f"--- TIMESTEP: T+{time_step} s ---")
-            logger.info(f"Relative velocity vector: {v_rel} m/s")
-            logger.info(f"Current inclination: {inclination_current:.3f}°")
-            logger.info(f"Flight angle: {flight_angle:.3f}°")
-            logger.info(f"Angle between accelaration and launch "
-                        f"plane: {acc_deviation:.3f}°")
+            logger.info("--- TIMESTEP: T+%s s ---", time_step)
+            logger.info("Relative velocity vector: %s m/s", v_rel)
+            logger.info("Current inclination: %.3f°", inclination_current)
+            logger.info("Flight angle: %.3f°", flight_angle)
+            logger.info("Angle between accelaration and launch "
+                        "plane: %.3f°", acc_deviation)
 
             # Burn mass from stage
             # TODO: remove ifs
@@ -466,7 +463,7 @@ class RocketLaunch:
 
             # Log new data and end-conditions
             r_current = np.linalg.norm(self.state[0:3])
-            altitude_above_surface = (r_current - self.launchsite.radius_m)
+            altitude_above_surface = r_current - self.launchsite.radius_m
 
             if self._check_end_condition_crash():
                 break

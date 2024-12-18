@@ -76,6 +76,7 @@ class SpectralClass:
 
     @property
     def rel_temp(self):
+        """ Returns relative temperature. """
         return self._rel_temp
 
     @rel_temp.setter
@@ -90,6 +91,7 @@ class SpectralClass:
 
 
 class Star(CelestialBody):
+    """ Star class. """
     def __init__(self, *args, std_gravity: float, surface_radius_m: float,
                  spectral_class: list[SpectralClass | tuple[SpectralClass]]):
         super().__init__(*args)
