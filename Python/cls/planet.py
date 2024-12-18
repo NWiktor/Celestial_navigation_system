@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 # !/usr/bin/python3
-
 """ Planet class inherited from CelestialBody class for representing planets
 and planetary-mass moons (i.e. Moon).
 

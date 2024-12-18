@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 # !/usr/bin/python3
-
 """ Class for describing a Keplerian orbit.
 
 Libs
@@ -30,7 +29,7 @@ import numpy as np
 # Local application imports
 
 # Class initializations and global variables
-gravitational_constant = 6.67430e-11  # m^3 kg^-1 s^-2
+GRAVITATIONAL_CONSTANT = 6.67430e-11  # m^3 kg^-1 s^-2
 
 
 # Class and function definitions
@@ -96,7 +95,7 @@ class KeplerOrbit:
         # Converting km to m in semimajor axis, and convert seconds to days
         self.orbital_period = 2 * m.pi * m.sqrt(
             pow(self.semimajor_axis_km * 1000, 3)
-            / ((mass1_kg + mass2_kg) * gravitational_constant)) / 86400
+            / ((mass1_kg + mass2_kg) * GRAVITATIONAL_CONSTANT)) / 86400
         logging.debug("Orbital period is %s", self.orbital_period)
         self._calculate_mean_angular_motion()
 
