@@ -9,6 +9,7 @@ class TestEarthAtmosphereUS1976(unittest.TestCase):
     """ Testing EarthAtmosphereUS1976 class. """
     @classmethod
     def setUpClass(cls):
+        """ Setting up class before testing. """
         cls.atm = EarthAtmosphereUS1976()
 
     def test_tempretatures(self):
